@@ -1,0 +1,102 @@
+{
+  "scenario_id": "aplo-p2-2026",
+  "position": "Associate Policy Officer (Legal) (P2)",
+  "organisation": "International Digital Services Centre (IDSC), Geneva",
+  "total_marks": 100,
+  "task1": {
+    "title": "Commercial Contract Review — Meridian MSA Redline",
+    "max_marks": 50,
+    "categories": {
+      "technical": {
+        "max": 28,
+        "description": "Identification of material legal issues in Meridian's redlined MSA, correct characterisation of the risk, and a defensible recommended position. Reward candidates who identify the issue and argue a defensible position, even where the position differs from the expected one.",
+        "embedded_issues": [
+          { "id": "governing_law_delaware", "title": "Governing law and dispute resolution pinned to Delaware state/federal courts — vitiates UN immunity", "max_marks": 5, "expected": "Revert to UNCITRAL Arbitration Rules (or equivalent neutral forum). Include an express non-waiver of IDSC's privileges and immunities. Must-have, not negotiable — submission to national jurisdiction requires DG-level authorisation which has not been given." },
+          { "id": "data_controller_secondary_use", "title": "Meridian named as Data Controller with rights to process UN data for service improvement, telemetry and analytics; weak sub-processor controls", "max_marks": 5, "expected": "Invert the controller/processor designation — partners (and IDSC on their behalf) remain controllers; Meridian is a processor on strict instructions. Strike the secondary-use rights. Sub-processors: require standard contractual clauses, transfer impact assessment where jurisdictions lack adequacy, change notification with veto, per-sub-processor accountability." },
+          { "id": "ip_assignment_and_gpl", "title": "IP clause vests all IDSC configurations and derivatives in Meridian; GPL-licensed libraries embedded in Meridian's binary raise copyleft compatibility questions", "max_marks": 4, "expected": "Custom configurations for IDSC must not vest in Meridian (vendor lock-in risk). IDSC owns customisations or receives a perpetual irrevocable licence. Separately, obtain Meridian's written confirmation of GPL compliance, including whether and how its distribution triggers copyleft obligations and whether IDSC's onward provision to partners is within scope." },
+          { "id": "liability_cap_and_carveouts", "title": "12-month liability cap with blanket exclusion of consequential, reputational, and data-breach damages", "max_marks": 4, "expected": "Cap too low for a service deployed across 28 partners. Insist on carve-outs (or a super-cap) for: breach of data protection, breach of confidentiality, IP indemnity, gross negligence, wilful misconduct. Data-breach liability should be uncapped or subject to a materially higher separate cap." },
+          { "id": "force_majeure_export_controls", "title": "Force majeure includes 'changes in export control regulations' with Meridian's unilateral suspension right", "max_marks": 3, "expected": "Identify this as a back-door for compliance with US sanctions affecting UN partners in sensitive jurisdictions. Require: notice, mitigation obligations, IDSC step-in and data portability rights, no unilateral suspension without written IDSC consent. Escalation to the DG if triggered." },
+          { "id": "audit_rights_restricted", "title": "Audit restricted to Meridian-approved auditors, 24-month frequency, sub-processors out of scope", "max_marks": 4, "expected": "IDSC must appoint its own auditors (including UN Board of Auditors). Right-to-audit on cause (post-incident) independent of frequency cap. Sub-processors in scope — consistent with data-protection chain of accountability. Proportionality language acceptable; vendor-approval right not." },
+          { "id": "pni_and_tax_exemption", "title": "No P&I preservation clause; taxes clause requires IDSC to reimburse Meridian for VAT, withholding and similar taxes", "max_marks": 3, "expected": "Preserve IDSC's status and immunities under the 1946 Convention on the Privileges and Immunities of the United Nations via an express clause. Amend taxes clause to recognise IDSC's tax-exempt status — Meridian invoices net of indirect taxes, or IDSC uses exemption certificates. This is non-negotiable." }
+        ]
+      },
+      "investigation_quality": {
+        "max": 10,
+        "description": "How systematically and effectively the candidate used the IDSC Legal Knowledge System.",
+        "indicators": [
+          "Asks for diffs between IDSC's standard template clauses and Meridian's redline rather than reading the document cold",
+          "Retrieves source instrument text when it matters (1946 Convention, UNCITRAL Arbitration Rules, standard contractual clauses, UN Model Contract clauses)",
+          "Probes sub-processor list against jurisdictional adequacy rather than accepting the list at face value",
+          "Checks open-source licence compatibility via the system rather than guessing",
+          "Cross-references schedules against main clauses to spot inconsistencies (e.g., Schedule B entries not referenced in Schedule A scope)",
+          "Recognises that the LKS is a passive knowledge system and frames questions accordingly — does not ask 'find me the problems' but directs the enquiry"
+        ]
+      },
+      "professional_skills": {
+        "max": 12,
+        "description": "Quality of the legal review memo to the Senior Policy Officer (Legal).",
+        "indicators": [
+          "Follows the (i) issue and risk, (ii) clause reference, (iii) recommended position, (iv) firmness-in-negotiation structure",
+          "Prioritises by legal materiality, not order of discovery",
+          "Clearly distinguishes must-have issues from negotiable positions",
+          "Clause references are precise (clause number / schedule item)",
+          "Tone is junior briefing senior — no lecturing, no deference, no hedging beyond what the law allows",
+          "Writing is concise; prose serves the reader under time pressure",
+          "Acknowledges judgmental areas rather than asserting single answers on genuinely contestable points"
+        ]
+      }
+    }
+  },
+  "task2": {
+    "title": "AI / Cloud Procurement Risk Advisory — Nexus Cognitive Systems",
+    "max_marks": 50,
+    "categories": {
+      "technical": {
+        "max": 15,
+        "description": "Identification of the five embedded legal risks in the Nexus draft. Reward candidates who identify the issue and argue a defensible position, even where the position differs from the expected one.",
+        "embedded_issues": [
+          { "id": "nexus_training_data_ip", "title": "Nexus ToS grants a perpetual worldwide licence to inputs and outputs for model training and benchmarking unless Enterprise Privacy Edition is opted in; the SOW does not opt in. Deal-breaker.", "max_marks": 4, "expected": "Identify as a deal-breaker. UN inputs include confidential partner operational data and privileged matter — cannot permit Nexus to train on them. Invert the clause: no training on UN inputs, no benchmarking, no cross-customer retention beyond session. Output IP vests in IDSC/partners. Upgrade to Enterprise Privacy Edition (confirm cost impact) or negotiate equivalent bespoke terms." },
+          { "id": "nexus_data_transfer_rag", "title": "US data processing with EU failover, no SCCs, retrieval-augmented generation with cross-customer data-sharing unless Enterprise tier", "max_marks": 3, "expected": "Identify the international transfer risk: UN partner data out of the EU without SCCs and transfer impact assessment breaches partners' data protection commitments. Require SCCs + TIA + explicit prohibition on cross-customer RAG contamination. Data residency option preferred if available." },
+          { "id": "nexus_output_liability_ip", "title": "Nexus excludes liability for accuracy/completeness/suitability of outputs; no third-party IP indemnity for AI outputs", "max_marks": 3, "expected": "Accuracy exclusion is a governance hole for a staff productivity tool informing operational decisions — require contractual acknowledgment by Nexus that known failure modes exist, plus user-facing disclaimers in the product. IP indemnity for outputs is Tier-1 AI vendor standard; demand it." },
+          { "id": "nexus_incident_notification", "title": "72h incident notification from Nexus's 'confirmation' (not detection); no direct partner notification; no independent security audit right", "max_marks": 2, "expected": "Notification clock must start on detection. Preserve IDSC's right to onward-notify partners directly or at least to be the timely conduit. Right to independent audit of AI security posture, including sub-processors." },
+          { "id": "nexus_jams_class_waiver_regulatory", "title": "JAMS Delaware arbitration + class-action waiver + 'Regulatory Change' unilateral suspension right. Deal-breaker.", "max_marks": 3, "expected": "JAMS Delaware vitiates IDSC immunity (same core issue as Task 1 but more acute given deal size). Class-action waiver is irrelevant to IDSC but signals boilerplate posture. Regulatory-change clause is a sanctions kill-switch that could cut UN partners in sensitive jurisdictions — unacceptable for a service designed to support UN operations globally. Require: neutral arbitration, express non-waiver of P&I, removal of unilateral suspension right." }
+        ]
+      },
+      "investigation_quality": {
+        "max": 10,
+        "description": "Use of the IDSC Legal Knowledge System to pressure-test the draft.",
+        "indicators": [
+          "Retrieves the full text of Nexus's contested clauses rather than relying on the junior lawyer's summary",
+          "Benchmarks Nexus's AI terms against comparable AI-vendor clauses via the system",
+          "Pulls the 1946 Convention text on immunities when the JAMS Delaware issue surfaces",
+          "Retrieves the communications timeline and recomputes what is recoverable within the 10-day signing window",
+          "Asks targeted questions about whether Enterprise Privacy Edition changes the contractual position (and at what cost implication)",
+          "Cross-references Nexus's Data Processing Schedule against the Statement of Work for inconsistencies"
+        ]
+      },
+      "judgment": {
+        "max": 15,
+        "description": "Handling the political dimension. The DG has publicly committed three times to a deal the candidate now knows cannot be signed as drafted. This is the test of professional courage, stakeholder navigation, and decision under uncertainty.",
+        "rubric": {
+          "13-15": "Recognises the situation: the DG has publicly committed to something that cannot be delivered in its current form. Recommends a clear path — legal conversation with the DG BEFORE her next public exposure; three options rather than an ultimatum (full renegotiation with delay, ring-fenced pilot, pause and re-tender); a recommended option that preserves the Q2 date in a narrower/pilot form; language the DG can use to reframe rather than recant. Acknowledges political reality without flinching from the professional obligation. Distinguishes options the candidate would advise vs decisions for the DG / Senior Policy Officer.",
+          "9-12": "Recognises the problem but recommendation is partial — either too timid (suggests monitoring or deferring the conversation to a later quarterly update) or too blunt (recommends public retraction without considering reputational mechanics or alternatives).",
+          "5-8": "Identifies the legal risks competently but treats the deal as a pure contract-negotiation issue, missing the political dimension. Assumes Nexus will accept renegotiation without flagging the DG's public position or timeline.",
+          "0-4": "Endorses the deal with minor redlines because the DG has committed to it; fails to identify issue 1 (training data) or issue 5 (JAMS + regulatory-change) as blockers; aligns with the political narrative at the expense of legal integrity."
+        }
+      },
+      "professional_skills": {
+        "max": 10,
+        "description": "Memo quality, practical recommendations, tone appropriate for senior management.",
+        "indicators": [
+          "Structured around the four asks (a)–(d) the Senior Policy Officer set out",
+          "Distinguishes findings from recommendations",
+          "Sequences recommendations (what first, what next, what can wait)",
+          "Names the blockers explicitly and separately from negotiable positions",
+          "Proposes a defensible 48-hour plan with concrete actions and owners",
+          "Tone is candid but supportive of the Senior Policy Officer — not lecturing, not deferential",
+          "References stakeholder impact (DG, Chief of Cabinet, partners, Nexus counterparty)"
+        ]
+      }
+    }
+  }
+}

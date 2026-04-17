@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nexus Cognitive Systems — Legal Review Briefing Pack</title>
+<style>
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    color: #1B2A4A;
+    margin: 0;
+    padding: 0;
+    line-height: 1.55;
+    background: #ffffff;
+  }
+  .doc {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 1.6rem 2rem 4rem;
+  }
+  header.cover {
+    border-bottom: 4px solid #1B2A4A;
+    padding-bottom: 1rem;
+    margin-bottom: 1.6rem;
+  }
+  header.cover .org { font-size: .85rem; color: #4B92DB; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  header.cover h1 { font-size: 1.55rem; margin: .2rem 0 .3rem; color: #1B2A4A; }
+  header.cover .sub { color: #555; font-size: .95rem; }
+  header.cover .pill { display:inline-block; background:#fbe9c0; color:#7a5400; border-radius:4px; padding:.15rem .55rem; font-size:.78rem; margin-left:.5rem; vertical-align:middle; }
+  header.cover .pill.red { background:#fadada; color:#7c1b1b; }
+
+  h2 { color: #1B2A4A; font-size: 1.15rem; margin-top: 1.8rem; padding-bottom: .25rem; border-bottom: 2px solid #4B92DB; }
+  h3 { color: #1B2A4A; font-size: .98rem; margin-top: 1.2rem; }
+  h4 { color: #4B92DB; font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; margin-top: .9rem; margin-bottom: .3rem; }
+
+  .cover-note {
+    background: #fffaf0;
+    border-left: 4px solid #e3b34b;
+    padding: .9rem 1.1rem;
+    margin: 0 0 1.8rem;
+    font-size: .92rem;
+  }
+  .cover-note .from { font-size: .82rem; color: #7a5400; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .4rem; font-weight: 600; }
+  .cover-note p { margin: .35rem 0; }
+  .cover-note .sig { margin-top: .7rem; color: #555; font-size: .87rem; }
+
+  .clause {
+    margin: .7rem 0 1.1rem;
+    padding: .1rem 0 .1rem 1.2rem;
+    border-left: 3px solid #eef3f9;
+  }
+  .clause.material { border-left-color: #c7d6e8; }
+  .clause p { margin: .35rem 0; }
+  .clause .cnum { color: #4B92DB; font-weight: 600; margin-right: .3rem; }
+
+  .tag-flag { display:inline-block; background:#fff1cd; color:#7a5400; border:1px solid #e3b34b; border-radius:3px; padding:.05rem .35rem; font-size:.72rem; margin-left:.5rem; vertical-align:middle; letter-spacing:.04em; text-transform:uppercase; font-weight:600; }
+
+  .highlight { background: #fff3bf; padding: 0 .15rem; border-radius: 2px; }
+
+  .meta-grid { display: grid; grid-template-columns: 200px 1fr; gap: .3rem 1rem; font-size: .92rem; margin-bottom: 1rem; }
+  .meta-grid dt { color: #555; }
+  .meta-grid dd { margin: 0; color: #1B2A4A; }
+
+  .timeline { border-left: 3px solid #4B92DB; padding-left: 1.2rem; margin: 1rem 0; }
+  .timeline .event { margin-bottom: 1.3rem; position: relative; }
+  .timeline .event::before { content: ""; position: absolute; left: -1.53rem; top: .45rem; width: 12px; height: 12px; background: #4B92DB; border-radius: 50%; border: 2px solid #fff; }
+  .timeline .date { font-size: .82rem; color: #4B92DB; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .timeline .who { font-weight: 600; font-size: .95rem; color: #1B2A4A; }
+  .timeline .quote { background: #f6f9fd; border-left: 3px solid #c7d6e8; padding: .45rem .7rem; margin: .4rem 0; font-style: italic; font-size: .92rem; color: #333; }
+  .timeline .audience { font-size: .85rem; color: #555; }
+
+  table { width: 100%; border-collapse: collapse; margin: .6rem 0 1rem; font-size: .92rem; }
+  th, td { padding: .35rem .55rem; vertical-align: top; }
+  thead th { background: #eef3f9; color: #1B2A4A; text-align: left; border-bottom: 1px solid #c7d6e8; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+  tbody td { border-bottom: 1px solid #f0f3f7; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; margin: .9rem 0 1rem; }
+  .kpi { background: #f6f9fd; border: 1px solid #dbe5f1; border-radius: 4px; padding: .55rem .75rem; }
+  .kpi .label { font-size: .78rem; color: #4B92DB; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .kpi .value { font-size: 1.1rem; font-weight: 600; color: #1B2A4A; margin-top: .25rem; }
+
+  .section-card {
+    background: #fafbfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 1rem 1.2rem;
+    margin-top: 1.4rem;
+  }
+  .section-card h3 { margin-top: 0; }
+
+  .risk-table td { font-size: .9rem; }
+  .risk-table .low { color: #1e5228; font-weight: 600; }
+  .risk-table .med { color: #7a5400; font-weight: 600; }
+  .risk-table .high { color: #7c1b1b; font-weight: 600; }
+
+  .note-callout {
+    background: #fff8e6;
+    border-left: 4px solid #e3b34b;
+    padding: .55rem .85rem;
+    margin: .8rem 0;
+    font-size: .88rem;
+    color: #5c4a14;
+  }
+
+  footer.doc-footer {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d6dee9;
+    color: #888; font-size: .8rem;
+  }
+
+  p { margin: .5rem 0; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cover">
+  <div class="org">International Digital Services Centre · Legal and Policy Unit</div>
+  <h1>Legal Review Briefing Pack
+    <span class="pill">PRE-SIGNATURE</span>
+    <span class="pill red">10 WORKING DAYS TO SIGN</span>
+  </h1>
+  <div class="sub">Nexus Cognitive Systems Inc. · "UN AI Assistant" · Definitive agreement pending · Prepared for the Senior Policy Officer (Legal)</div>
+</header>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="label">Contract term</div>
+    <div class="value">5 years</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Committed value</div>
+    <div class="value">USD 18m</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Scope</div>
+    <div class="value">IDSC + 28 partners</div>
+  </div>
+</div>
+
+<div class="cover-note">
+  <div class="from">Junior lawyer cover note — 24 January 20X6</div>
+  <p>I've done a first-pass review of the Nexus draft and have tagged three areas that caught my eye but I don't have the experience to judge materiality.</p>
+  <p>(1) The training-data clause (clause 4) — looks like Nexus retains broad rights over our inputs. (2) The incident notification clause (clause 12) — the 72-hour clock seems to start late. (3) The applicable-law / suspension clause (clause 18) — the JAMS Delaware forum and the regulatory-change provision looked unusual.</p>
+  <p>I haven't looked carefully at the data transfer position (clause 6) or the output-liability clause (clause 9). Flagging for the Senior Policy Officer or an Associate (Legal) to pick up.</p>
+  <div class="sig">— E. Arenas, Junior Legal Officer</div>
+</div>
+
+<h2>1. Deal summary</h2>
+<dl class="meta-grid">
+  <dt>Vendor</dt><dd>Nexus Cognitive Systems Inc. (US HQ San Francisco, EU subsidiary in Amsterdam)</dd>
+  <dt>Service</dt><dd>Enterprise generative-AI staff productivity platform ("UN AI Assistant")</dd>
+  <dt>Term</dt><dd>5 years from Effective Date</dd>
+  <dt>Committed value</dt><dd>approximately USD 18,000,000 total (USD 3.6m per annum average)</dd>
+  <dt>Scope</dt><dd>IDSC internal deployment + opt-in availability to 28 UN partner organisations</dd>
+  <dt>Target users</dt><dd>initial 2,400 IDSC staff; target 15,000 UN system users within 18 months</dd>
+  <dt>Deployment</dt><dd>SaaS. Primary US processing; EU failover. "Enterprise Privacy Edition" available at additional cost (not elected in current SOW)</dd>
+  <dt>Go-live target</dt><dd>1 April of the coming year (Q2) — per SOW and DG public statements</dd>
+  <dt>Status</dt><dd>Procurement closed 14 days ago · Heads of Terms signed · Definitive agreement due to sign in 10 working days</dd>
+</dl>
+
+<h2>2. Nexus Standard Generative AI Terms of Service — key clauses</h2>
+
+<p>The following are extracted verbatim from the Nexus draft. The junior lawyer has flagged clauses 4, 12 and 18; clauses 6 and 9 are not flagged but reproduced in full.</p>
+
+<h3>Clause 4 — Training and Benchmarking <span class="tag-flag">Flagged</span></h3>
+<div class="clause material">
+  <p><span class="cnum">4.1</span> <span class="highlight">Customer grants Nexus a perpetual, worldwide, royalty-free, transferable, sublicensable licence to all Inputs and Outputs for the purpose of: (a) providing the Services; (b) training, fine-tuning, and improving Nexus's models; (c) benchmarking, evaluation, and product research; and (d) any other purpose reasonably related to Nexus's business.</span></p>
+  <p><span class="cnum">4.2</span> The rights in clause 4.1 do not apply where Customer has elected the Nexus Enterprise Privacy Edition, in which case processing is governed by the terms of that Edition.</p>
+</div>
+
+<h3>Clause 6 — Data Processing and Location</h3>
+<div class="clause">
+  <p><span class="cnum">6.1</span> Nexus processes Customer Data in its primary data centres in the United States. Failover and disaster recovery processing may occur in the European Union.</p>
+  <p><span class="cnum">6.2</span> Where required by applicable law, Nexus offers standard contractual clauses as an addendum, subject to Customer request. No such addendum applies in the absence of a request.</p>
+  <p><span class="cnum">6.3</span> Nexus may use retrieval-augmented generation techniques that, outside of Enterprise Privacy Edition, may incorporate anonymised embeddings derived from Customer Inputs in a shared index used to improve response quality for all customers.</p>
+</div>
+
+<h3>Clause 9 — Output Disclaimer</h3>
+<div class="clause">
+  <p><span class="cnum">9.1</span> Customer acknowledges that outputs of generative AI services may contain inaccuracies, omissions, or errors, and may reflect biases in training data. Nexus makes no representation and gives no warranty as to the accuracy, completeness, reliability, currency, suitability, or fitness for purpose of any Output.</p>
+  <p><span class="cnum">9.2</span> Nexus is not liable for decisions made or actions taken by Customer or its users in reliance on any Output.</p>
+  <p><span class="cnum">9.3</span> Nexus does not indemnify Customer against third-party claims that any Output infringes any intellectual property right of any third party.</p>
+</div>
+
+<h3>Clause 12 — Incident Notification <span class="tag-flag">Flagged</span></h3>
+<div class="clause material">
+  <p><span class="cnum">12.1</span> Nexus will notify Customer of a material Security Incident <span class="highlight">within 72 hours following confirmation by Nexus's security team that a material Security Incident has occurred</span>.</p>
+  <p><span class="cnum">12.2</span> Onward notification to Customer's users, affiliates, or downstream customers is the responsibility of Customer.</p>
+  <p><span class="cnum">12.3</span> Customer has no independent right to audit Nexus's security posture. Nexus makes SOC 2 Type II reports available to Customer on request, no more frequently than annually.</p>
+</div>
+
+<h3>Clause 18 — Applicable Law, Arbitration, Class Action Waiver, Regulatory Change <span class="tag-flag">Flagged</span></h3>
+<div class="clause material">
+  <p><span class="cnum">18.1</span> This Agreement is governed by the laws of the State of California, USA.</p>
+  <p><span class="cnum">18.2</span> <span class="highlight">Any dispute is finally resolved by confidential binding arbitration administered by JAMS, seated in Wilmington, Delaware, before a single arbitrator.</span></p>
+  <p><span class="cnum">18.3</span> Each party waives any right to participate in a class action or representative proceeding.</p>
+  <p><span class="cnum">18.4</span> <span class="highlight">Nexus may, at its sole discretion, restrict or suspend the Services in any jurisdiction where a change in export control regulations, economic sanctions, or similar regulatory measures materially affects Nexus's ability to provide the Services consistent with United States law.</span></p>
+</div>
+
+<div class="note-callout">
+  The Enterprise Privacy Edition (referenced in clause 4.2) reverses clauses 4.1 (training rights), 6.3 (RAG cross-customer sharing), and the 90-day retention default. It does NOT alter clause 18 (applicable law, arbitration, regulatory change). Procurement estimates the incremental annual cost at USD 1.1m–1.4m depending on usage tier. The current SOW does NOT elect Enterprise Privacy Edition.
+</div>
+
+<div class="section-card">
+  <h3>3. Statement of Work — extract</h3>
+  <p><strong>Use cases in scope:</strong> drafting support (minutes, briefs, talking points, correspondence), summarisation of internal documents, retrieval Q&A across internal UN-system document corpora, ideation and brainstorming, limited code generation (scripts, lightweight automation).</p>
+  <p><strong>User population:</strong> initial deployment 2,400 IDSC staff; target 15,000 UN system users within 18 months as partner opt-ins roll out.</p>
+  <p><strong>Partner opt-in model:</strong> partners may subscribe at their own cost via back-to-back orders. Partner data flows through the shared Nexus instance unless Enterprise Privacy Edition is elected per-partner.</p>
+  <p><strong>Integration:</strong> SSO with IDSC IAM; content connectors to SharePoint, Confluence, Teams, internal document stores.</p>
+  <p><strong>Deployment model:</strong> primary US processing; EU failover; Enterprise Privacy Edition <strong>not elected</strong>.</p>
+  <p><strong>Go-live:</strong> contractual target 1 April of the coming year.</p>
+</div>
+
+<div class="section-card">
+  <h3>4. Data Processing Schedule — extract</h3>
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Detail</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Categories of personal data</td><td>Staff identifiers, staff authored content, partner operational documents shared via the assistant, incidental personal data in content</td></tr>
+      <tr><td>Data subjects</td><td>IDSC staff, partner staff, named third parties referenced in documents</td></tr>
+      <tr><td>Processing locations</td><td>US primary, EU failover. Region assignments defined by Nexus; no residency guarantee in the draft</td></tr>
+      <tr><td>Retention — Inputs and Outputs</td><td>90 days in operational systems</td></tr>
+      <tr><td>Retention — anonymised embeddings</td><td>Beyond 90 days, <strong>retained indefinitely</strong> for model improvement unless Enterprise Privacy Edition elected</td></tr>
+      <tr><td>Standard contractual clauses</td><td>Not attached. Available as an addendum on request (per clause 6.2)</td></tr>
+      <tr><td>Transfer impact assessment</td><td>Not referenced</td></tr>
+      <tr><td>Sub-processors</td><td>AWS (US + EU), Snowflake (US), third-party moderation/content-filter service (identity redacted in current draft)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-card">
+  <h3>5. AI Governance Appendix — Nexus disclosures</h3>
+  <p><strong>Training data:</strong> "publicly available web content, licensed third-party datasets, and (with customer consent via clause 4) customer inputs to the Services"</p>
+  <p><strong>Output watermarking:</strong> configurable option; <strong>not enabled by default</strong>.</p>
+  <p><strong>Bias and red-team testing:</strong> Nexus publishes an annual Responsibility Report.</p>
+  <p><strong>Hallucination disclosure:</strong> clause 9 of the ToS (reproduced above) is the complete contractual position.</p>
+  <p><strong>Model version transparency:</strong> Nexus reserves the right to update the underlying model at any time without prior notice.</p>
+</div>
+
+<h2>6. Communications and press timeline</h2>
+<p style="font-size:.9rem;color:#555;">The Director General has made the following public statements about the Nexus deal in the past three months:</p>
+
+<div class="timeline">
+  <div class="event">
+    <div class="date">November 20X5 — High-Level Partners' Forum (Geneva)</div>
+    <div class="who">DG Dr. A. Mensah, keynote address</div>
+    <div class="quote">"IDSC is proud to announce that it will deliver the first UN-wide generative AI platform, powered by Nexus Cognitive Systems. Go-live in Q2 next year. This is the cornerstone of our AI strategy and the single largest investment in partner-facing digital tooling in the Centre's history."</div>
+    <div class="audience">Audience: 280 attendees including 24 of 28 partner Directors-General · Recorded · Published on IDSC website</div>
+  </div>
+  <div class="event">
+    <div class="date">December 20X5 — IDSC Annual Report 20X5</div>
+    <div class="who">Director General's Statement (page iv)</div>
+    <div class="quote">"With the imminent launch of the UN AI Assistant in Q2 of the coming year, IDSC will extend the reach of AI-powered productivity across the partner community."</div>
+    <div class="audience">Audience: all 28 partners, WHO, UN Secretariat, Board of Auditors · Public document</div>
+  </div>
+  <div class="event">
+    <div class="date">January 20X6 — Joint press statement with Nexus CEO (Davos)</div>
+    <div class="who">DG Dr. A. Mensah and Nexus CEO</div>
+    <div class="quote">"A landmark five-year partnership. Together, IDSC and Nexus will deliver a transformative productivity platform to the 28 UN partner organisations served by IDSC, with full rollout achievable within 18 months."</div>
+    <div class="audience">Reproduced in wire press coverage · Nexus share price +4.2% on day · Reported by Reuters, Bloomberg</div>
+  </div>
+</div>
+
+<h2>7. Procurement Risk Register — current entries</h2>
+<table class="risk-table">
+  <thead>
+    <tr><th>#</th><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th><th>Owner</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Cost overrun beyond committed ceiling</td>
+      <td class="med">Medium</td>
+      <td class="med">Medium</td>
+      <td>Quarterly budget review</td>
+      <td>Head of Procurement</td>
+    </tr>
+  </tbody>
+</table>
+<div class="note-callout">
+  No other risks have been entered into the register. No legal risk has been assessed or flagged at the procurement stage.
+</div>
+
+<footer class="doc-footer">
+  Compiled by E. Arenas, Junior Legal Officer, for the Senior Policy Officer (Legal). Source documents held in the IDSC Legal Knowledge System.
+</footer>
+
+</div>
+</body>
+</html>

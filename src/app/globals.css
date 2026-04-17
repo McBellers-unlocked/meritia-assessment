@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Shared WYSIWYG prose styling:
+ *   .memo-editor      — TipTap editor in the candidate assessment view
+ *   .memo-rendered    — marker view rendering the submitted memo HTML (sanitised)
+ *   .markdown-rendered — marker view rendering AI chat replies (ReactMarkdown + GFM)
+ */
+.memo-editor, .memo-rendered, .markdown-rendered {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #1e293b;
+}
+.memo-editor:focus { outline: none; }
+.memo-editor p, .memo-rendered p, .markdown-rendered p { margin: 0 0 0.6rem; }
+.memo-editor p:last-child, .memo-rendered p:last-child, .markdown-rendered p:last-child { margin-bottom: 0; }
+.memo-editor h1, .memo-rendered h1, .markdown-rendered h1 { font-size: 1.15rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #0f172a; }
+.memo-editor h2, .memo-rendered h2, .markdown-rendered h2 { font-size: 1rem; font-weight: 700; margin: 0.9rem 0 0.45rem; color: #0f172a; }
+.memo-editor h3, .memo-rendered h3, .markdown-rendered h3 { font-size: 0.95rem; font-weight: 600; margin: 0.8rem 0 0.4rem; color: #0f172a; }
+.memo-editor h4, .memo-rendered h4, .markdown-rendered h4 { font-size: 0.85rem; font-weight: 600; margin: 0.7rem 0 0.3rem; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
+.memo-editor ul, .memo-rendered ul, .markdown-rendered ul { list-style: disc; padding-left: 1.5rem; margin: 0 0 0.6rem; }
+.memo-editor ol, .memo-rendered ol, .markdown-rendered ol { list-style: decimal; padding-left: 1.5rem; margin: 0 0 0.6rem; }
+.memo-editor li, .memo-rendered li, .markdown-rendered li { margin: 0.05rem 0; }
+.memo-editor li > p, .memo-rendered li > p, .markdown-rendered li > p { margin: 0; }
+.memo-editor strong, .memo-rendered strong, .markdown-rendered strong { font-weight: 600; color: #0f172a; }
+.memo-editor em, .memo-rendered em, .markdown-rendered em { font-style: italic; }
+.memo-editor s, .memo-rendered s, .markdown-rendered s,
+.memo-editor del, .memo-rendered del, .markdown-rendered del { text-decoration: line-through; color: #64748b; }
+.memo-editor blockquote, .memo-rendered blockquote, .markdown-rendered blockquote { border-left: 3px solid #cbd5e1; padding: 0.1rem 0 0.1rem 0.85rem; margin: 0.6rem 0; color: #475569; font-style: italic; }
+.memo-editor hr, .memo-rendered hr, .markdown-rendered hr { border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
+.memo-editor code, .memo-rendered code, .markdown-rendered code { background: #f1f5f9; padding: 0.05rem 0.35rem; border-radius: 3px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85em; }
+.memo-editor pre, .memo-rendered pre, .markdown-rendered pre { background: #0f172a; color: #f1f5f9; padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin: 0.6rem 0; font-size: 0.8rem; }
+.memo-editor pre code, .memo-rendered pre code, .markdown-rendered pre code { background: transparent; padding: 0; color: inherit; }
+/* Tables — primarily for markdown-rendered AI replies with GFM tables, but also any pasted tables in the memo */
+.memo-rendered table, .markdown-rendered table { border-collapse: collapse; margin: 0.6rem 0; font-size: 0.85rem; }
+.memo-rendered th, .memo-rendered td, .markdown-rendered th, .markdown-rendered td { border: 1px solid #cbd5e1; padding: 0.3rem 0.55rem; text-align: left; vertical-align: top; }
+.memo-rendered thead th, .markdown-rendered thead th { background: #f1f5f9; font-weight: 600; }
+/* Placeholder text when the editor is empty */
+.memo-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  float: left;
+  pointer-events: none;
+  height: 0;
+}

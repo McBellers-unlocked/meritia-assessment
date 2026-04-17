@@ -1,0 +1,98 @@
+{
+  "scenario_id": "fam-p4-2026",
+  "position": "Finance and Accounting Manager (P4)",
+  "organisation": "International Digital Services Centre (IDSC), Geneva",
+  "total_marks": 100,
+  "task1": {
+    "title": "IPSAS Compliance & Financial Statement Review",
+    "max_marks": 50,
+    "categories": {
+      "technical": {
+        "max": 30,
+        "description": "Identification of IPSAS compliance issues, correct treatment, quantification of financial impact.",
+        "embedded_issues": [
+          { "id": "valencia_lease_ipsas43", "title": "Valencia office lease expensed instead of capitalised under IPSAS 43", "max_marks": 5, "expected": "Recognise as right-of-use asset and lease liability; calculate ROU asset $0.6m+, lease liability c. $0.6m, restate operating expense down by $220k." },
+          { "id": "unep_revenue_ipsas9", "title": "UNEP $6.6m three-year contract recognised in full in 20X5", "max_marks": 6, "expected": "Should be $550k revenue + $6.05m deferred revenue. Adjust revenue down by $6.05m and surplus by the same; recognise deferred revenue liability." },
+          { "id": "ar_ecl_ipsas41", "title": "No ECL provision against $4.2m of receivables over 12 months overdue", "max_marks": 5, "expected": "ECL provision required, especially for the $1.8m flagged uncollectible. Recognise impairment charge; estimate provision in the range $1.8m to $4.2m depending on assumptions." },
+          { "id": "unicloud_research_ipsas31", "title": "Research-phase staff costs ($1.1m of $3.2m UniCloud) capitalised in error", "max_marks": 5, "expected": "Research costs cannot be capitalised under IPSAS 31. Reverse $1.1m capitalisation, expense to staff costs; reduce intangibles." },
+          { "id": "gbp_translation_ipsas4", "title": "GBP imprest translated at opening rate (1.22) not closing rate (1.27)", "max_marks": 3, "expected": "Restate at closing rate; recognise $7.4k unrealised translation gain; flag as control gap even though immaterial." },
+          { "id": "ashi_disclosure_ipsas39", "title": "Discount rate change (3.10% → 4.20%) and $3.4m impact not disclosed", "max_marks": 3, "expected": "Add narrative disclosure of assumption change, rationale, and quantified impact; sensitivity analysis." },
+          { "id": "related_party_ipsas20", "title": "Concentric Governance Advisory engagement (HR spouse) not disclosed", "max_marks": 3, "expected": "Disclose related-party relationship, contract value $45k, governance/procurement implications even though deliverables genuine." }
+        ]
+      },
+      "investigation_quality": {
+        "max": 10,
+        "description": "How systematically and effectively the candidate used the IDSC Financial Analysis System.",
+        "indicators": [
+          "Walks through balance sheet and income statement systematically rather than asking generic 'find me errors' prompts",
+          "Probes accounting policies and methodology, not just balances",
+          "Asks targeted follow-up questions when answers reveal something off (e.g., 'is X disclosed in the notes?')",
+          "Quantifies impact rather than just identifying issues qualitatively",
+          "Cross-references between the exhibit and the system",
+          "Recognises that the system is a passive oracle and frames questions accordingly"
+        ]
+      },
+      "professional_skills": {
+        "max": 10,
+        "description": "Quality of the memo to the Chief of MS Division.",
+        "indicators": [
+          "Memo is appropriately structured (issue / impact / recommendation)",
+          "Issues prioritised by financial materiality, not order of discovery",
+          "Recommendations are practical and time-bound (pre-audit submission)",
+          "Tone is professional, not lecturing — peer to senior management",
+          "Acknowledges judgmental areas (e.g., ECL estimate range) rather than presenting single-point answers as certain",
+          "Explicitly distinguishes 'must fix before submission' from 'should improve for next year'"
+        ]
+      }
+    }
+  },
+  "task2": {
+    "title": "Cost Allocation & Management Judgment",
+    "max_marks": 50,
+    "categories": {
+      "technical": {
+        "max": 15,
+        "description": "Identifying the four deliberate gaps in the AI cost analytics report.",
+        "embedded_issues": [
+          { "id": "shared_alloc_revenue_basis", "title": "Shared infrastructure ($18.4m) allocated by revenue, not actual usage", "max_marks": 4, "expected": "Identify that small partners are over-charged on a per-unit basis. Propose usage-based allocation using available network management data (45/30/15/10 split)." },
+          { "id": "sovereign_ai_staff_miscoding", "title": "Sovereign AI cost understated by $4.1m due to cost-centre coding error", "max_marks": 5, "expected": "Identify that 8 reassigned FTEs are still charged to originating service lines. Recompute true Sovereign AI cost ($12.3m) and unit-cost benchmark (12% above commercial, not 32% below)." },
+          { "id": "blended_staff_rate", "title": "Single $185k blended staff rate masks Geneva/Valencia $218k vs $112k split", "max_marks": 3, "expected": "Identify that Valencia-heavy services (Application Hosting) are over-costed and Geneva-heavy services (Cybersecurity) are under-costed. Propose location-specific rates." },
+          { "id": "who_charge_unallocated", "title": "WHO 8% admin charge ($5.47m) sits unallocated, inflating service-line surplus", "max_marks": 3, "expected": "Identify that real cost recovery on each service line is lower than reported; propose allocation by staff cost." }
+        ]
+      },
+      "investigation_quality": {
+        "max": 10,
+        "description": "Sandbox investigation of underlying cost data.",
+        "indicators": [
+          "Asks for actual usage data on shared infrastructure (the system has it)",
+          "Probes the Sovereign AI staffing model and discovers the cost-centre coding gap",
+          "Asks about staff costs by location",
+          "Identifies the WHO charge treatment by asking about overhead allocation",
+          "Recomputes unit costs rather than accepting reported numbers"
+        ]
+      },
+      "judgment": {
+        "max": 15,
+        "description": "Handling the Sovereign AI political dimension. This is the test of professional courage, stakeholder navigation, and decision under uncertainty.",
+        "rubric": {
+          "13-15": "Recognises the situation: Director has publicly cited an incorrect figure that the candidate now knows is wrong. Recommends a clear path that protects the Centre's credibility (correct the figure with the Management Committee BEFORE wider exposure; offer the Director language to reframe rather than recant; address the cost-centre coding root cause). Acknowledges the political reality without flinching from the professional obligation. Distinguishes options the candidate would advise vs decisions for the Director.",
+          "9-12": "Recognises the issue but recommendation is partial — either too timid (suggests 'monitoring' or quietly fixing it next cycle) or too blunt (recommends public retraction without considering reputational mechanics).",
+          "5-8": "Identifies the cost discrepancy but treats it as a pure accounting issue, missing the political dimension entirely. Recommends 'restate the numbers' without addressing how.",
+          "0-4": "Endorses the analysis or fails to identify the discrepancy. Aligns with the Director's narrative."
+        }
+      },
+      "professional_skills": {
+        "max": 10,
+        "description": "Memo quality, practical recommendations, tone appropriate for senior management.",
+        "indicators": [
+          "Structured around the four asks (a–d) the Chief of MS Division made",
+          "Distinguishes findings from recommendations",
+          "Tone is candid but supportive of the Chief — not lecturing, not deferential",
+          "Recommendations are sequenced (do this first, then this)",
+          "Acknowledges what cannot be fixed before the Management Committee meeting and proposes a defensible interim position",
+          "References stakeholder impact (partners, Director, Audit Committee)"
+        ]
+      }
+    }
+  }
+}

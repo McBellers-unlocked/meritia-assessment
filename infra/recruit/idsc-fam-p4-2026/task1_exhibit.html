@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IDSC — Draft Annual Financial Statements 20X5</title>
+<style>
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    color: #1B2A4A;
+    margin: 0;
+    padding: 0;
+    line-height: 1.55;
+    background: #ffffff;
+  }
+  .doc {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 1.6rem 2rem 4rem;
+  }
+  header.cover {
+    border-bottom: 4px solid #1B2A4A;
+    padding-bottom: 1rem;
+    margin-bottom: 1.6rem;
+  }
+  header.cover .org { font-size: .85rem; color: #4B92DB; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  header.cover h1 { font-size: 1.7rem; margin: .2rem 0 .3rem; color: #1B2A4A; }
+  header.cover .sub { color: #555; font-size: .95rem; }
+  header.cover .pill { display:inline-block; background:#fbe9c0; color:#7a5400; border-radius:4px; padding:.15rem .55rem; font-size:.78rem; margin-left:.5rem; vertical-align:middle; }
+
+  h2 { color: #1B2A4A; font-size: 1.2rem; margin-top: 2rem; padding-bottom: .25rem; border-bottom: 2px solid #4B92DB; }
+  h3 { color: #1B2A4A; font-size: 1.0rem; margin-top: 1.5rem; }
+  h4 { color: #4B92DB; font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; margin-top: 1rem; margin-bottom: .3rem; }
+
+  table { width: 100%; border-collapse: collapse; margin: .6rem 0 1rem; font-size: .92rem; }
+  th, td { padding: .35rem .55rem; vertical-align: top; }
+  thead th { background: #eef3f9; color: #1B2A4A; text-align: left; border-bottom: 1px solid #c7d6e8; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+  tbody td { border-bottom: 1px solid #f0f3f7; }
+  tbody tr.subtotal td { font-weight: 600; border-top: 1px solid #c7d6e8; }
+  tbody tr.total td { font-weight: 700; border-top: 2px solid #1B2A4A; border-bottom: 2px solid #1B2A4A; background:#f7f9fc; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-family: "Consolas", "Menlo", monospace; }
+  td.label { padding-left: 1.4rem; }
+  td.head { padding-left: 0; font-weight: 600; }
+
+  .meta-grid { display: grid; grid-template-columns: 200px 1fr; gap: .35rem 1rem; font-size: .92rem; margin-bottom: 1rem; }
+  .meta-grid dt { color: #555; }
+  .meta-grid dd { margin: 0; color: #1B2A4A; }
+
+  p { margin: .5rem 0; }
+  .note-body { font-size: .92rem; color: #2e3d57; }
+  .note-body p { margin: .35rem 0 .55rem; }
+
+  .footnote-ref { color: #4B92DB; font-weight: 600; font-size: .82rem; vertical-align: super; margin-left: .15rem; }
+
+  footer.doc-footer {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d6dee9;
+    color: #888; font-size: .8rem;
+  }
+
+  /* Two-column note layout for compact disclosures */
+  .twocol { columns: 2; column-gap: 2rem; font-size: .9rem; }
+  .twocol p { break-inside: avoid; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cover">
+  <div class="org">International Digital Services Centre</div>
+  <h1>Draft Annual Financial Statements
+    <span class="pill">DRAFT — pre-audit</span>
+  </h1>
+  <div class="sub">For the year ended 31 December 20X5 · Prepared for review by the Chief of Management and Strategy Division · Prior to submission to the Board of Auditors</div>
+</header>
+
+<h2>1. Reporting entity and basis of preparation</h2>
+<dl class="meta-grid">
+  <dt>Reporting entity</dt><dd>International Digital Services Centre (IDSC), Geneva, Switzerland</dd>
+  <dt>Host organisation</dt><dd>World Health Organization (WHO) — provides HR, payroll and selected administrative services under a hosting MOU</dd>
+  <dt>Reporting framework</dt><dd>International Public Sector Accounting Standards (IPSAS), accrual basis</dd>
+  <dt>Functional currency</dt><dd>United States dollar (USD)</dd>
+  <dt>Reporting currency</dt><dd>USD; balances are stated in thousands ($'000) unless indicated</dd>
+  <dt>Financial year</dt><dd>1 January 20X5 to 31 December 20X5</dd>
+  <dt>External auditor</dt><dd>Board of Auditors (UN system)</dd>
+  <dt>Locations</dt><dd>Geneva HQ, Valencia, Brindisi, New York liaison office</dd>
+  <dt>Headcount (FTE)</dt><dd>380 at year end (Geneva 180 · Valencia 140 · Brindisi 45 · New York 15)</dd>
+  <dt>Partner organisations served</dt><dd>28 UN system entities</dd>
+  <dt>ERP / general ledger</dt><dd>Microsoft Dynamics 365</dd>
+</dl>
+
+<h2>2. Statement of Financial Position</h2>
+<table>
+  <thead><tr><th>As at 31 December</th><th class="num">20X5 ($'000)</th><th class="num">20X4 ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="head" colspan="3">Assets</td></tr>
+    <tr><td class="label">Cash and cash equivalents <span class="footnote-ref">N6</span></td><td class="num">34,200</td><td class="num">29,800</td></tr>
+    <tr><td class="label">Accounts receivable from partner organisations <span class="footnote-ref">N5</span></td><td class="num">18,700</td><td class="num">14,200</td></tr>
+    <tr><td class="label">Property, plant and equipment <span class="footnote-ref">N3</span></td><td class="num">12,300</td><td class="num">11,400</td></tr>
+    <tr><td class="label">Intangible assets <span class="footnote-ref">N4</span></td><td class="num">8,900</td><td class="num">5,700</td></tr>
+    <tr><td class="label">Right-of-use assets <span class="footnote-ref">N7</span></td><td class="num">6,100</td><td class="num">7,300</td></tr>
+    <tr><td class="label">Other assets <span class="footnote-ref">N8</span></td><td class="num">18,200</td><td class="num">17,400</td></tr>
+    <tr class="subtotal"><td>Total assets</td><td class="num">98,400</td><td class="num">85,800</td></tr>
+
+    <tr><td class="head" colspan="3" style="padding-top:.8rem">Liabilities</td></tr>
+    <tr><td class="label">Accounts payable</td><td class="num">8,400</td><td class="num">7,900</td></tr>
+    <tr><td class="label">Lease liabilities <span class="footnote-ref">N7</span></td><td class="num">5,900</td><td class="num">7,100</td></tr>
+    <tr><td class="label">Provisions</td><td class="num">2,100</td><td class="num">1,800</td></tr>
+    <tr><td class="label">Employee benefit obligations <span class="footnote-ref">N9</span></td><td class="num">22,800</td><td class="num">23,600</td></tr>
+    <tr><td class="label">Other liabilities</td><td class="num">2,400</td><td class="num">2,100</td></tr>
+    <tr class="subtotal"><td>Total liabilities</td><td class="num">41,600</td><td class="num">42,500</td></tr>
+
+    <tr class="total"><td>Net assets</td><td class="num">56,800</td><td class="num">43,300</td></tr>
+
+    <tr><td class="head" colspan="3" style="padding-top:.8rem">Reserves</td></tr>
+    <tr><td class="label">Operating reserve</td><td class="num">28,400</td><td class="num">22,000</td></tr>
+    <tr><td class="label">Capital reserve</td><td class="num">12,000</td><td class="num">10,000</td></tr>
+    <tr><td class="label">Accumulated surplus</td><td class="num">16,400</td><td class="num">11,300</td></tr>
+    <tr class="subtotal"><td>Total reserves</td><td class="num">56,800</td><td class="num">43,300</td></tr>
+  </tbody>
+</table>
+
+<h2>3. Statement of Financial Performance</h2>
+<table>
+  <thead><tr><th>For the year ended 31 December</th><th class="num">20X5 ($'000)</th><th class="num">20X4 ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="head" colspan="3">Revenue</td></tr>
+    <tr><td class="label">Revenue from services <span class="footnote-ref">N10</span></td><td class="num">142,300</td><td class="num">128,400</td></tr>
+    <tr><td class="label">Revenue from hosting arrangements</td><td class="num">12,800</td><td class="num">12,200</td></tr>
+    <tr><td class="label">Other revenue</td><td class="num">3,100</td><td class="num">2,900</td></tr>
+    <tr class="subtotal"><td>Total revenue</td><td class="num">158,200</td><td class="num">143,500</td></tr>
+
+    <tr><td class="head" colspan="3" style="padding-top:.8rem">Expenses</td></tr>
+    <tr><td class="label">Staff costs</td><td class="num">68,400</td><td class="num">62,100</td></tr>
+    <tr><td class="label">Consulting and contractors <span class="footnote-ref">N11</span></td><td class="num">31,200</td><td class="num">26,400</td></tr>
+    <tr><td class="label">Hosting and cloud services</td><td class="num">24,600</td><td class="num">18,400</td></tr>
+    <tr><td class="label">Depreciation and amortisation</td><td class="num">8,700</td><td class="num">7,900</td></tr>
+    <tr><td class="label">Travel</td><td class="num">2,100</td><td class="num">1,400</td></tr>
+    <tr><td class="label">Other operating costs <span class="footnote-ref">N7</span></td><td class="num">14,800</td><td class="num">12,800</td></tr>
+    <tr class="subtotal"><td>Total expenses</td><td class="num">149,800</td><td class="num">129,000</td></tr>
+
+    <tr class="total"><td>Surplus for the year</td><td class="num">8,400</td><td class="num">14,500</td></tr>
+  </tbody>
+</table>
+
+<h2>Notes to the financial statements</h2>
+
+<h3>Note 1 — Significant accounting policies</h3>
+<div class="note-body">
+  <p>The financial statements are prepared in accordance with International Public Sector Accounting Standards (IPSAS) on the accrual basis, using the historical cost convention except where stated. The Centre's functional currency is the US dollar.</p>
+  <p>Significant judgements and estimates have been made in respect of the useful lives of property, plant and equipment, the recoverable amount of intangible assets, the discount rate used in the valuation of post-employment benefit obligations, and provisions for litigation and similar items.</p>
+</div>
+
+<h3>Note 2 — Revenue recognition policy</h3>
+<div class="note-body">
+  <p>Revenue from services is recognised when the Centre has the right to receive payment from the partner organisation under the relevant Service Level Agreement and the related performance obligations have been substantively satisfied. Where multi-year service agreements are signed, revenue is recognised in the period the agreement is executed and invoiced.</p>
+  <p>Revenue from hosting arrangements is recognised over the period the hosted services are provided.</p>
+</div>
+
+<h3>Note 3 — Property, plant and equipment</h3>
+<table>
+  <thead><tr><th></th><th class="num">Servers and network ($'000)</th><th class="num">Office equipment ($'000)</th><th class="num">Leasehold improvements ($'000)</th><th class="num">Total ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="head">Cost at 1 Jan 20X5</td><td class="num">19,200</td><td class="num">2,300</td><td class="num">3,800</td><td class="num">25,300</td></tr>
+    <tr><td class="label">Additions</td><td class="num">3,100</td><td class="num">280</td><td class="num">220</td><td class="num">3,600</td></tr>
+    <tr><td class="label">Disposals</td><td class="num">(900)</td><td class="num">(120)</td><td class="num">—</td><td class="num">(1,020)</td></tr>
+    <tr class="subtotal"><td>Cost at 31 Dec 20X5</td><td class="num">21,400</td><td class="num">2,460</td><td class="num">4,020</td><td class="num">27,880</td></tr>
+    <tr><td class="head" style="padding-top:.6rem">Accumulated depreciation</td><td class="num">(11,300)</td><td class="num">(1,400)</td><td class="num">(2,880)</td><td class="num">(15,580)</td></tr>
+    <tr class="total"><td>Carrying amount 31 Dec 20X5</td><td class="num">10,100</td><td class="num">1,060</td><td class="num">1,140</td><td class="num">12,300</td></tr>
+  </tbody>
+</table>
+
+<h3>Note 4 — Intangible assets</h3>
+<div class="note-body">
+  <p>Intangible assets comprise internally developed software platforms used to deliver ICT services to partner organisations. During 20X5 the Centre capitalised <strong>$3,200,000</strong> of staff costs in respect of the new "UniCloud" platform, a multi-tenant infrastructure-as-a-service offering. The capitalised amount represents staff time spent on the project from January through December 20X5.</p>
+</div>
+<table>
+  <thead><tr><th></th><th class="num">UniCloud platform ($'000)</th><th class="num">Other software ($'000)</th><th class="num">Total ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="head">Carrying amount 1 Jan 20X5</td><td class="num">—</td><td class="num">5,700</td><td class="num">5,700</td></tr>
+    <tr><td class="label">Additions — internally developed</td><td class="num">3,200</td><td class="num">1,400</td><td class="num">4,600</td></tr>
+    <tr><td class="label">Amortisation</td><td class="num">(200)</td><td class="num">(1,200)</td><td class="num">(1,400)</td></tr>
+    <tr class="total"><td>Carrying amount 31 Dec 20X5</td><td class="num">3,000</td><td class="num">5,900</td><td class="num">8,900</td></tr>
+  </tbody>
+</table>
+
+<h3>Note 5 — Accounts receivable from partner organisations</h3>
+<div class="note-body">
+  <p>Receivables represent amounts billed to partner organisations under the Centre's standard SLAs and are unsecured. The aging analysis at year end is set out below.</p>
+</div>
+<table>
+  <thead><tr><th>Aging</th><th class="num">20X5 ($'000)</th><th class="num">20X4 ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="label">Current (0–30 days)</td><td class="num">9,800</td><td class="num">7,400</td></tr>
+    <tr><td class="label">31–90 days</td><td class="num">3,200</td><td class="num">3,100</td></tr>
+    <tr><td class="label">91–180 days</td><td class="num">1,200</td><td class="num">1,500</td></tr>
+    <tr><td class="label">181–365 days</td><td class="num">300</td><td class="num">2,200</td></tr>
+    <tr><td class="label">Over 365 days</td><td class="num">4,200</td><td class="num">—</td></tr>
+    <tr class="total"><td>Total accounts receivable</td><td class="num">18,700</td><td class="num">14,200</td></tr>
+  </tbody>
+</table>
+<div class="note-body">
+  <p>No expected credit loss provision has been recognised against accounts receivable in the current or prior year on the basis that all balances are due from UN system organisations.</p>
+</div>
+
+<h3>Note 6 — Cash and cash equivalents</h3>
+<table>
+  <thead><tr><th>Held in</th><th class="num">Local currency ($'000 equiv)</th><th class="num">Translation rate applied</th><th class="num">USD ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="label">CHF account (UBS Geneva)</td><td class="num">CHF 17,650</td><td class="num">0.890</td><td class="num">19,830</td></tr>
+    <tr><td class="label">EUR account (BNP Paribas)</td><td class="num">EUR 8,420</td><td class="num">1.072</td><td class="num">9,030</td></tr>
+    <tr><td class="label">USD account (JPMorgan)</td><td class="num">USD 5,160</td><td class="num">1.000</td><td class="num">5,160</td></tr>
+    <tr><td class="label">GBP imprest (NatWest London)</td><td class="num">GBP 148</td><td class="num">1.220</td><td class="num">180</td></tr>
+    <tr class="total"><td>Total cash and cash equivalents</td><td class="num"></td><td class="num"></td><td class="num">34,200</td></tr>
+  </tbody>
+</table>
+<div class="note-body">
+  <p>Cash balances denominated in foreign currency are translated to USD at the relevant period-end exchange rate.</p>
+</div>
+
+<h3>Note 7 — Right-of-use assets and lease liabilities</h3>
+<div class="note-body">
+  <p>The Centre leases its Geneva headquarters under a 10-year operating lease entered into in 20X1, with three years remaining at the reporting date. The lease has been recognised in accordance with IPSAS 43.</p>
+</div>
+<table>
+  <thead><tr><th></th><th class="num">Right-of-use asset ($'000)</th><th class="num">Lease liability ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="head">Balance at 1 Jan 20X5</td><td class="num">7,300</td><td class="num">7,100</td></tr>
+    <tr><td class="label">Depreciation / interest</td><td class="num">(1,200)</td><td class="num">220</td></tr>
+    <tr><td class="label">Lease payments made</td><td class="num">—</td><td class="num">(1,420)</td></tr>
+    <tr class="total"><td>Balance at 31 Dec 20X5</td><td class="num">6,100</td><td class="num">5,900</td></tr>
+  </tbody>
+</table>
+
+<h3>Note 8 — Other assets</h3>
+<table>
+  <thead><tr><th></th><th class="num">20X5 ($'000)</th><th class="num">20X4 ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="label">Investments held against ASHI obligation</td><td class="num">14,200</td><td class="num">13,800</td></tr>
+    <tr><td class="label">Prepayments and deposits</td><td class="num">2,400</td><td class="num">2,100</td></tr>
+    <tr><td class="label">Inventory of consumables</td><td class="num">400</td><td class="num">350</td></tr>
+    <tr><td class="label">Other receivables</td><td class="num">1,200</td><td class="num">1,150</td></tr>
+    <tr class="total"><td>Total other assets</td><td class="num">18,200</td><td class="num">17,400</td></tr>
+  </tbody>
+</table>
+
+<h3>Note 9 — Employee benefit obligations</h3>
+<div class="note-body">
+  <p>The Centre's principal employee benefit obligation is the After-Service Health Insurance (ASHI) liability, valued annually by an external actuary in accordance with IPSAS 39. The obligation reflects the present value of expected future medical benefits payable to retired staff.</p>
+  <p>The actuarial valuation at 31 December 20X5 used the following key assumptions:</p>
+</div>
+<table>
+  <thead><tr><th>Assumption</th><th class="num">20X5</th><th class="num">20X4</th></tr></thead>
+  <tbody>
+    <tr><td class="label">Discount rate</td><td class="num">4.20%</td><td class="num">3.10%</td></tr>
+    <tr><td class="label">Medical cost trend (long term)</td><td class="num">5.00%</td><td class="num">5.00%</td></tr>
+    <tr><td class="label">Salary growth assumption</td><td class="num">2.50%</td><td class="num">2.50%</td></tr>
+    <tr><td class="label">Mortality basis</td><td>UN actuarial table</td><td>UN actuarial table</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead><tr><th>Movement in obligation</th><th class="num">$'000</th></tr></thead>
+  <tbody>
+    <tr><td class="label">Opening balance</td><td class="num">23,600</td></tr>
+    <tr><td class="label">Current service cost</td><td class="num">1,800</td></tr>
+    <tr><td class="label">Interest cost</td><td class="num">730</td></tr>
+    <tr><td class="label">Benefits paid</td><td class="num">(820)</td></tr>
+    <tr><td class="label">Actuarial (gain) / loss</td><td class="num">(2,510)</td></tr>
+    <tr class="total"><td>Closing balance</td><td class="num">22,800</td></tr>
+  </tbody>
+</table>
+
+<h3>Note 10 — Revenue from services</h3>
+<table>
+  <thead><tr><th></th><th class="num">20X5 ($'000)</th><th class="num">20X4 ($'000)</th></tr></thead>
+  <tbody>
+    <tr><td class="label">Managed Infrastructure</td><td class="num">42,300</td><td class="num">39,800</td></tr>
+    <tr><td class="label">Application Hosting</td><td class="num">61,800</td><td class="num">56,400</td></tr>
+    <tr><td class="label">Cybersecurity Services</td><td class="num">38,200</td><td class="num">32,200</td></tr>
+    <tr class="total"><td>Total revenue from services</td><td class="num">142,300</td><td class="num">128,400</td></tr>
+  </tbody>
+</table>
+<div class="note-body">
+  <p>During 20X5 the Centre executed a new three-year service agreement with the United Nations Environment Programme — Geneva valued at $6,600,000 ($2,200,000 per annum, billed annually in advance). The full contract value was invoiced in October 20X5 and is included in revenue from services for the year.</p>
+</div>
+
+<h3>Note 11 — Consulting and contractors</h3>
+<div class="note-body">
+  <p>Consulting and contractor expenditure includes professional fees paid to specialist consultants supporting service delivery, programme management, and governance. All contracts are awarded under the Centre's procurement policy following the standard competitive sourcing process.</p>
+</div>
+
+<h3>Note 12 — Related party transactions</h3>
+<div class="note-body">
+  <p>The Centre's principal related party is the World Health Organization (WHO), which acts as host organisation under a hosting MOU. WHO provides HR, payroll and selected administrative services for which it charges an administrative support fee equal to 8% of the Centre's staff costs ($5,470,000 for 20X5; 20X4: $4,970,000). Amounts payable to WHO at year end are included in accounts payable.</p>
+  <p>Key management personnel (Director, Chiefs of Division) compensation totalled $1,820,000 (20X4: $1,760,000), comprising salary, post-adjustment, allowances and pension contributions in line with UN common system rules.</p>
+  <p>No other related party transactions are reported for the current period.</p>
+</div>
+
+<footer class="doc-footer">
+  Draft prepared by the Finance Section, Management and Strategy Division. For internal review by the Chief of MS Division and senior management prior to finalisation and submission to the Board of Auditors. Figures are subject to revision.
+</footer>
+
+</div>
+</body>
+</html>

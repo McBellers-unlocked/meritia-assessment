@@ -1,0 +1,296 @@
+// Meritia — standalone AI-era professional assessment platform.
+//
+// All tables are recruitment-specific (carved out from the Callater repo) plus
+// a minimal `User` model used by the admin sign-in flow. The candidate flow
+// does not use the User table at all — it is token-based.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+}
+
+// -------------------------------------------------------------------
+// Admin account (NextAuth / Cognito-backed).
+// Candidates do NOT live here — see RecruitmentCandidate.
+// -------------------------------------------------------------------
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================================
+// Recruitment assessment flow — admin-managed, per-candidate tokens, blind
+// marking with reveal. Lives at /assess/[scenarioSlug]?token=… (candidate)
+// and /admin/recruitment/* (admin).
+// ============================================================================
+
+model RecruitmentAssessment {
+  id           String  @id @default(cuid())
+  title        String // e.g. "Finance and Accounting Manager (P4)"
+  scenarioSlug String  @map("scenario_slug") // routes the candidate URL: /assess/<slug>
+  scenarioId   String  @map("scenario_id") // matches src/lib/recruit/scenarios key, e.g. "fam-p4-2026"
+  // If set, resolves to a DB-backed RecruitmentScenario (admin-authored).
+  // Takes precedence over scenarioId. scenarioId/scenarioSlug are still
+  // populated (mirrored from the DB scenario) for backwards compatibility.
+  customScenarioId String?              @map("custom_scenario_id")
+  customScenario   RecruitmentScenario? @relation(fields: [customScenarioId], references: [id], onDelete: SetNull)
+  totalMinutes     Int                  @default(90) @map("total_minutes")
+  openDate         DateTime             @map("open_date")
+  closeDate        DateTime             @map("close_date")
+  revealedAt       DateTime?            @map("revealed_at") // when the admin clicks "Reveal Candidates"
+  createdAt        DateTime             @default(now()) @map("created_at")
+  createdById      String?              @map("created_by_id")
+
+  candidates RecruitmentCandidate[]
+
+  @@index([customScenarioId])
+  @@map("recruitment_assessments")
+}
+
+model RecruitmentCandidate {
+  id           String                @id @default(cuid())
+  assessmentId String                @map("assessment_id")
+  assessment   RecruitmentAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  name        String // hidden during marking
+  email       String
+  token       String @unique // FAM-XXXX
+  anonymousId String @map("anonymous_id") // "Candidate A", "Candidate AD" — UNIQUE per assessment
+  status      String @default("invited") // invited | started | submitted | expired
+
+  startedAt   DateTime? @map("started_at") // server-side timer anchor
+  submittedAt DateTime? @map("submitted_at")
+  deadline    DateTime? // startedAt + assessment.totalMinutes; cached for fast checks
+
+  // Single-use enforcement: first browser to start the session sets these.
+  // Subsequent attempts with a different cookie are rejected.
+  sessionToken     String? @map("session_token")
+  sessionUserAgent String? @map("session_user_agent")
+  sessionIpHash    String? @map("session_ip_hash")
+
+  // Marker outputs (populated in Half 2)
+  totalScore Float? @map("total_score")
+
+  responses      RecruitmentResponse[]
+  interactions   RecruitmentInteraction[]
+  activityEvents RecruitmentActivityEvent[]
+  emailResponses RecruitmentEmailResponse[]
+
+  @@unique([assessmentId, anonymousId])
+  @@unique([assessmentId, email])
+  @@index([assessmentId])
+  @@map("recruitment_candidates")
+}
+
+model RecruitmentResponse {
+  id          String               @id @default(cuid())
+  candidateId String               @map("candidate_id")
+  candidate   RecruitmentCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  taskNumber  Int                  @map("task_number")
+  content     String               @db.Text
+  wordCount   Int                  @default(0) @map("word_count")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  // Marker output (Half 2)
+  score            Float?
+  comments         String?   @db.Text
+  issuesIdentified Json?     @map("issues_identified") // string[] of issue IDs the candidate found — analytics only
+  markedAt         DateTime? @map("marked_at")
+  markedById       String?   @map("marked_by_id")
+
+  @@unique([candidateId, taskNumber])
+  @@map("recruitment_responses")
+}
+
+model RecruitmentInteraction {
+  id          String               @id @default(uuid()) @db.Uuid
+  candidateId String               @map("candidate_id")
+  candidate   RecruitmentCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  sequenceNum Int                  @default(autoincrement()) @map("sequence_num")
+  taskNumber  Int                  @map("task_number")
+  timestamp   DateTime             @default(now())
+  actor       String // candidate | ai
+  content     String               @db.Text
+  tokenCount  Int?                 @map("token_count")
+  metadata    Json?
+
+  @@index([candidateId, sequenceNum])
+  @@map("recruitment_interactions")
+}
+
+// Integrity/activity trail: paste events, tab-visibility changes, window blur.
+// Content is NOT captured (only length for pastes) so we don't accidentally
+// store sensitive clipboard data. Surfaced to examiners alongside the AI trail.
+model RecruitmentActivityEvent {
+  id          String               @id @default(uuid()) @db.Uuid
+  candidateId String               @map("candidate_id")
+  candidate   RecruitmentCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  occurredAt  DateTime             @default(now()) @map("occurred_at")
+  eventType   String               @map("event_type") // paste | visibility_hidden | visibility_visible | email_delivered | chat_opened
+  taskNumber  Int?                 @map("task_number") // 1 | 2 | null (window-level events)
+  metadata    Json? // { charCount } for paste, { hiddenMs } for visibility_visible, { emailId } for email_delivered, { scriptId } for chat_opened
+
+  @@index([candidateId, occurredAt])
+  @@map("recruitment_activity_events")
+}
+
+// ============================================================================
+// RECRUITMENT SCENARIO BUILDER (admin-authored scenarios)
+// ============================================================================
+// Legacy scenarios live in code (src/lib/recruit/*.ts) and are loaded by id.
+// Custom scenarios live in these tables and are referenced from
+// RecruitmentAssessment.customScenarioId. A single loader
+// (src/lib/recruit/scenario-loader.ts) normalises both sources into the same
+// RecruitScenarioConfig shape so the candidate UI doesn't care where the
+// scenario came from.
+
+model RecruitmentScenario {
+  id                  String    @id @default(cuid())
+  slug                String    @unique // URL segment: /assess/<slug>
+  title               String
+  organisation        String
+  positionTitle       String    @map("position_title")
+  defaultTotalMinutes Int       @default(90) @map("default_total_minutes")
+  status              String    @default("draft") // draft | published | archived
+  publishedAt         DateTime? @map("published_at")
+  createdById         String?   @map("created_by_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tasks       RecruitmentScenarioTask[]
+  exhibits    RecruitmentScenarioExhibit[]
+  emails      RecruitmentScenarioEmail[]
+  chatScripts RecruitmentScenarioChatScript[]
+  assessments RecruitmentAssessment[]
+
+  @@map("recruitment_scenarios")
+}
+
+// One row per task on a scenario. kind discriminates the shape:
+//   - "memo_ai":      systemPrompt + exhibitId + deliverable* are required
+//   - "email_inbox":  emails relation carries the scripted messages
+//   - "chat":         chatScripts relation carries the persona config
+// config is a Json extension point for kind-specific fields we haven't
+// promoted to columns yet (keeps migrations cheap during iteration).
+model RecruitmentScenarioTask {
+  id            String              @id @default(cuid())
+  scenarioId    String              @map("scenario_id")
+  scenario      RecruitmentScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  number        Int // 1..n ordinal within scenario
+  kind          String // memo_ai | email_inbox | chat
+  title         String
+  briefMarkdown String              @map("brief_markdown") @db.Text
+  totalMarks    Int                 @default(0) @map("total_marks")
+
+  // memo_ai-specific (nullable for other kinds)
+  systemPrompt           String?                     @map("system_prompt") @db.Text
+  exhibitId              String?                     @map("exhibit_id")
+  exhibit                RecruitmentScenarioExhibit? @relation(fields: [exhibitId], references: [id], onDelete: SetNull)
+  deliverableLabel       String?                     @map("deliverable_label")
+  deliverablePlaceholder String?                     @map("deliverable_placeholder") @db.Text
+
+  config Json? // kind-specific overrides
+
+  emails      RecruitmentScenarioEmail[]
+  chatScripts RecruitmentScenarioChatScript[]
+
+  @@unique([scenarioId, number])
+  @@index([scenarioId])
+  @@map("recruitment_scenario_tasks")
+}
+
+model RecruitmentScenarioExhibit {
+  id         String              @id @default(cuid())
+  scenarioId String              @map("scenario_id")
+  scenario   RecruitmentScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  title      String
+  html       String              @db.Text
+
+  tasks RecruitmentScenarioTask[]
+
+  @@index([scenarioId])
+  @@map("recruitment_scenario_exhibits")
+}
+
+// Scripted emails that arrive during an email_inbox task. triggerOffsetSeconds
+// is relative to RecruitmentCandidate.startedAt. The polling endpoint
+// (/api/assess/events) reveals an email once elapsed >= offset and writes an
+// email_delivered activity event for idempotency.
+model RecruitmentScenarioEmail {
+  id                   String                  @id @default(cuid())
+  scenarioId           String                  @map("scenario_id")
+  scenario             RecruitmentScenario     @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  taskId               String                  @map("task_id")
+  task                 RecruitmentScenarioTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  orderIndex           Int                     @default(0) @map("order_index")
+  triggerOffsetSeconds Int                     @map("trigger_offset_seconds")
+  senderName           String                  @map("sender_name")
+  senderEmail          String                  @map("sender_email")
+  subject              String
+  bodyHtml             String                  @map("body_html") @db.Text
+  expectedAction       String                  @map("expected_action") // reply | ignore | flag | forward
+  markerNotes          String?                 @map("marker_notes") @db.Text
+
+  responses RecruitmentEmailResponse[]
+
+  @@index([scenarioId, triggerOffsetSeconds])
+  @@index([taskId, orderIndex])
+  @@map("recruitment_scenario_emails")
+}
+
+// Persona-chat script that fires once during the assessment. MVP supports
+// AI persona only (Claude with an admin-authored system prompt). Scripted
+// dialogue trees are a follow-up; the schema reserves room by storing the
+// persona identity + opener + prompt directly.
+model RecruitmentScenarioChatScript {
+  id                   String                  @id @default(cuid())
+  scenarioId           String                  @map("scenario_id")
+  scenario             RecruitmentScenario     @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  taskId               String                  @map("task_id")
+  task                 RecruitmentScenarioTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  triggerOffsetSeconds Int                     @map("trigger_offset_seconds")
+  personaName          String                  @map("persona_name")
+  personaRole          String                  @map("persona_role")
+  openerMessage        String                  @map("opener_message") @db.Text
+  systemPrompt         String                  @map("system_prompt") @db.Text
+  maxTurns             Int                     @default(8) @map("max_turns")
+  expectedOutcomes     String?                 @map("expected_outcomes") @db.Text
+
+  @@index([scenarioId, triggerOffsetSeconds])
+  @@index([taskId])
+  @@map("recruitment_scenario_chat_scripts")
+}
+
+// Candidate's response to a scripted email. One row per (candidate, email).
+// deliveredAt captures when the server first revealed the email so marker
+// analytics can compute response latency.
+model RecruitmentEmailResponse {
+  id          String                   @id @default(cuid())
+  candidateId String                   @map("candidate_id")
+  candidate   RecruitmentCandidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  emailId     String                   @map("email_id")
+  email       RecruitmentScenarioEmail @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  action      String // replied | ignored | flagged
+  replyBody   String?                  @map("reply_body") @db.Text
+  deliveredAt DateTime                 @map("delivered_at")
+  respondedAt DateTime                 @default(now()) @map("responded_at")
+
+  // Marker output (parallels RecruitmentResponse's per-row comment pattern)
+  markerComment String? @map("marker_comment") @db.Text
+
+  @@unique([candidateId, emailId])
+  @@index([candidateId])
+  @@map("recruitment_email_responses")
+}
