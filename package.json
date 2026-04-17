@@ -21,6 +21,8 @@
     "@tiptap/pm": "^3.22.3",
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
+    "@types/dompurify": "^3.0.5",
+    "dompurify": "^3.4.0",
     "next": "14.2.35",
     "next-auth": "^4.24.13",
     "prisma": "^6.19.3",

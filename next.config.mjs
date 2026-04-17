@@ -18,10 +18,13 @@ const nextConfig = {
   },
   // Ensure scenario HTML exhibits + marking rubric JSONs under infra/recruit
   // are included in the serverless output so readFileSync(process.cwd() + …)
-  // works at runtime.
-  outputFileTracingIncludes: {
-    "/api/**/*": ["./infra/recruit/**/*"],
-    "/assess/**/*": ["./infra/recruit/**/*"],
+  // works at runtime. In Next.js 14 this lives under `experimental`; it moves
+  // to top-level in Next.js 15.
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/**/*": ["./infra/recruit/**/*"],
+      "/assess/**/*": ["./infra/recruit/**/*"],
+    },
   },
 };
 
