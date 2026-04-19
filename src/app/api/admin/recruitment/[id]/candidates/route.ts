@@ -122,7 +122,13 @@ export async function GET(
     },
   });
 
-  const origin = process.env.NEXTAUTH_URL || `https://${request.headers.get("host") ?? "meritia.example"}`;
+  // Candidate URLs live on CANDIDATE_URL_BASE when set (e.g. assess.meritia.org)
+  // so admins and candidates can be served from separate subdomains. Falls back
+  // to the admin origin (NEXTAUTH_URL) and finally the request host.
+  const origin =
+    process.env.CANDIDATE_URL_BASE ||
+    process.env.NEXTAUTH_URL ||
+    `https://${request.headers.get("host") ?? "meritia.example"}`;
   const enriched = candidates.map((c) => ({
     ...c,
     assessmentUrl: `${origin}/assess/${assessment.scenarioSlug}?token=${c.token}`,

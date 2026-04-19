@@ -76,6 +76,20 @@ your registrar.
 | Apex | ALIAS/CNAME | `@` (or blank) | `d162d3pndj7mvv.cloudfront.net` |
 | www | CNAME | `www` | `d162d3pndj7mvv.cloudfront.net` |
 
+### assess.meritia.org (candidate-facing — pending)
+
+Split-host architecture: admins live on `meritia.org`, candidates on
+`assess.meritia.org`. Attach as a second custom domain on the same Amplify
+app, then add the DNS records Amplify returns. After verification, set
+Amplify env `CANDIDATE_URL_BASE=https://assess.meritia.org` and redeploy.
+The admin APIs that generate invitation URLs prefer `CANDIDATE_URL_BASE`
+over `NEXTAUTH_URL`, so invitations automatically use the candidate host.
+
+| Record | Type | Host (at registrar) | Target |
+|---|---|---|---|
+| Cert verification | CNAME | (from Amplify once attached) | (from Amplify) |
+| Subdomain | CNAME | `assess` | (from Amplify — typically `*.cloudfront.net`) |
+
 ### DNS flavours — apex CNAME limitations
 
 Standard DNS does not allow a CNAME at the apex (`@` / the naked domain).
@@ -99,11 +113,15 @@ Options, pick whichever your registrar supports:
    min after the records propagate). Certificate is issued automatically.
 2. Update Amplify env var `NEXTAUTH_URL` from
    `https://main.d1wxabrgr6nkub.amplifyapp.com` to `https://meritia.org`
-   and redeploy.
-3. Smoke test: visit `https://meritia.org/login`, sign in as
+   and set `CANDIDATE_URL_BASE=https://assess.meritia.org` once the
+   candidate subdomain is verified. Redeploy.
+3. Smoke test admin: visit `https://meritia.org/login`, sign in as
    `mattvalente85@gmail.com`, confirm redirect to `/admin/recruitment`.
-4. Smoke test the redirect: `curl -I https://meritia.net` should return 301
+4. Smoke test redirect: `curl -I https://meritia.net` should return 301
    with `location: https://meritia.org/`.
+5. Smoke test candidate host: create a test cohort, export the CSV,
+   confirm `assessment_url` values point at `https://assess.meritia.org/...`.
+   Open one in an incognito window and confirm the assessment loads.
 
 ## Secrets
 

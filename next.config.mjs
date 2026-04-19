@@ -6,6 +6,9 @@ const nextConfig = {
     COGNITO_ISSUER: process.env.COGNITO_ISSUER,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    // Optional override for candidate invitation URLs — set to e.g.
+    // https://assess.meritia.org when admin + candidate live on different hosts.
+    CANDIDATE_URL_BASE: process.env.CANDIDATE_URL_BASE,
     // Persistence
     DATABASE_URL: process.env.DATABASE_URL,
     // AI
