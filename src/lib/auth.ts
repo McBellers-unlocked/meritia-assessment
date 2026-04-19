@@ -35,15 +35,22 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       if (!user.email) return false;
 
-      await prisma.user.upsert({
-        where: { email: user.email },
-        update: { name: user.name },
-        create: {
-          email: user.email,
-          name: user.name,
-          role: "ADMIN",
-        },
-      });
+      const existing = await prisma.user.findUnique({ where: { email: user.email } });
+      if (existing) {
+        if (!existing.active) return false;
+        await prisma.user.update({
+          where: { email: user.email },
+          data: { name: user.name },
+        });
+      } else {
+        await prisma.user.create({
+          data: {
+            email: user.email,
+            name: user.name,
+            role: "ADMIN",
+          },
+        });
+      }
 
       return true;
     },
@@ -52,9 +59,12 @@ export const authOptions: NextAuthOptions = {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email as string },
         });
-        if (dbUser) {
+        if (dbUser && dbUser.active) {
           token.id = dbUser.id;
           token.role = dbUser.role;
+        } else {
+          token.id = undefined;
+          token.role = undefined;
         }
       }
       return token;

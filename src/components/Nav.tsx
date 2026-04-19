@@ -36,6 +36,18 @@ export default function Nav() {
             <div className="h-8 w-20 bg-white/10 rounded animate-pulse" />
           ) : session ? (
             <>
+              <Link
+                href="/admin/recruitment"
+                className="hidden sm:block text-sm text-white/60 hover:text-white transition"
+              >
+                Recruitment
+              </Link>
+              <Link
+                href="/admin/users"
+                className="hidden sm:block text-sm text-white/60 hover:text-white transition"
+              >
+                Users
+              </Link>
               <span className="hidden sm:block text-sm text-white/50 max-w-[200px] truncate">
                 {session.user?.name || session.user?.email}
               </span>

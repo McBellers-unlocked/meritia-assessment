@@ -26,6 +26,10 @@ model User {
   email     String   @unique
   name      String?
   role      Role     @default(ADMIN)
+  // When false, sign-in is blocked in auth.signIn and the jwt callback strips
+  // role/id from the token so existing sessions lose admin access on the next
+  // refresh. Toggle via /admin/users.
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

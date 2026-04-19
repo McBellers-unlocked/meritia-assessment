@@ -8,10 +8,10 @@ import { Role } from "@prisma/client";
 declare module "next-auth" {
   interface Session {
     user: {
-      id: string;
+      id?: string;
       email: string;
       name?: string | null;
-      role: Role;
+      role?: Role;
       image?: string | null;
     };
   }
@@ -19,7 +19,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    role: Role;
+    id?: string;
+    role?: Role;
   }
 }
