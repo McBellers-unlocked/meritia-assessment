@@ -344,6 +344,7 @@ export type {
 
 import type { RecruitScenarioConfig } from "./types";
 import { APLO_P2_2026 } from "./aplo-p2-2026";
+import { CSO_P3_2026 } from "./cso-p3-2026";
 
 export const FAM_P4_2026: RecruitScenarioConfig = {
   scenarioId: "fam-p4-2026",
@@ -404,6 +405,7 @@ Please review the analysis and advise me honestly.`,
 export const RECRUIT_SCENARIOS: Record<string, RecruitScenarioConfig> = {
   [FAM_P4_2026.scenarioId]: FAM_P4_2026,
   [APLO_P2_2026.scenarioId]: APLO_P2_2026,
+  [CSO_P3_2026.scenarioId]: CSO_P3_2026,
 };
 
 export function getRecruitScenarioBySlug(slug: string): RecruitScenarioConfig | null {

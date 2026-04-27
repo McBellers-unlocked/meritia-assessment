@@ -15,7 +15,10 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+const SITE_URL = process.env.NEXTAUTH_URL ?? "https://meritia.org";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Meritia — AI-Era Professional Assessment",
     template: "%s | Meritia",
@@ -25,6 +28,20 @@ export const metadata: Metadata = {
   robots: {
     index: false,
     follow: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Meritia",
+    title: "Meritia — Hire for judgement, not for prompts.",
+    description:
+      "Scenario-based competency simulations for the AI era. Memo work, live AI tools, blind marking with reveal.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Meritia — Hire for judgement, not for prompts.",
+    description:
+      "Scenario-based competency simulations for the AI era. Memo work, live AI tools, blind marking with reveal.",
   },
 };
 

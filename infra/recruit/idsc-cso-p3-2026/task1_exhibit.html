@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IDSC CSO — Monthly SOC Performance Report, March 20X6 (Draft)</title>
+<style>
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    color: #1B2A4A;
+    margin: 0;
+    padding: 0;
+    line-height: 1.55;
+    background: #ffffff;
+  }
+  .doc {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 1.6rem 2rem 4rem;
+  }
+
+  /* ------- cover ------- */
+  header.cover {
+    border-bottom: 4px solid #1B2A4A;
+    padding-bottom: 1rem;
+    margin-bottom: 1.2rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: end;
+  }
+  header.cover .org { font-size: .8rem; color: #4B92DB; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+  header.cover h1 { font-size: 1.55rem; margin: .25rem 0 .35rem; color: #1B2A4A; }
+  header.cover .sub { color: #555; font-size: .92rem; }
+  header.cover .pill {
+    display: inline-block;
+    background: #fbe9c0;
+    color: #7a5400;
+    border-radius: 3px;
+    padding: .18rem .55rem;
+    font-size: .72rem;
+    margin-left: .5rem;
+    vertical-align: middle;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  header.cover .issuance {
+    text-align: right;
+    font-size: .78rem;
+    color: #666;
+    line-height: 1.5;
+  }
+  header.cover .issuance .label {
+    color: #4B92DB;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 600;
+    font-size: .7rem;
+  }
+
+  h2 {
+    color: #1B2A4A;
+    font-size: 1.1rem;
+    margin-top: 1.9rem;
+    padding-bottom: .3rem;
+    border-bottom: 2px solid #4B92DB;
+    font-weight: 600;
+  }
+  h2 .sec { color: #4B92DB; margin-right: .4rem; font-variant-numeric: tabular-nums; }
+
+  h3 { color: #1B2A4A; font-size: .98rem; margin-top: 1.2rem; }
+  h4 { color: #4B92DB; font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; margin-top: .9rem; margin-bottom: .3rem; }
+
+  /* ------- prepared note ------- */
+  .prepared {
+    background: #f6f9fd;
+    border: 1px solid #c7d6e8;
+    border-left: 4px solid #4B92DB;
+    padding: .7rem 1rem;
+    margin: 1rem 0 1.4rem;
+    font-size: .88rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .75rem;
+    align-items: start;
+  }
+  .prepared .badge {
+    background: #4B92DB;
+    color: white;
+    font-size: .7rem;
+    padding: .15rem .5rem;
+    border-radius: 3px;
+    letter-spacing: .08em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* ------- exec summary ------- */
+  .exec-summary {
+    background: #fafbfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 1.1rem 1.3rem;
+    margin: 1.2rem 0 1.4rem;
+  }
+  .exec-summary h2 { margin-top: 0; border-bottom: none; padding-bottom: 0; }
+  .exec-summary ul { margin: .5rem 0 .2rem 1.2rem; }
+  .exec-summary li { margin: .35rem 0; }
+
+  /* ------- KPI strip ------- */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .7rem;
+    margin: .8rem 0 1.2rem;
+  }
+  .kpi-card {
+    background: linear-gradient(180deg, #f6f9fd 0%, #eff4fa 100%);
+    border: 1px solid #c7d6e8;
+    border-radius: 4px;
+    padding: .6rem .85rem;
+  }
+  .kpi-card .label { font-size: .68rem; color: #4B92DB; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  .kpi-card .value { font-size: 1.45rem; font-weight: 700; color: #1B2A4A; margin-top: .1rem; font-variant-numeric: tabular-nums; }
+  .kpi-card .delta { font-size: .78rem; color: #2e7a42; margin-top: .1rem; }
+  .kpi-card .delta.neutral { color: #666; }
+
+  /* ------- tables ------- */
+  table { width: 100%; border-collapse: collapse; margin: .5rem 0 1rem; font-size: .92rem; }
+  th, td { padding: .4rem .6rem; vertical-align: top; }
+  thead th { background: #eef3f9; color: #1B2A4A; text-align: left; border-bottom: 1px solid #c7d6e8; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  tbody td { border-bottom: 1px solid #f0f3f7; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ------- charts ------- */
+  .chart {
+    background: #fafbfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: .9rem 1.1rem 1rem;
+    margin: .8rem 0 1.2rem;
+  }
+  .chart .chart-title { font-size: .92rem; color: #1B2A4A; font-weight: 600; margin-bottom: .2rem; }
+  .chart .chart-sub { font-size: .78rem; color: #666; margin-bottom: .6rem; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart .caption { font-size: .78rem; color: #666; margin-top: .4rem; }
+
+  /* ------- SVG chart class defs ------- */
+  .cx-gridline { stroke: #e2e8f0; stroke-width: 1; }
+  .cx-axis { stroke: #95a8c5; stroke-width: 1; }
+  .cx-axis-label { font-family: "Segoe UI", sans-serif; font-size: 10px; fill: #666; }
+  .cx-value-label { font-family: "Segoe UI", sans-serif; font-size: 10px; fill: #1B2A4A; font-weight: 600; }
+  .cx-bar { fill: #4B92DB; }
+  .cx-bar.warn { fill: #e3a24b; }
+  .cx-bar.ok { fill: #59a469; }
+  .cx-line { stroke: #4B92DB; stroke-width: 2; fill: none; }
+  .cx-line-fill { fill: rgba(75, 146, 219, 0.1); }
+  .cx-dot { fill: #ffffff; stroke: #4B92DB; stroke-width: 2; }
+
+  /* ------- annex ------- */
+  .annex {
+    background: #fafbfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 1.1rem 1.3rem;
+    margin-top: 1.4rem;
+  }
+  .annex h3 { margin-top: 0; }
+
+  .status-pill {
+    display: inline-block;
+    font-size: .72rem;
+    padding: .12rem .45rem;
+    border-radius: 3px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .status-pill.design { background: #fbe9c0; color: #7a5400; }
+  .status-pill.build { background: #d6f3d8; color: #1e5228; }
+  .status-pill.scoping { background: #e3dcf2; color: #443073; }
+  .status-pill.not-started { background: #ececec; color: #555; }
+
+  footer.doc-footer {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d6dee9;
+    color: #888; font-size: .8rem;
+  }
+
+  p { margin: .5rem 0; }
+  .muted { color: #666; }
+  .callout-note { font-size: .82rem; color: #666; margin-top: .3rem; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cover">
+  <div>
+    <div class="org">International Digital Services Centre · Cyber Security Operations Section</div>
+    <h1>Monthly SOC Performance Report — March 20X6
+      <span class="pill">Draft — for Chief, CSO sign-off</span>
+    </h1>
+    <div class="sub">Prepared by the IDSC SOC Reporting Assistant · Next recipient: CITO, Mr Wei Chen · Distribution: CITO, Chief ITSD, DG (condensed)</div>
+  </div>
+  <div class="issuance">
+    <div class="label">Report ref</div>
+    <div>CSO/MON/20X6-03</div>
+    <div class="label" style="margin-top:.4rem;">Reporting period</div>
+    <div>01 – 31 March 20X6</div>
+  </div>
+</header>
+
+<div class="prepared">
+  <span class="badge">AI-PREPARED</span>
+  <div>
+    This draft was compiled by the SOC Reporting Assistant from SIEM telemetry, the ticketing system, SOAR audit samples, and the rule library. The Reporting Assistant holds the underlying data and can answer source-level queries on request. Narrative drafted for Chief, CSO review prior to onward circulation.
+  </div>
+</div>
+
+<div class="exec-summary">
+  <h2>Executive summary</h2>
+  <p>March 20X6 was a strong month for the Cyber Security Operations Section. Key highlights:</p>
+  <ul>
+    <li><strong>Mean Time to Respond (MTTR) improved to 35 minutes</strong>, down from the Q4 20X5 average of 42 minutes.</li>
+    <li><strong>Mean Time to Detect (MTTD) improved by 18% this month.</strong></li>
+    <li><strong>Detection volume up 42% year-on-year</strong>, reflecting continued maturity of the SOC's monitoring estate.</li>
+    <li><strong>Zero critical security incidents</strong> for the third consecutive month.</li>
+    <li><strong>70% of Tier 1 alerts now auto-triaged</strong> by SOAR playbooks, releasing analyst capacity.</li>
+    <li>Tier-to-tier escalations remain stable and within expected ranges.</li>
+    <li>All identified risks are being actively mitigated under the Q1 roadmap.</li>
+  </ul>
+  <p>The SOC onboarded two further UN-system partner agencies in March (URRSO, UNFSS). Coverage was extended without disruption to existing service levels.</p>
+</div>
+
+<h2><span class="sec">1.</span> Detection volume and coverage</h2>
+<p>The SOC processed an average of 28,400 detection events per day in March, a 42% increase year-on-year. The increase reflects continued enrichment of the detection rule library and expanded telemetry sources.</p>
+
+<div class="kpi-strip">
+  <div class="kpi-card">
+    <div class="label">Events / day</div>
+    <div class="value">28,400</div>
+    <div class="delta">▲ 42% YoY</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Active rules</div>
+    <div class="value">8,412</div>
+    <div class="delta">▲ 9% YoY</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Monitored hosts</div>
+    <div class="value">48,100</div>
+    <div class="delta">▲ 6% YoY</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Partner agencies</div>
+    <div class="value">28</div>
+    <div class="delta neutral">+2 onboarded this month</div>
+  </div>
+</div>
+
+<p class="muted">Detection volume is a primary indicator of monitoring maturity in the IDSC balanced-scorecard framework.</p>
+
+<h2><span class="sec">2.</span> Mean Time to Detect (MTTD)</h2>
+<p>MTTD improved by 18% this month. The SOC's detection pipeline continues to benefit from parser optimisation and SOAR-assisted triage.</p>
+
+<div class="chart">
+  <div class="chart-title">MTTD by month (minutes, all severities aggregated)</div>
+  <div class="chart-sub">Q1 20X6 trend</div>
+  <svg viewBox="0 0 640 200" role="img" aria-label="MTTD monthly trend chart">
+    <!-- gridlines -->
+    <g class="cx-gridline">
+      <line x1="60" y1="30" x2="620" y2="30"/>
+      <line x1="60" y1="70" x2="620" y2="70"/>
+      <line x1="60" y1="110" x2="620" y2="110"/>
+      <line x1="60" y1="150" x2="620" y2="150"/>
+    </g>
+    <!-- y-axis labels (0 min to 5 min, step 1) -->
+    <g class="cx-axis-label">
+      <text x="54" y="34" text-anchor="end">5</text>
+      <text x="54" y="74" text-anchor="end">4</text>
+      <text x="54" y="114" text-anchor="end">3</text>
+      <text x="54" y="154" text-anchor="end">2</text>
+      <text x="54" y="174" text-anchor="end">min</text>
+    </g>
+    <!-- axis lines -->
+    <line class="cx-axis" x1="60" y1="150" x2="620" y2="150"/>
+    <line class="cx-axis" x1="60" y1="20" x2="60" y2="150"/>
+    <!-- x-axis labels -->
+    <g class="cx-axis-label">
+      <text x="180" y="170" text-anchor="middle">January 20X6</text>
+      <text x="340" y="170" text-anchor="middle">February 20X6</text>
+      <text x="500" y="170" text-anchor="middle">March 20X6</text>
+    </g>
+    <!-- data values: Jan 3.4, Feb 3.2, Mar 3.3
+         y = 150 - (value/5)*130
+         Jan: 150 - 3.4/5*130 = 150 - 88.4 = 61.6
+         Feb: 150 - 3.2/5*130 = 150 - 83.2 = 66.8
+         Mar: 150 - 3.3/5*130 = 150 - 85.8 = 64.2 -->
+    <!-- line fill (under-area) -->
+    <path class="cx-line-fill" d="M 180,61.6 L 340,66.8 L 500,64.2 L 500,150 L 180,150 Z"/>
+    <!-- line -->
+    <polyline class="cx-line" points="180,61.6 340,66.8 500,64.2"/>
+    <!-- data dots -->
+    <circle class="cx-dot" cx="180" cy="61.6" r="4"/>
+    <circle class="cx-dot" cx="340" cy="66.8" r="4"/>
+    <circle class="cx-dot" cx="500" cy="64.2" r="4"/>
+    <!-- value labels -->
+    <g class="cx-value-label">
+      <text x="180" y="50" text-anchor="middle">3.4</text>
+      <text x="340" y="55" text-anchor="middle">3.2</text>
+      <text x="500" y="52" text-anchor="middle">3.3</text>
+    </g>
+  </svg>
+  <div class="caption">Chart reflects monthly MTTD across all severities. Measured from event timestamp to alert creation.</div>
+</div>
+
+<h2><span class="sec">3.</span> Mean Time to Respond (MTTR)</h2>
+<p>MTTR improved to 35 minutes in March, down from the Q4 20X5 average of 42 minutes. Response times have trended steadily downward through Q1, reflecting the effectiveness of the SOAR-assisted triage flow.</p>
+
+<table>
+  <thead>
+    <tr><th>Period</th><th>MTTR (all severities)</th><th>SLA compliance</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Q4 20X5 average</td><td class="num">42 min</td><td class="num">94%</td></tr>
+    <tr><td>January 20X6</td><td class="num">39 min</td><td class="num">95%</td></tr>
+    <tr><td>February 20X6</td><td class="num">36 min</td><td class="num">96%</td></tr>
+    <tr><td>March 20X6</td><td class="num">35 min</td><td class="num">97%</td></tr>
+  </tbody>
+</table>
+
+<p class="muted">Severity breakdown available in the underlying telemetry on request.</p>
+
+<h2><span class="sec">4.</span> Incident summary</h2>
+<p>March 20X6 closed with <strong>zero critical security incidents</strong>, the third consecutive month of no critical-severity incidents at IDSC. The SOC confirms that all elevated alerts through the month were successfully triaged and closed without escalation to a critical-rated incident.</p>
+
+<table>
+  <thead>
+    <tr><th>Severity</th><th>Opened</th><th>Closed</th><th>Open at month-end</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Critical</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>High</td><td class="num">7</td><td class="num">7</td><td class="num">0</td></tr>
+    <tr><td>Medium</td><td class="num">24</td><td class="num">22</td><td class="num">2</td></tr>
+    <tr><td>Low</td><td class="num">83</td><td class="num">80</td><td class="num">3</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="sec">5.</span> SOAR automation — Tier 1 triage</h2>
+<p>SOAR playbook coverage continued to expand through March. <strong>70% of Tier 1 alerts are now auto-triaged</strong>, up from 54% at the start of the quarter. Analyst capacity released by automation is being redirected to threat hunting and rule tuning.</p>
+
+<div class="chart">
+  <div class="chart-title">Tier 1 alert disposition — March 20X6</div>
+  <div class="chart-sub">Share of all Tier 1 alerts by triage route</div>
+  <svg viewBox="0 0 640 140" role="img" aria-label="Tier 1 alert disposition chart">
+    <!-- Segmented horizontal bar: 70% auto, 27% analyst, 3% escalated -->
+    <!-- total width 500, starting at x=70 -->
+    <rect x="70" y="50" width="350" height="28" fill="#59a469"/>
+    <rect x="420" y="50" width="135" height="28" fill="#4B92DB"/>
+    <rect x="555" y="50" width="15" height="28" fill="#e3a24b"/>
+    <!-- labels above -->
+    <g class="cx-value-label">
+      <text x="245" y="42" text-anchor="middle" fill="#ffffff" style="fill:#1B2A4A;">70%</text>
+      <text x="487" y="42" text-anchor="middle">27%</text>
+      <text x="585" y="42" text-anchor="middle" fill="#7a5400">3%</text>
+    </g>
+    <!-- axis ticks -->
+    <g class="cx-axis-label">
+      <text x="70" y="98" text-anchor="start">0</text>
+      <text x="570" y="98" text-anchor="end">100%</text>
+    </g>
+    <!-- legend -->
+    <g transform="translate(70, 115)">
+      <rect x="0" y="0" width="12" height="10" fill="#59a469"/>
+      <text class="cx-axis-label" x="18" y="9">Auto-triaged by SOAR</text>
+      <rect x="170" y="0" width="12" height="10" fill="#4B92DB"/>
+      <text class="cx-axis-label" x="188" y="9">Analyst triage</text>
+      <rect x="310" y="0" width="12" height="10" fill="#e3a24b"/>
+      <text class="cx-axis-label" x="328" y="9">Escalated to Tier 2</text>
+    </g>
+  </svg>
+  <div class="caption">Auto-triage closes an alert without analyst touch, based on enrichment and rule-defined disposition logic.</div>
+</div>
+
+<p>The expansion of SOAR playbook coverage is the single largest efficiency gain in Q1. The CITO highlighted SOC automation as a flagship ITSD deliverable at the February all-hands.</p>
+
+<h2><span class="sec">6.</span> Staffing and shift coverage</h2>
+<p>Shift coverage remained at 24×7 across the reporting period, with Valencia (primary) and Brindisi (secondary/overnight) rotations running to schedule.</p>
+
+<table>
+  <thead>
+    <tr><th>Team</th><th>Filled</th><th>Funded</th><th>Location</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Tier 1 analysts</td><td class="num">13</td><td class="num">15</td><td>Valencia / Brindisi</td></tr>
+    <tr><td>Tier 2 analysts</td><td class="num">5</td><td class="num">5</td><td>Valencia</td></tr>
+    <tr><td>Tier 3 analysts</td><td class="num">2</td><td class="num">3</td><td>Geneva</td></tr>
+    <tr><td>SOC engineering</td><td class="num">4</td><td class="num">4</td><td>Valencia</td></tr>
+    <tr><td>Shift leads</td><td class="num">6</td><td class="num">6</td><td>Valencia / Brindisi</td></tr>
+  </tbody>
+</table>
+
+<p class="muted">Overtime: 312 hours across the SOC in March. Attrition data is maintained by the People and Culture Section.</p>
+
+<h2><span class="sec">7.</span> Continuous improvement initiatives</h2>
+<p>The following initiatives progressed in March in line with the Q1 workplan:</p>
+<ul>
+  <li>SOAR playbook expansion — four new playbooks for cloud workload events released to production.</li>
+  <li>Rule library review cadence — quarterly review cycle continues; next scheduled review Q2 20X6.</li>
+  <li>Partner onboarding — URRSO and UNFSS integrated into the SOC monitoring estate.</li>
+  <li>Detection engineering — three new informational-level detections deployed for identity-anomaly correlation.</li>
+</ul>
+
+<h2><span class="sec">8.</span> Outlook</h2>
+<p>The SOC enters Q2 with strong momentum. Detection coverage continues to expand, response times continue to decrease, and the SOAR automation programme is on track. All identified risks are being actively mitigated under the Q1 roadmap (see Annex B). No material risk changes to report this month.</p>
+
+<div class="annex">
+  <h3>Annex A — Tier-to-tier escalation flow (by week, Jan–March 20X6)</h3>
+  <p>The chart below tracks Tier 1 → Tier 3 direct escalations (i.e., alerts escalated from Tier 1 past Tier 2 to Tier 3 within the same triage flow).</p>
+
+  <div class="chart">
+    <div class="chart-title">Tier 1 → Tier 3 direct escalations — weekly</div>
+    <div class="chart-sub">Count per week, Jan W1 through Mar W4</div>
+    <svg viewBox="0 0 720 230" role="img" aria-label="Weekly escalation bar chart">
+      <!-- gridlines at y values for 2, 4, 6, 8 -->
+      <!-- chart area: x 70-700, y 20-180 (height 160 for max=8) -->
+      <g class="cx-gridline">
+        <line x1="70" y1="180" x2="700" y2="180"/>
+        <line x1="70" y1="140" x2="700" y2="140"/>
+        <line x1="70" y1="100" x2="700" y2="100"/>
+        <line x1="70" y1="60" x2="700" y2="60"/>
+        <line x1="70" y1="20" x2="700" y2="20"/>
+      </g>
+      <!-- y axis labels -->
+      <g class="cx-axis-label">
+        <text x="64" y="184" text-anchor="end">0</text>
+        <text x="64" y="144" text-anchor="end">2</text>
+        <text x="64" y="104" text-anchor="end">4</text>
+        <text x="64" y="64" text-anchor="end">6</text>
+        <text x="64" y="24" text-anchor="end">8</text>
+        <text x="58" y="195" text-anchor="end">esc.</text>
+      </g>
+      <!-- x-axis baseline -->
+      <line class="cx-axis" x1="70" y1="180" x2="700" y2="180"/>
+      <!-- bars: 12 weeks, each bar 40px wide, with 12px gap between months
+           Available width: 700-70 = 630
+           12 weeks + 2 month gaps = take 630px
+           bar width = 38, gap = 6 within month, 24 between months
+           positions:
+             W1 Jan: x=78
+             W2 Jan: x=122
+             W3 Jan: x=166
+             W4 Jan: x=210
+             W1 Feb: x=270
+             W2 Feb: x=314
+             W3 Feb: x=358
+             W4 Feb: x=402
+             W1 Mar: x=462
+             W2 Mar: x=506
+             W3 Mar: x=550
+             W4 Mar: x=594
+           bar height for value v: height = v/8*160 = v*20
+             y = 180 - v*20
+      -->
+      <g>
+        <rect class="cx-bar" x="78" y="160" width="38" height="20"/>
+        <rect class="cx-bar" x="122" y="160" width="38" height="20"/>
+        <rect class="cx-bar" x="166" y="160" width="38" height="20"/>
+        <rect class="cx-bar" x="210" y="160" width="38" height="20"/>
+        <rect class="cx-bar" x="270" y="160" width="38" height="20"/>
+        <rect class="cx-bar" x="314" y="140" width="38" height="40"/>
+        <rect class="cx-bar" x="358" y="140" width="38" height="40"/>
+        <rect class="cx-bar" x="402" y="160" width="38" height="20"/>
+        <rect class="cx-bar warn" x="462" y="140" width="38" height="40"/>
+        <rect class="cx-bar warn" x="506" y="120" width="38" height="60"/>
+        <rect class="cx-bar warn" x="550" y="140" width="38" height="40"/>
+        <rect class="cx-bar warn" x="594" y="40" width="38" height="140"/>
+      </g>
+      <!-- value labels above bars -->
+      <g class="cx-value-label">
+        <text x="97" y="155" text-anchor="middle">1</text>
+        <text x="141" y="155" text-anchor="middle">1</text>
+        <text x="185" y="155" text-anchor="middle">1</text>
+        <text x="229" y="155" text-anchor="middle">1</text>
+        <text x="289" y="155" text-anchor="middle">1</text>
+        <text x="333" y="135" text-anchor="middle">2</text>
+        <text x="377" y="135" text-anchor="middle">2</text>
+        <text x="421" y="155" text-anchor="middle">1</text>
+        <text x="481" y="135" text-anchor="middle">2</text>
+        <text x="525" y="115" text-anchor="middle">3</text>
+        <text x="569" y="135" text-anchor="middle">2</text>
+        <text x="613" y="35" text-anchor="middle">7</text>
+      </g>
+      <!-- week labels -->
+      <g class="cx-axis-label">
+        <text x="97" y="196" text-anchor="middle">W1</text>
+        <text x="141" y="196" text-anchor="middle">W2</text>
+        <text x="185" y="196" text-anchor="middle">W3</text>
+        <text x="229" y="196" text-anchor="middle">W4</text>
+        <text x="289" y="196" text-anchor="middle">W1</text>
+        <text x="333" y="196" text-anchor="middle">W2</text>
+        <text x="377" y="196" text-anchor="middle">W3</text>
+        <text x="421" y="196" text-anchor="middle">W4</text>
+        <text x="481" y="196" text-anchor="middle">W1</text>
+        <text x="525" y="196" text-anchor="middle">W2</text>
+        <text x="569" y="196" text-anchor="middle">W3</text>
+        <text x="613" y="196" text-anchor="middle">W4</text>
+      </g>
+      <!-- month labels -->
+      <g class="cx-axis-label" font-weight="600">
+        <text x="163" y="215" text-anchor="middle">January</text>
+        <text x="355" y="215" text-anchor="middle">February</text>
+        <text x="547" y="215" text-anchor="middle">March</text>
+      </g>
+    </svg>
+    <div class="caption">March W4 figure includes the six alerts from Cluster #4419 on the closing night of the reporting period.</div>
+  </div>
+
+  <p>January: 4 direct escalations. February: 6. March: 14 (7 in the final week).</p>
+</div>
+
+<div class="annex">
+  <h3>Annex B — Roadmap and risk status</h3>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Initiative</th><th>Origin</th><th>Status</th><th>Target delivery</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>P1</td>
+        <td>Identity-based attack path detection</td>
+        <td>20X5 Q3 external penetration test (20X5-09-14)</td>
+        <td><span class="status-pill design">Design phase</span></td>
+        <td>20X6 Q3</td>
+      </tr>
+      <tr>
+        <td>P2</td>
+        <td>SOAR playbook coverage for cloud workload events</td>
+        <td>20X5 Q4 SOC-CMM uplift plan</td>
+        <td><span class="status-pill build">Build — on track</span></td>
+        <td>20X6 Q2</td>
+      </tr>
+      <tr>
+        <td>P3</td>
+        <td>Tier 1 analyst training refresh programme</td>
+        <td>20X5 workplan</td>
+        <td><span class="status-pill scoping">Scoping — deferred from 20X5</span></td>
+        <td>20X6 Q4</td>
+      </tr>
+      <tr>
+        <td>P4</td>
+        <td>Detection coverage validation (purple-team cadence)</td>
+        <td>20X5 Q4 audit observation</td>
+        <td><span class="status-pill not-started">Not started</span></td>
+        <td>TBD — unfunded</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="callout-note">Most recent external assurance activity: penetration test, 20X5 Q3. No coverage-validation or purple-team exercise has been run in the March reporting window.</p>
+</div>
+
+<footer class="doc-footer">
+  IDSC CSO · Monthly SOC Performance Report · March 20X6 · DRAFT for Chief, CSO sign-off. Prepared by SOC Reporting Assistant build 20X6.03. Source telemetry and rejected chart variants are retained and available on request via the Reporting Assistant.
+</footer>
+
+</div>
+</body>
+</html>
