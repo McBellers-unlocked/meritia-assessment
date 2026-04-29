@@ -15,16 +15,33 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+const SITE_URL = process.env.NEXTAUTH_URL ?? "https://www.uniqassess.org";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Meritia — AI-Era Professional Assessment",
-    template: "%s | Meritia",
+    default: "UNIQAssess — AI-Era Professional Assessment",
+    template: "%s | UNIQAssess",
   },
   description:
     "Competency simulations for professional hiring. Assess how candidates direct AI, not just what they write.",
   robots: {
     index: false,
     follow: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "UNIQAssess",
+    title: "UNIQAssess — Hire for judgement, not for prompts.",
+    description:
+      "Scenario-based competency simulations for the AI era. Memo work, live AI tools, blind marking with reveal.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "UNIQAssess — Hire for judgement, not for prompts.",
+    description:
+      "Scenario-based competency simulations for the AI era. Memo work, live AI tools, blind marking with reveal.",
   },
 };
 

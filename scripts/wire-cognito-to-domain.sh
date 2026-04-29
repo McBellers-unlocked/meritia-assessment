@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run after your custom domain is live on Amplify.
-# Usage: ./scripts/wire-cognito-to-domain.sh https://meritia.yourdomain.com https://main.xxxxx.amplifyapp.com
+# Usage: ./scripts/wire-cognito-to-domain.sh https://www.uniqassess.org https://main.xxxxx.amplifyapp.com
 set -euo pipefail
 DOMAIN=${1:?"Pass the custom domain URL"}
 AMPLIFY_URL=${2:?"Pass the Amplify URL (keep both so local/dev still works)"}

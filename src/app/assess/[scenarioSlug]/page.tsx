@@ -112,8 +112,8 @@ function Landing({
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-baseline gap-3">
-            <span className="text-xl font-bold text-[#1B3A5C]">Meritia</span>
-            <span className="text-xs text-slate-500 hidden sm:inline">Professional Assessment Platform</span>
+            <span className="text-xl font-bold text-[#1B3A5C]">UNIQAssess</span>
+            <span className="text-xs text-slate-500 hidden sm:inline">Powered by UNICC</span>
           </div>
           <span className="text-xs text-slate-400 font-mono">{anonymousId}</span>
         </div>
@@ -198,7 +198,7 @@ function Landing({
                 database (UK/EU region).
               </p>
               <p>
-                <strong>Who sees it:</strong> the recruitment panel (examiners) and authorised Meritia
+                <strong>Who sees it:</strong> the recruitment panel (examiners) and authorised UNIQAssess
                 administrators. During marking, examiners see you only by an anonymous identifier
                 (e.g. &ldquo;{anonymousId}&rdquo;); your name and email are hidden from them.
               </p>
@@ -237,7 +237,7 @@ function Landing({
         </div>
 
         <div className="text-xs text-slate-400 text-center mt-6">
-          Powered by Meritia · Your responses and AI interactions are recorded for assessment purposes.
+          Powered by UNIQAssess · Your responses and AI interactions are recorded for assessment purposes.
         </div>
       </main>
     </div>

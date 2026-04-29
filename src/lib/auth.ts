@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
 import { prisma } from "./prisma";
 
-// Meritia has a single authenticated role (ADMIN). We still use Cognito for
+// UNIQAssess has a single authenticated role (ADMIN). We still use Cognito for
 // sign-in so a production deployment can use an existing user pool, but we
 // strip the Callater-style role ladder (student/examiner/etc.). Every user
 // who can sign in becomes an admin — so the operator must keep the user pool

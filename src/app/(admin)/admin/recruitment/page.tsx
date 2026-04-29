@@ -30,6 +30,13 @@ interface ScenarioOption {
   label: string;
 }
 
+function deriveTitleFromLabel(label: string): string {
+  return label
+    .replace(/\s*—\s*[^(]*\(built-in\)\s*$/, "")
+    .replace(/\s*\(custom\)\s*$/, "")
+    .trim();
+}
+
 const LEGACY_OPTIONS: ScenarioOption[] = [
   {
     source: "legacy",
@@ -43,6 +50,12 @@ const LEGACY_OPTIONS: ScenarioOption[] = [
     scenarioId: "aplo-p2-2026",
     label: "Associate Policy Officer (Legal) (P2) — IDSC (built-in)",
   },
+  {
+    source: "legacy",
+    key: "legacy:cso-p3-2026",
+    scenarioId: "cso-p3-2026",
+    label: "Cybersecurity Operations Officer (P3) — IDSC (built-in)",
+  },
 ];
 
 export default function AdminRecruitmentList() {
@@ -54,7 +67,7 @@ export default function AdminRecruitmentList() {
   const [scenarioOptions, setScenarioOptions] = useState<ScenarioOption[]>(LEGACY_OPTIONS);
 
   // Create form state
-  const [title, setTitle] = useState("Finance and Accounting Manager (P4)");
+  const [title, setTitle] = useState(deriveTitleFromLabel(LEGACY_OPTIONS[0].label));
   const [scenarioKey, setScenarioKey] = useState<string>(LEGACY_OPTIONS[0].key);
   const [openDate, setOpenDate] = useState("");
   const [closeDate, setCloseDate] = useState("");
@@ -63,6 +76,13 @@ export default function AdminRecruitmentList() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
+
+  // When the admin picks a different scenario, refresh the cohort title to
+  // match. Admin can still type over it; the next scenario change re-applies.
+  useEffect(() => {
+    const picked = scenarioOptions.find((o) => o.key === scenarioKey);
+    if (picked) setTitle(deriveTitleFromLabel(picked.label));
+  }, [scenarioKey, scenarioOptions]);
 
   const reload = async () => {
     try {

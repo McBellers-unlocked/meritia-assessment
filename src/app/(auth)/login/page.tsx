@@ -37,11 +37,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="rounded-2xl border border-slate-200 bg-white px-8 py-12 shadow-sm">
           <div className="text-center">
-            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <span className="text-lg font-bold">M</span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logos/uniqassess-logo.png"
+              alt="UNIQAssess"
+              width={220}
+              height={60}
+              className="mx-auto mb-6 h-12 w-auto"
+            />
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Sign in to Meritia
+              Sign in to UNIQAssess
             </h1>
             <p className="mt-2 text-sm text-slate-500">
               Recruiter &amp; marker access

@@ -1,0 +1,184 @@
+{
+  "scenario_id": "cso-p3-2026",
+  "position": "Cybersecurity Operations Officer (P3)",
+  "organisation": "International Digital Services Centre (IDSC), Geneva",
+  "total_marks": 100,
+  "probity_note": "All organisations, partner agencies, staff, threat actor infrastructure, and alert details in this scenario are fictional. IDSC, its partner agencies (including URRSO and UNFSS), named staff, the alert infrastructure (IPs, ASNs, hostnames), and the detection and response events are invented for assessment purposes. Markers should treat this as an internal recruitment scenario, not as a reflection of any real SOC, incident, vendor, or threat intelligence.",
+  "task1": {
+    "title": "Monthly SOC Report — Review and Reporting Reform",
+    "max_marks": 50,
+    "categories": {
+      "report_critique": {
+        "max": 20,
+        "description": "Identification of misleading or missing framings in the draft SOC monthly report. Reward candidates who identify the issue and argue a defensible position, even where the position differs from the expected one.",
+        "embedded_issues": [
+          {
+            "id": "mttr_case_mix",
+            "title": "Aggregate MTTR improvement conceals a regression in critical-severity MTTR. The 35-min figure is driven by a volume shift to Low/Informational closures; Critical MTTR has worsened from 142 to 186 minutes.",
+            "max_marks": 4,
+            "expected": "Recompute MTTR by severity via the Reporting Assistant. Show that the aggregate improvement is a case-mix effect and that Critical MTTR — the metric that actually matters — has deteriorated 31%. Corrected summary should present severity-weighted or severity-broken MTTR, not the aggregate."
+          },
+          {
+            "id": "mttd_chart_narrative_mismatch",
+            "title": "'MTTD improved by 18% this month' (narrative) contradicts the month-over-month chart (flat, 3.2→3.3 min). The 18% is the year-prior comparison, not the monthly trend.",
+            "max_marks": 4,
+            "expected": "Spot the temporal-unit mismatch — narrative claims monthly improvement, chart plots monthly flat. Challenge the claim, ask the Reporting Assistant to clarify the basis of measurement, and correct the summary to state MTTD is essentially flat month-over-month (with the YoY comparison if retained, clearly labelled)."
+          },
+          {
+            "id": "detection_volume_vanity",
+            "title": "Detection volume (+42% YoY, 28,400/day) framed as monitoring maturity. 89% of detections are Informational-severity and ~34% of the YoY delta comes from three new informational rules.",
+            "max_marks": 2,
+            "expected": "Recognise detection volume as a vanity metric — growth reflects rule additions and low-severity noise, not risk reduction or threat coverage. Corrected summary should either strip the claim or contextualise it (volume composition, TP rate)."
+          },
+          {
+            "id": "zero_criticals_no_coverage",
+            "title": "'Zero critical incidents' presented as assurance. No detection coverage test was run in March; 5 of 12 MITRE techniques flagged by the 20X5 Q3 pen test remain untested.",
+            "max_marks": 3,
+            "expected": "Identify that 'zero incidents' is a count, not evidence of coverage. Ask the Reporting Assistant about coverage validation in the month; confirm none ran. Corrected summary should either caveat the claim or remove the 'third clean month' framing."
+          },
+          {
+            "id": "tier3_escalation_buried",
+            "title": "Annex A chart shows Tier 1→Tier 3 direct escalations spiking in March (14 vs. 4 in January; 7 in week 4 alone). Narrative claims 'escalations remain stable and within expected ranges.'",
+            "max_marks": 3,
+            "expected": "Cross-check the Annex A chart against the narrative. Identify the contradiction. Even stripping the Cluster #4419 surge, March escalations are elevated. Corrected summary should surface this as a signal — possibly of Tier 1 miscalibration (over-escalation), rule drift, or a real uptick — and propose investigation rather than suppress."
+          },
+          {
+            "id": "detection_gap_roadmap",
+            "title": "Annex B P1 item — identity-based attack path detection flagged by 20X5 Q3 pen test — remains in 'design phase' 6 months after discovery. Executive summary claim 'all identified risks are being actively mitigated' overstates the position.",
+            "max_marks": 2,
+            "expected": "Compare the summary claim against the Annex B table. 6 months in design on a P1 pen-test finding is not 'active mitigation'. Corrected summary should disclose the gap or restate the claim more precisely (e.g., 'tracked in the 20X6 roadmap, target Q3 delivery')."
+          },
+          {
+            "id": "staffing_soar_quality_buried",
+            "title": "Staffing and SOAR quality buried. Tier 1 attrition 27% annualised (industry 8-14%), 312 overtime hours (Q4 180), Tier 3 vacancy open 4 months — not flagged as risk. SOAR 'auto-triage 70%' headline not paired with the re-review false-negative rate, which has risen to 4.1% (Q4: 1.8%).",
+            "max_marks": 2,
+            "expected": "Recognise both the staffing data and the SOAR re-review figures as leading risk indicators the report buries. Pull both from the Reporting Assistant. Corrected summary (or a separate risk callout) should flag Tier 1 burn rate, Tier 3 vacancy, AND the SOAR auto-closure miss rate as material issues."
+          }
+        ]
+      },
+      "reporting_reform": {
+        "max": 10,
+        "description": "Quality of the proposed reporting reform — two new KPIs for an AI-embedded SOC AND one existing KPI to deprioritise. Strong proposals explicitly address AI-era distortion, name the measurement trade-off, and survive the 'what would it NOT tell you?' question.",
+        "indicators": [
+          "Proposes two concrete KPIs, not categories (up to 4 marks, 2 per KPI) — award full marks where the KPI is specific enough to be operationalised (who measures, what data, what target) and addresses an AI-era gap: auto-closure audit quality, AI-dismissal override rate, time-to-correction on AI recommendations, detection coverage validation cadence, severity-weighted MTTR, MITRE technique coverage",
+          "Names one existing KPI to deprioritise or stop reporting, with reasoning (up to 3 marks) — strong candidates target aggregate MTTR, detection volume, or the raw '70% auto-triage' headline",
+          "Measurement literacy — 'what each KPI would and would not tell you' answered specifically, not generically (up to 3 marks) — weak answers say 'won't tell you everything'; strong answers name the specific blind spot (e.g., 'override rate won't tell us whether the alerts analysts didn't review were also wrong')"
+        ]
+      },
+      "investigation_quality": {
+        "max": 10,
+        "description": "How systematically the candidate used the SOC Reporting Assistant to pressure-test the draft against underlying telemetry.",
+        "indicators": [
+          "Asks the Reporting Assistant to recompute MTTR by severity rather than accepting the aggregate",
+          "Clarifies the basis-of-measurement for the 18% MTTD claim",
+          "Checks composition of the detection-volume figure (severity split, rule additions)",
+          "Asks whether any detection coverage test ran in March",
+          "Pulls the Annex A escalation data and cross-checks against the narrative",
+          "Pulls the SOAR re-review false-negative figure rather than trusting the 70% headline",
+          "Pulls staffing and attrition data and compares against industry benchmark",
+          "Frames queries to retrieve data, not to solicit judgment — recognises the RA is a retrieval system"
+        ]
+      },
+      "professional_skills": {
+        "max": 10,
+        "description": "Quality of the memo and the corrected executive summary.",
+        "indicators": [
+          "Memo is structured around the three asks (critique / corrected summary / reform)",
+          "Critique findings are cited to source (report section or annex reference)",
+          "Corrected 2-paragraph executive summary is honest without sandbagging — usable by the Chief as-is",
+          "Distinguishes misleading framing from simple omission",
+          "Tone is junior briefing senior — no lecturing, no deference beyond what the data allows",
+          "Concise prose; the memo reads in three minutes",
+          "Acknowledges the CITO's public position on SOC automation without moderating the substance"
+        ]
+      }
+    }
+  },
+  "task2": {
+    "title": "Overnight Alert Cluster #4419 — Shift Handover and Coaching Note",
+    "max_marks": 50,
+    "categories": {
+      "technical": {
+        "max": 25,
+        "description": "Correct disposition of each of the six alerts, recognition of the real signal in the cluster, spotting the MITRE misattribution, and proposing appropriate containment. Reward candidates who argue a defensible disposition with reasons, even where it differs from the expected one.",
+        "embedded_issues": [
+          {
+            "id": "alert1_fp_dg_dubai",
+            "title": "Alert 1 — DG Dubai login is a FP (pre-notified conference, hotel Wi-Fi, MFA satisfied).",
+            "max_marks": 1,
+            "expected": "Confirm the conference and hotel booking via the TRA. Dismiss as FP."
+          },
+          {
+            "id": "alert2_fp_plus_process_finding",
+            "title": "Alert 2 — Brindisi VPN endpoint is a FP, BUT the SOC pre-notification gap (change ticket misclassified as non-security-impacting) is a real procedural finding worth raising.",
+            "max_marks": 2,
+            "expected": "Pull CHG-2026-0412 via the TRA. Dismiss the auth alert. Flag the pre-notification gap separately as a procedural finding — does not need IR activation but warrants follow-up with Network Engineering and change-classification review."
+          },
+          {
+            "id": "alert3_fp_scheduled_backup",
+            "title": "Alert 3 — svc-backup-02 is a FP (weekly scheduled Tuesday backup, matches 8-week baseline, no outbound traffic).",
+            "max_marks": 1,
+            "expected": "Confirm the scheduled task and baseline via the TRA. Dismiss as FP."
+          },
+          {
+            "id": "alert4_fp_plus_serious_process_findings",
+            "title": "Alert 4 — MFA bypass is a FP (IT deployed new SAML proxy without SOC pre-notification; the proxy's logs do not surface MFA events to SIEM via current parser, but IdP confirms MFA succeeded). BUT the combination of deployment-without-notification AND a silent SIEM parser gap is a material process finding.",
+            "max_marks": 3,
+            "expected": "Pull CHG-2026-0411 and the IdP audit logs via the TRA. Confirm MFA did succeed. Dismiss the security event, but clearly flag two process findings: (a) IT changed an auth component without SOC pre-notification, (b) SIEM parser now has a silent blind spot for MFA challenges via the new proxy. Strong answers request an urgent parser fix and engagement with IT change governance."
+          },
+          {
+            "id": "alert5_ambiguous_handled_correctly",
+            "title": "Alert 5 — DG temp-token used from Zagreb while she is in Dubai is GENUINELY AMBIGUOUS. Cannot confirm compromise, cannot rule it out. Correct disposition is neither dismissal nor confident compromise call.",
+            "max_marks": 3,
+            "expected": "Recognise the limits of the available evidence. Do not dismiss (the TRA is honest that it can't confirm). Do not confidently call it a compromise without more data. Correct handling: treat as suspicious pending follow-up — verify with the DG's EA directly, pull the full action log of the procurement workflow, consider whether to rotate the DG's credentials and token pool as a precaution. A candidate who confidently calls it 'compromised' and a candidate who confidently calls it 'fine' both miss the point."
+          },
+          {
+            "id": "alert6_real_signal_identification",
+            "title": "Alert 6 — the three failed logins on svc-provisioning are the REAL signal. Pattern is low-and-slow password spraying against a privileged service account with distributed-but-coordinated infrastructure. Must push past the TRA's 'probably noise' dismissal.",
+            "max_marks": 7,
+            "expected": "Ask the TRA for the historical baseline on svc-provisioning (will return: zero failed logins in 30 days — significant). Notice the ASN pattern (three ASNs registered within 11 days of each other, shared upstream transit). Notice the deliberate pacing outside automated thresholds. Recognise that three different password variations including a breached-cred match is not noise. Identify this as low-and-slow password spraying, recommend containment: password rotation, tightened lockout and alerting, IP/ASN block, search for successful logins on related accounts in the window, consideration of CSIRT activation."
+          },
+          {
+            "id": "mitre_misattribution_spotted",
+            "title": "TRA initially maps Alert 6 to T1078 (Valid Accounts). This is wrong: failed logins are attempted access, not post-compromise valid-account use. The correct mapping is T1110.003 (Password Spraying) under T1110 (Brute Force).",
+            "max_marks": 3,
+            "expected": "Notice or challenge the mapping when the TRA returns T1078. Reason: T1078 is post-authentication; failed attempts are pre-authentication. Correct mapping is T1110.003. Candidates who don't know the framework may still catch the logical error (attempted access ≠ valid-account use) — award marks for either path."
+          },
+          {
+            "id": "cluster_narrative_recalibrated",
+            "title": "The cluster as a whole is NOT coordinated APT activity. Four FPs + one ambiguous + one real signal (which is unrelated to the others). Tier 1 has pattern-matched on timing coincidence.",
+            "max_marks": 3,
+            "expected": "Reject the APT-coordination narrative in the handover. Show that the six alerts are independent in origin. The real signal (Alert 6) is NOT part of a coordinated executive-tier attack — it is a separate, low-and-slow attempt against a service account that happened to fall into the cluster window. Immediate IR activation as recommended by Andrei is not the right response."
+          },
+          {
+            "id": "low_and_slow_pattern_named",
+            "title": "Candidate names the pattern (low-and-slow / credential stuffing / password spraying) specifically, not just 'suspicious'.",
+            "max_marks": 2,
+            "expected": "Use precise language for the Alert 6 pattern — one of: low-and-slow, credential stuffing, password spraying, distributed brute force. Precision matters for the handover and for the coaching conversation."
+          }
+        ]
+      },
+      "ai_scepticism": {
+        "max": 15,
+        "description": "Whether the candidate exerted appropriate scepticism against the Triage Assistant's confidence calibration — specifically its confident dismissal of Alert 6 and its initial MITRE misattribution.",
+        "indicators": [
+          "Push back on the TRA's 'below threshold, probably noise' dismissal of Alert 6 — up to 6 marks, weighted on specificity of the pushback (generic 'are you sure?' scores less than 'pull me the historical baseline for this account' / 'what's the ASN registration pattern?')",
+          "Push back on or correct the T1078 MITRE mapping for Alert 6 — up to 4 marks",
+          "Does not treat TRA tentativeness on Alert 5 as evidence the alert is low-risk — up to 3 marks",
+          "Prompting gets progressively sharper — early queries are broad, later queries target specific evidence gaps — up to 2 marks"
+        ]
+      },
+      "professional_skills": {
+        "max": 10,
+        "description": "Quality of the handover note and the coaching note.",
+        "indicators": [
+          "Handover note separates 'what happened' from 'what the day shift needs to act on' — up to 3 marks",
+          "Handover note is concise, time-led, and reaches the day-shift lead in a form she can act on before the 07:00 UTC handover — up to 2 marks",
+          "Coaching note acknowledges what Andrei got right (raising the cluster, noticing several real signals in real time) before addressing what to do differently — up to 2 marks",
+          "Coaching note identifies the specific behaviour to change (differential triage vs bulk escalation; pushing past volume thresholds on privileged accounts) with a concrete expectation for next time — up to 2 marks",
+          "Coaching tone is developmental, not punitive — specific, non-personalising, framed around the craft rather than the analyst — up to 1 mark"
+        ]
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-// Meritia — standalone AI-era professional assessment platform.
+// UNIQAssess — standalone AI-era professional assessment platform.
 //
 // All tables are recruitment-specific (carved out from the Callater repo) plus
 // a minimal `User` model used by the admin sign-in flow. The candidate flow

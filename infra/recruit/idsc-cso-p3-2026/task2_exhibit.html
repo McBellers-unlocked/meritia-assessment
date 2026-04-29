@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cluster #4419 — Overnight Alert Queue and Tier 1 Triage Notes</title>
+<style>
+  :root {
+    --bg: #0d1729;
+    --bg-2: #142244;
+    --bg-3: #1a2a52;
+    --border: #26386a;
+    --border-soft: #1f2f58;
+    --text: #e7edf7;
+    --text-2: #9db0d3;
+    --muted: #667aa0;
+    --cyan: #5ad3e8;
+    --amber: #f0b95a;
+    --red: #f26a6a;
+    --green: #5dd38a;
+    --violet: #b988f0;
+  }
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+    line-height: 1.55;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at top, #1a2a52 0%, var(--bg) 60%);
+    background-attachment: fixed;
+  }
+  .doc {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 1.6rem 2rem 4rem;
+  }
+
+  /* ------- cover ------- */
+  header.cover {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+  header.cover .org {
+    font-size: .72rem;
+    color: var(--cyan);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  header.cover h1 {
+    font-size: 1.55rem;
+    margin: .25rem 0 .35rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+  header.cover .sub { color: var(--text-2); font-size: .9rem; }
+  header.cover .pill {
+    display: inline-block;
+    background: rgba(242, 106, 106, 0.15);
+    color: var(--red);
+    border: 1px solid rgba(242, 106, 106, 0.5);
+    border-radius: 3px;
+    padding: .15rem .55rem;
+    font-size: .72rem;
+    margin-left: .5rem;
+    vertical-align: middle;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    color: var(--text);
+    font-size: 1rem;
+    margin-top: 1.8rem;
+    padding-bottom: .35rem;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  h2 .count { color: var(--muted); font-weight: 400; margin-left: .4rem; font-size: .88rem; }
+
+  /* ------- ops panel: world map + timeline ------- */
+  .ops-panel {
+    background: linear-gradient(180deg, #0f1a34 0%, #0b1528 100%);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem 1rem 1.2rem;
+    margin: 1rem 0 1.4rem;
+  }
+  .ops-panel .caption {
+    color: var(--text-2);
+    font-size: .78rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin-bottom: .4rem;
+  }
+  .ops-panel .panel-title {
+    color: var(--text);
+    font-weight: 600;
+    font-size: .92rem;
+    margin-bottom: .15rem;
+  }
+  .ops-panel svg { display: block; width: 100%; height: auto; }
+  .ops-panel .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .8rem 1.2rem;
+    font-size: .78rem;
+    color: var(--text-2);
+    margin-top: .6rem;
+    padding-top: .6rem;
+    border-top: 1px solid var(--border-soft);
+    font-family: "Consolas", "Menlo", monospace;
+  }
+  .ops-panel .legend .dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: .3rem;
+    vertical-align: middle;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .ops-panel .legend .dot.cyan { background: var(--cyan); color: var(--cyan); }
+  .ops-panel .legend .dot.amber { background: var(--amber); color: var(--amber); }
+  .ops-panel .legend .dot.red { background: var(--red); color: var(--red); }
+  .ops-panel .legend .dot.violet { background: var(--violet); color: var(--violet); }
+
+  /* ------- cluster metadata ------- */
+  .cluster-meta {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    padding: .8rem 1rem;
+    margin: 0 0 1.4rem;
+    font-size: .88rem;
+  }
+  .cluster-meta dl { display: grid; grid-template-columns: 170px 1fr; gap: .3rem 1rem; margin: 0; }
+  .cluster-meta dt { color: var(--text-2); }
+  .cluster-meta dd { margin: 0; color: var(--text); }
+
+  /* ------- alert cards ------- */
+  .alert {
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    border-radius: 5px;
+    margin: 1rem 0;
+    overflow: hidden;
+  }
+  .alert.sev-crit { border-left: 3px solid var(--red); }
+  .alert.sev-high { border-left: 3px solid var(--amber); }
+  .alert.sev-med { border-left: 3px solid #c0a050; }
+  .alert.sev-low { border-left: 3px solid var(--muted); }
+
+  .alert .hdr {
+    background: var(--bg-3);
+    padding: .6rem .9rem;
+    display: grid;
+    grid-template-columns: 92px 1fr auto;
+    gap: .7rem;
+    align-items: center;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .alert .hdr .aid {
+    background: transparent;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    font-size: .72rem;
+    font-weight: 700;
+    padding: .2rem .5rem;
+    border-radius: 3px;
+    text-align: center;
+    letter-spacing: .1em;
+    font-family: "Consolas", "Menlo", monospace;
+  }
+  .alert .hdr .title {
+    font-weight: 600;
+    color: var(--text);
+    font-size: .95rem;
+  }
+  .alert .hdr .sev {
+    font-size: .7rem;
+    font-weight: 700;
+    padding: .2rem .55rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-family: "Consolas", "Menlo", monospace;
+  }
+  .sev.crit { background: rgba(242, 106, 106, 0.15); color: var(--red); border: 1px solid rgba(242, 106, 106, 0.5); }
+  .sev.high { background: rgba(240, 185, 90, 0.15); color: var(--amber); border: 1px solid rgba(240, 185, 90, 0.5); }
+  .sev.med { background: rgba(192, 160, 80, 0.15); color: #d8b460; border: 1px solid rgba(192, 160, 80, 0.5); }
+  .sev.low { background: rgba(102, 122, 160, 0.15); color: var(--text-2); border: 1px solid rgba(102, 122, 160, 0.5); }
+
+  .alert .body { padding: .85rem 1rem 1rem; }
+  .alert .kv {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: .2rem .8rem;
+    margin: .3rem 0;
+    font-size: .88rem;
+  }
+  .alert .kv .k { color: var(--text-2); }
+  .alert .kv .v {
+    color: var(--text);
+    font-family: "Consolas", "Menlo", monospace;
+    font-size: .85rem;
+  }
+
+  .tier1 {
+    background: rgba(240, 185, 90, 0.08);
+    border: 1px solid rgba(240, 185, 90, 0.3);
+    border-left: 3px solid var(--amber);
+    border-radius: 3px;
+    padding: .55rem .8rem;
+    margin-top: .7rem;
+    font-size: .88rem;
+    color: #f5d8a0;
+  }
+  .tier1 .who {
+    font-weight: 600;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--amber);
+    margin-bottom: .2rem;
+    font-family: "Consolas", "Menlo", monospace;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .5rem 0;
+    font-size: .85rem;
+  }
+  th, td {
+    padding: .35rem .55rem;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  thead th {
+    background: var(--bg-3);
+    color: var(--text-2);
+    text-align: left;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  td.mono {
+    font-family: "Consolas", "Menlo", monospace;
+    font-size: .82rem;
+    color: var(--text);
+  }
+
+  .escalation {
+    background: rgba(242, 106, 106, 0.08);
+    border: 1px solid rgba(242, 106, 106, 0.35);
+    border-left: 3px solid var(--red);
+    border-radius: 4px;
+    padding: .9rem 1.1rem;
+    margin: 1.6rem 0 1rem;
+    font-size: .92rem;
+    color: #f7c8c8;
+  }
+  .escalation .who {
+    font-weight: 700;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--red);
+    margin-bottom: .4rem;
+    font-family: "Consolas", "Menlo", monospace;
+  }
+  .escalation p { color: #eed6d6; }
+
+  footer.doc-footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-soft);
+    color: var(--muted);
+    font-size: .78rem;
+    font-family: "Consolas", "Menlo", monospace;
+  }
+
+  p { margin: .5rem 0; }
+
+  /* ------- SVG map styles ------- */
+  .map-continent { fill: #1a2a52; stroke: #2c4078; stroke-width: 1; }
+  .map-graticule { stroke: #1f2f58; stroke-width: .6; fill: none; }
+  .map-equator { stroke: #26386a; stroke-width: .8; fill: none; }
+  .map-dot { stroke-width: 1.5; }
+  .map-dot.op { fill: #5ad3e8; stroke: #9bedf8; }
+  .map-dot.alert-high { fill: #f0b95a; stroke: #ffd488; }
+  .map-dot.alert-amb { fill: #b988f0; stroke: #d5b2ff; }
+  .map-dot.alert-red { fill: #f26a6a; stroke: #f9a0a0; }
+  .map-label {
+    font-family: "Consolas", "Menlo", monospace;
+    font-size: 10px;
+    fill: #9db0d3;
+    letter-spacing: .05em;
+  }
+  .map-label.op { fill: #5ad3e8; }
+  .map-label.high { fill: #f0b95a; }
+  .map-label.amb { fill: #b988f0; }
+  .map-label.red { fill: #f26a6a; }
+
+  /* ------- SVG timeline styles ------- */
+  .tl-axis { stroke: #26386a; stroke-width: 1; }
+  .tl-tick { stroke: #26386a; stroke-width: 1; }
+  .tl-tick-label {
+    font-family: "Consolas", "Menlo", monospace;
+    font-size: 10px;
+    fill: #667aa0;
+  }
+  .tl-lane-label {
+    font-family: "Consolas", "Menlo", monospace;
+    font-size: 10px;
+    fill: #9db0d3;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .tl-event-label {
+    font-family: "Consolas", "Menlo", monospace;
+    font-size: 9px;
+    fill: #9db0d3;
+  }
+  .tl-connector { stroke: #f26a6a; stroke-width: 1; stroke-dasharray: 3 3; fill: none; opacity: .6; }
+  .tl-dot-amber { fill: #f0b95a; stroke: #ffd488; stroke-width: 1.5; }
+  .tl-dot-red { fill: #f26a6a; stroke: #f9a0a0; stroke-width: 1.5; }
+  .tl-dot-crit { fill: #f26a6a; stroke: #ffffff; stroke-width: 1.5; }
+  .tl-dot-amb { fill: #b988f0; stroke: #d5b2ff; stroke-width: 1.5; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cover">
+  <div class="org">IDSC SOC · Valencia overnight · Cluster Review Console</div>
+  <h1>Cluster #4419 — Overnight Alert Queue
+    <span class="pill">Escalated to shift lead</span>
+  </h1>
+  <div class="sub">Source: SIEM cluster auto-grouping · Reviewer: A. Kozlov (T1) · Initial review window 03:04–04:10 UTC · Elevated to shift-lead queue 04:12 UTC</div>
+</header>
+
+<!-- ============== OPS PANEL: world map + timeline ============== -->
+<div class="ops-panel">
+  <div class="panel-title">Cluster geography and timing</div>
+  <div class="caption">Alert source map · 6-hour timing strip</div>
+
+  <!-- ============== WORLD MAP ============== -->
+  <svg viewBox="0 0 800 310" role="img" aria-label="Alert source map">
+    <defs>
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2" result="blur"/>
+        <feMerge>
+          <feMergeNode in="blur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+
+    <!-- graticule -->
+    <g class="map-graticule">
+      <line x1="0" y1="60" x2="800" y2="60"/>
+      <line x1="0" y1="120" x2="800" y2="120"/>
+      <line x1="0" y1="240" x2="800" y2="240"/>
+      <line x1="133" y1="0" x2="133" y2="300"/>
+      <line x1="267" y1="0" x2="267" y2="300"/>
+      <line x1="533" y1="0" x2="533" y2="300"/>
+      <line x1="667" y1="0" x2="667" y2="300"/>
+    </g>
+    <!-- equator and prime meridian -->
+    <g class="map-equator">
+      <line x1="0" y1="180" x2="800" y2="180"/>
+      <line x1="400" y1="0" x2="400" y2="300"/>
+    </g>
+
+    <!-- continents (stylised) -->
+    <g class="map-continent">
+      <!-- North America -->
+      <polygon points="31,44 78,40 122,40 189,30 233,40 278,70 267,90 233,90 218,124 184,130 162,136 144,120 122,104 122,80 100,66 67,60 36,60"/>
+      <!-- Greenland -->
+      <polygon points="260,20 310,18 320,40 295,55 265,50"/>
+      <!-- South America -->
+      <polygon points="233,160 267,160 311,180 322,196 311,230 267,290 240,280 227,250 218,216 222,190"/>
+      <!-- Europe -->
+      <polygon points="378,60 400,50 422,50 456,44 489,50 511,84 500,100 456,108 400,104 378,94"/>
+      <!-- Africa -->
+      <polygon points="362,110 422,110 467,114 489,150 511,160 507,180 493,200 484,220 456,250 433,250 427,240 411,200 378,170 362,140"/>
+      <!-- Asia / Middle East -->
+      <polygon points="456,44 489,36 566,30 622,24 711,36 777,44 788,80 711,84 722,120 688,130 644,136 611,160 577,164 555,140 515,124 500,100 511,84"/>
+      <!-- India -->
+      <polygon points="595,130 620,130 625,160 608,175 593,160"/>
+      <!-- Indonesia -->
+      <polygon points="633,185 680,180 700,195 670,200 640,195"/>
+      <!-- Australia -->
+      <polygon points="655,204 722,200 744,220 722,260 677,250 655,224"/>
+    </g>
+
+    <!-- Geneva HQ and connecting arcs -->
+    <g filter="url(#glow)">
+      <!-- Alert 6 source dots (red, smaller) -->
+      <circle class="map-dot alert-red" cx="187" cy="116" r="4"/>
+      <circle class="map-dot alert-red" cx="229" cy="104" r="4"/>
+      <circle class="map-dot alert-red" cx="411" cy="76" r="4"/>
+      <!-- Alert 1: Dubai -->
+      <circle class="map-dot alert-high" cx="523" cy="129" r="5.5"/>
+      <!-- Alert 5: Zagreb -->
+      <circle class="map-dot alert-amb" cx="436" cy="88" r="5.5"/>
+      <!-- Operational: Geneva HQ, Valencia, Brindisi -->
+      <circle class="map-dot op" cx="414" cy="87" r="4"/>
+      <circle class="map-dot op" cx="399" cy="101" r="3.5"/>
+      <circle class="map-dot op" cx="440" cy="99" r="3.5"/>
+    </g>
+
+    <!-- labels -->
+    <g>
+      <text class="map-label op" x="416" y="78" text-anchor="start">IDSC HQ · Geneva</text>
+      <text class="map-label op" x="383" y="113" text-anchor="end">Valencia (SOC)</text>
+      <text class="map-label op" x="457" y="102" text-anchor="start">Brindisi</text>
+      <text class="map-label high" x="531" y="132" text-anchor="start">Dubai · A1</text>
+      <text class="map-label amb" x="444" y="82" text-anchor="start">Zagreb · A5</text>
+      <text class="map-label red" x="187" y="108" text-anchor="middle">VPS · A6</text>
+      <text class="map-label red" x="229" y="96" text-anchor="middle">VPS · A6</text>
+      <text class="map-label red" x="411" y="68" text-anchor="middle">VPS · A6</text>
+    </g>
+  </svg>
+
+  <!-- ============== TIMELINE ============== -->
+  <svg viewBox="0 0 800 130" role="img" aria-label="Cluster timing — 6-hour window" style="margin-top: .8rem;">
+    <!-- frame -->
+    <rect x="0" y="0" width="800" height="130" fill="transparent"/>
+
+    <!-- lanes -->
+    <text class="tl-lane-label" x="0" y="32">Alerts 1–5 · cluster window</text>
+    <text class="tl-lane-label" x="0" y="100">Alert 6 · failed-auth events</text>
+
+    <!-- axis baseline -->
+    <line class="tl-axis" x1="20" y1="62" x2="780" y2="62"/>
+
+    <!-- hour ticks: 22:00 prev, 23, 00, 01, 02, 03, 04 -->
+    <!-- range 22:00 prev day (x=20) to 04:15 (x=780), 375 min = 760px -->
+    <g>
+      <line class="tl-tick" x1="20" y1="60" x2="20" y2="66"/>
+      <text class="tl-tick-label" x="20" y="80" text-anchor="middle">22:00</text>
+      <line class="tl-tick" x1="141" y1="60" x2="141" y2="66"/>
+      <text class="tl-tick-label" x="141" y="80" text-anchor="middle">23:00</text>
+      <line class="tl-tick" x1="263" y1="60" x2="263" y2="66"/>
+      <text class="tl-tick-label" x="263" y="80" text-anchor="middle">00:00</text>
+      <line class="tl-tick" x1="384" y1="60" x2="384" y2="66"/>
+      <text class="tl-tick-label" x="384" y="80" text-anchor="middle">01:00</text>
+      <line class="tl-tick" x1="506" y1="60" x2="506" y2="66"/>
+      <text class="tl-tick-label" x="506" y="80" text-anchor="middle">02:00</text>
+      <line class="tl-tick" x1="628" y1="60" x2="628" y2="66"/>
+      <text class="tl-tick-label" x="628" y="80" text-anchor="middle">03:00</text>
+      <line class="tl-tick" x1="749" y1="60" x2="749" y2="66"/>
+      <text class="tl-tick-label" x="749" y="80" text-anchor="middle">04:00</text>
+    </g>
+
+    <!-- Alert 6 connector (dashed red line between the three events) -->
+    <!-- 22:17 → x = 20 + 17*2.027 = 54; 00:43 → x = 20 + 163*2.027 = 350; 03:22 → x = 20 + 322*2.027 = 673 -->
+    <path class="tl-connector" d="M 54,110 L 350,110 L 673,110"/>
+
+    <!-- Alert 6 events (bottom lane, y=110) -->
+    <circle class="tl-dot-red" cx="54" cy="110" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="54" y="127" text-anchor="middle">22:17 · US VPS</text>
+    <circle class="tl-dot-red" cx="350" cy="110" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="350" y="127" text-anchor="middle">00:43 · EU VPS</text>
+    <circle class="tl-dot-red" cx="673" cy="110" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="673" y="127" text-anchor="middle">03:22 · US VPS</text>
+
+    <!-- Alerts 1-5 cluster (top lane, y=45) -->
+    <!-- 03:04 → 304min → 20+304*2.027 = 636
+         03:17 → 317 → 663
+         03:28 → 328 → 685
+         03:41 → 341 → 712
+         04:02 → 362 → 754 -->
+    <circle class="tl-dot-amber" cx="636" cy="45" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="636" y="22" text-anchor="middle">A1 · 03:04</text>
+    <circle class="tl-dot-amber" cx="663" cy="45" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="663" y="22" text-anchor="middle">A2 · 03:17</text>
+    <circle class="tl-dot-amber" cx="685" cy="45" r="5" filter="url(#glow)"/>
+    <text class="tl-event-label" x="685" y="22" text-anchor="middle">A3 · 03:28</text>
+    <circle class="tl-dot-crit" cx="712" cy="45" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="712" y="22" text-anchor="middle">A4 · 03:41</text>
+    <circle class="tl-dot-amb" cx="754" cy="45" r="6" filter="url(#glow)"/>
+    <text class="tl-event-label" x="754" y="22" text-anchor="middle">A5 · 04:02</text>
+  </svg>
+
+  <div class="legend">
+    <span><span class="dot cyan"></span>Operational site</span>
+    <span><span class="dot amber"></span>High-severity alert</span>
+    <span><span class="dot violet"></span>Ambiguous</span>
+    <span><span class="dot red"></span>Low-severity / failed-auth event</span>
+    <span style="color:var(--muted);">· Dashed connector shows the rhythm of related events ·</span>
+  </div>
+</div>
+
+<div class="cluster-meta">
+  <dl>
+    <dt>Cluster ID</dt><dd>#4419</dd>
+    <dt>Detection source</dt><dd>SIEM clustering rule: "exec-and-service-account-within-window" (window = 4h, min alerts = 4)</dd>
+    <dt>Raising analyst</dt><dd>Andrei Kozlov (Tier 1, Valencia overnight rotation — 4 months in post, transferred from IT helpdesk in January)</dd>
+    <dt>Tier 1 disposition</dt><dd style="color: var(--red);">Probable APT activity — recommending immediate IR activation</dd>
+    <dt>Day-shift lead on rotation</dt><dd>A. Fernández (Valencia — starts at 07:00 UTC)</dd>
+    <dt>Current queue status</dt><dd>Awaiting shift-lead review before IR activation request goes to CSIRT on-call</dd>
+  </dl>
+</div>
+
+<h2>Alerts in cluster <span class="count">· 6 events</span></h2>
+
+<!-- ======================= ALERT 1 ======================= -->
+<div class="alert sev-high">
+  <div class="hdr">
+    <div class="aid">ALERT · 1</div>
+    <div class="title">Geo-anomaly login · Executive account</div>
+    <div class="sev high">High</div>
+  </div>
+  <div class="body">
+    <div class="kv"><div class="k">Fire time (UTC)</div><div class="v">03:04</div></div>
+    <div class="kv"><div class="k">Rule</div><div class="v">auth-geo-anomaly-exec</div></div>
+    <div class="kv"><div class="k">Account</div><div class="v">a.mensah@idsc.int (Dr A. Mensah, DG)</div></div>
+    <div class="kv"><div class="k">Source IP</div><div class="v">212.4.128.47</div></div>
+    <div class="kv"><div class="k">GeoIP</div><div class="v">Dubai, UAE — Marriott Internet Services (hotel)</div></div>
+    <div class="kv"><div class="k">MFA</div><div class="v">Challenge satisfied</div></div>
+
+    <div class="tier1">
+      <div class="who">Tier 1 — A. Kozlov · 03:06 UTC</div>
+      DG logged in from Dubai — account normally only connects from Geneva / Brindisi / Valencia. Suspicious location. Adding to cluster.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ALERT 2 ======================= -->
+<div class="alert sev-med">
+  <div class="hdr">
+    <div class="aid">ALERT · 2</div>
+    <div class="title">Unusual VPN endpoint · Brindisi subnet</div>
+    <div class="sev med">Medium</div>
+  </div>
+  <div class="body">
+    <div class="kv"><div class="k">Fire time (UTC)</div><div class="v">03:17</div></div>
+    <div class="kv"><div class="k">Rule</div><div class="v">auth-new-source-subnet</div></div>
+    <div class="kv"><div class="k">Subnet</div><div class="v">10.84.61.0/24 (Brindisi internal)</div></div>
+    <div class="kv"><div class="k">Sessions (first 30 min)</div><div class="v">28 user sessions</div></div>
+    <div class="kv"><div class="k">Prior traffic (90d)</div><div class="v">None</div></div>
+
+    <div class="tier1">
+      <div class="who">Tier 1 — A. Kozlov · 03:22 UTC</div>
+      Brand new subnet starts auth-ing 28 sessions in half an hour. Never seen before. Adding to cluster.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ALERT 3 ======================= -->
+<div class="alert sev-med">
+  <div class="hdr">
+    <div class="aid">ALERT · 3</div>
+    <div class="title">Service account activity · svc-backup-02</div>
+    <div class="sev med">Medium</div>
+  </div>
+  <div class="body">
+    <div class="kv"><div class="k">Fire time (UTC)</div><div class="v">03:28</div></div>
+    <div class="kv"><div class="k">Rule</div><div class="v">svc-account-large-io</div></div>
+    <div class="kv"><div class="k">Account</div><div class="v">svc-backup-02 (service account)</div></div>
+    <div class="kv"><div class="k">Activity</div><div class="v">Large I/O operations against backup target file shares, 03:30 UTC</div></div>
+    <div class="kv"><div class="k">Outbound traffic</div><div class="v">None — I/O to internal NAS only</div></div>
+
+    <div class="tier1">
+      <div class="who">Tier 1 — A. Kozlov · 03:32 UTC</div>
+      Service account pulling large volumes at 0330 — possible data exfiltration via compromised service account? Adding to cluster.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ALERT 4 ======================= -->
+<div class="alert sev-crit">
+  <div class="hdr">
+    <div class="aid">ALERT · 4</div>
+    <div class="title">MFA bypass pattern · Four executive accounts</div>
+    <div class="sev crit">Critical</div>
+  </div>
+  <div class="body">
+    <div class="kv"><div class="k">Fire time (UTC)</div><div class="v">03:41</div></div>
+    <div class="kv"><div class="k">Rule</div><div class="v">auth-mfa-skip-chain</div></div>
+    <div class="kv"><div class="k">Accounts affected</div><div class="v">k.almasri (CFO), r.okonjo (Chief of Staff), s.petrovic (CISO), l.nordlund (Dir. Partner Relations)</div></div>
+    <div class="kv"><div class="k">Pattern</div><div class="v">Session creation without observed MFA challenge event</div></div>
+    <div class="kv"><div class="k">Time window</div><div class="v">03:35 – 03:40 UTC (5 minute window)</div></div>
+
+    <div class="tier1">
+      <div class="who">Tier 1 — A. Kozlov · 03:46 UTC</div>
+      CRITICAL — four exec accounts all skipped MFA in a 5-minute window. Pattern strongly indicative of adversary-in-the-middle or stolen session tokens. Escalating immediately.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ALERT 5 ======================= -->
+<div class="alert sev-high">
+  <div class="hdr">
+    <div class="aid">ALERT · 5</div>
+    <div class="title">Admin portal access from Zagreb · DG account</div>
+    <div class="sev high">High</div>
+  </div>
+  <div class="body">
+    <div class="kv"><div class="k">Fire time (UTC)</div><div class="v">04:02</div></div>
+    <div class="kv"><div class="k">Rule</div><div class="v">admin-portal-geo-drift</div></div>
+    <div class="kv"><div class="k">Account</div><div class="v">a.mensah@idsc.int (via temporary admin token)</div></div>
+    <div class="kv"><div class="k">Source IP</div><div class="v">89.201.44.216</div></div>
+    <div class="kv"><div class="k">GeoIP</div><div class="v">Zagreb, Croatia — residential ISP</div></div>
+    <div class="kv"><div class="k">Token</div><div class="v">4-hour temp admin token, issued 03:58 UTC from DG's Dubai session</div></div>
+    <div class="kv"><div class="k">Action taken</div><div class="v">Approval of procurement workflow (USD 42,000)</div></div>
+    <div class="kv"><div class="k">MFA at token use</div><div class="v">Not re-challenged</div></div>
+
+    <div class="tier1">
+      <div class="who">Tier 1 — A. Kozlov · 04:06 UTC</div>
+      DG's admin token used from Zagreb while she's physically in Dubai. Could be a compromise, could be something else — flagging as unclear. Adding to cluster.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ALERT 6 ======================= -->
+<div class="alert sev-low">
+  <div class="hdr">
+    <div class="aid">ALERT · 6</div>
+    <div class="title">Failed logins · svc-provisioning (admin-privileged)</div>
+    <div class="sev low">Low</div>
+  </div>
+  <div class="body">
+    <div class="kv"><div class="k">Fire time (UTC)</div><div class="v">04:10 (composite across window)</div></div>
+    <div class="kv"><div class="k">Rule</div><div class="v">failed-auth-volume · below-threshold-aggregated</div></div>
+    <div class="kv"><div class="k">Account</div><div class="v">svc-provisioning (admin-privileged service account — used by partner-tenant provisioning pipeline)</div></div>
+    <div class="kv"><div class="k">Attempts</div><div class="v">3 failed logins over 6 hours</div></div>
+
+    <table>
+      <thead>
+        <tr><th>Time (UTC)</th><th>Source IP</th><th>ASN</th><th>Password variation</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">22:17 (prev day)</td><td class="mono">45.91.207.12</td><td class="mono">AS203001 (US VPS)</td><td class="mono">Common-list top-1000</td></tr>
+        <tr><td class="mono">00:43</td><td class="mono">193.176.83.44</td><td class="mono">AS204415 (EU VPS)</td><td class="mono">Common-list top-1000</td></tr>
+        <tr><td class="mono">03:22</td><td class="mono">154.38.188.19</td><td class="mono">AS203987 (US VPS)</td><td class="mono">Breached-cred list match (unrelated tenant)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tier1">
+      <div class="who">Tier 1 — A. Kozlov · 04:11 UTC</div>
+      3 failed logins over 6 hours — low volume, below our standard noise threshold for failed auth. Attaching to the cluster for completeness — the time-of-day ranges into the same window as the other alerts.
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ANDREI'S ESCALATION ======================= -->
+<div class="escalation">
+  <div class="who">Tier 1 escalation · A. Kozlov · 04:12 UTC → shift-lead queue</div>
+  <p><strong style="color: var(--red);">Cluster #4419 summary.</strong> Six alerts across a four-hour window, hitting exec and privileged service accounts. Alert 4 is critical — the MFA-bypass pattern on four exec accounts looks like adversary-in-the-middle activity. Alert 1 and 5 together suggest the DG's account is compromised (logging in from Dubai and Zagreb simultaneously). Alerts 2, 3 and 6 fit the same window and add to the cluster.</p>
+  <p><strong style="color: var(--red);">Recommendation:</strong> Activate the CSIRT on-call. Suspend the four exec accounts in Alert 4. Treat the DG account as compromised pending investigation. Cluster pattern is consistent with an APT-style coordinated intrusion across IDSC's executive tier.</p>
+</div>
+
+<footer class="doc-footer">
+  IDSC SOC Cluster Review Console · Cluster #4419 · Valencia overnight shift · Shift lead to review before 07:00 UTC handover to A. Fernández · Triage Assistant (TRA) available for enrichment and correlation on each alert.
+</footer>
+
+</div>
+</body>
+</html>
