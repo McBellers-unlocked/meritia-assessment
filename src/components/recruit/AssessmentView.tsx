@@ -407,7 +407,14 @@ export default function AssessmentView({
       <header className="bg-white border-b border-slate-200 flex-shrink-0">
         <div className="px-4 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="text-base font-bold text-[#1B3A5C] flex-shrink-0">UNIQAssess</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logos/uniqassess-logo.png"
+              alt="UNIQAssess"
+              width={140}
+              height={38}
+              className="h-7 w-auto flex-shrink-0"
+            />
             <span className="text-slate-300 hidden sm:inline">|</span>
             <div className="text-sm min-w-0">
               <div className="font-semibold text-[#1B2A4A] truncate">
