@@ -23,11 +23,17 @@ export default function Nav() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <Link
           href={session ? "/admin/recruitment" : "/"}
-          className="flex items-center gap-2"
+          className="flex items-center"
         >
-          <span className="text-lg font-semibold tracking-tight">UNIQAssess</span>
-          <span className="hidden sm:inline text-xs text-white/40 uppercase tracking-widest">
-            Powered by UNICC
+          <span className="bg-white rounded-md px-2.5 py-1 inline-flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logos/uniqassess-logo.png"
+              alt="UNIQAssess"
+              width={130}
+              height={36}
+              className="h-6 w-auto"
+            />
           </span>
         </Link>
 
