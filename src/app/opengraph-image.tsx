@@ -7,9 +7,14 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function OpengraphImage() {
-  const uniccMark = await fetch(
-    new URL("./unicc-mark.png", import.meta.url)
-  ).then((r) => r.arrayBuffer());
+  const [uniccMark, uniqassessMark] = await Promise.all([
+    fetch(new URL("./unicc-mark.png", import.meta.url)).then((r) =>
+      r.arrayBuffer()
+    ),
+    fetch(new URL("./uniqassess-mark.png", import.meta.url)).then((r) =>
+      r.arrayBuffer()
+    ),
+  ]);
 
   return new ImageResponse(
     (
@@ -39,14 +44,20 @@ export default async function OpengraphImage() {
             style={{
               display: "flex",
               alignItems: "center",
-              fontSize: 28,
-              fontWeight: 600,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "#48D3E4",
+              background: "white",
+              borderRadius: 18,
+              padding: "14px 22px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
             }}
           >
-            UNIQAssess
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={uniqassessMark as unknown as string}
+              alt=""
+              width={300}
+              height={100}
+              style={{ display: "block", width: 300, height: 100 }}
+            />
           </div>
           <div
             style={{
