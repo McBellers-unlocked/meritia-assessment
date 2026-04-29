@@ -25,9 +25,9 @@ export default function Nav() {
           href={session ? "/admin/recruitment" : "/"}
           className="flex items-center gap-2"
         >
-          <span className="text-lg font-semibold tracking-tight">Meritia</span>
+          <span className="text-lg font-semibold tracking-tight">UNIQAssess</span>
           <span className="hidden sm:inline text-xs text-white/40 uppercase tracking-widest">
-            Assessment Platform
+            Powered by UNICC
           </span>
         </Link>
 

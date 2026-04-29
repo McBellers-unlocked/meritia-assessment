@@ -19,13 +19,13 @@ export default function AppleIcon() {
             "linear-gradient(135deg, #0D2E7F 0%, #0A57C6 55%, #27C3D9 100%)",
           color: "white",
           fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif",
-          fontSize: 110,
+          fontSize: 96,
           fontWeight: 700,
           letterSpacing: "-0.04em",
           borderRadius: 36,
         }}
       >
-        M
+        UA
       </div>
     ),
     { ...size }

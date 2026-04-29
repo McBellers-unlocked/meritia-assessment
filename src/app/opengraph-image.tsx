@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
 
-export const alt = "Meritia — AI-era professional assessment";
+export const alt = "UNIQAssess — AI-era professional assessment";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -34,7 +34,7 @@ export default function OpengraphImage() {
             color: "#48D3E4",
           }}
         >
-          Meritia
+          UNIQAssess
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -74,7 +74,7 @@ export default function OpengraphImage() {
             paddingTop: 24,
           }}
         >
-          <div style={{ display: "flex" }}>meritia.org</div>
+          <div style={{ display: "flex" }}>Powered by UNICC</div>
           <div style={{ display: "flex" }}>AI-era professional assessment</div>
         </div>
       </div>

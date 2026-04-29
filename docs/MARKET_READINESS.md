@@ -1,4 +1,4 @@
-# Meritia — market readiness report
+# UNIQAssess — market readiness report
 
 _Snapshot as of 2026-04-27. Update when a surface changes materially._
 
@@ -8,7 +8,7 @@ This report is the briefing you read before a prospect call. It is honest about 
 
 ## 1. Verdict
 
-**Demo-ready for controlled walkthroughs today. One operational task (DNS) gates the cleanest URL for self-serve trials.** No critical bugs, no broken flows. Three production-quality role scenarios ship in code (Finance and Accounting Manager P4, Associate Policy Officer Legal P2, Cybersecurity Operations Officer P3). Live at `https://main.d1wxabrgr6nkub.amplifyapp.com` on AWS Amplify; `https://meritia.org` is attached but pending registrar DNS records.
+**Demo-ready for controlled walkthroughs today. A short operational checklist (Amplify env var + Cognito callback URLs) finishes the cutover to the new canonical URL for self-serve trials.** No critical bugs, no broken flows. Three production-quality role scenarios ship in code (Finance and Accounting Manager P4, Associate Policy Officer Legal P2, Cybersecurity Operations Officer P3). Live at `https://main.d1wxabrgr6nkub.amplifyapp.com` on AWS Amplify; canonical domain `https://www.uniqassess.org` (Route 53) is in flight — see `docs/DEPLOYMENT_STATE.md` for the AWS-side checklist.
 
 | Surface | Controlled walkthrough | Self-serve trial |
 |---|---|---|
@@ -19,7 +19,7 @@ This report is the briefing you read before a prospect call. It is honest about 
 | Marker flow (`/admin/recruitment/[id]/mark`) | 🟢 Ready | 🟢 Ready |
 | Scenario builder (`/admin/recruitment/scenarios/[id]`) | 🟡 MVP — hide unless asked | 🔴 Don't expose |
 | OG / social cards | 🟢 Ready | 🟢 Ready |
-| Custom domain `meritia.org` | 🔴 Pending DNS | 🔴 Pending DNS |
+| Custom domain `www.uniqassess.org` | 🟡 Cutover in flight | 🟡 Cutover in flight |
 | Brand assets (favicon, OG, apple-icon) | 🟢 Ready | 🟢 Ready |
 
 ---
@@ -69,7 +69,7 @@ Per `docs/DEPLOYMENT_STATE.md`:
 - Cognito user pool `meritia-users` (`eu-west-1_ljeZoMw83`); single admin (`mattvalente85@gmail.com`).
 - RDS PostgreSQL 16 `meritia-db` (free-tier `db.t3.micro`, 7-day backups, public access enabled for pilot).
 - Secrets in Amplify env vars; Anthropic key fallback to AWS Secrets Manager via `SECRET_ARN`.
-- Custom rules already configured for `meritia.net → meritia.org` 301 redirects.
+- Custom rules pending update: legacy `meritia.net → meritia.org` 301 rules need to be replaced with `uniqassess.org → www.uniqassess.org` (apex → www) once the new domain is connected.
 
 ### 2.5 Marketing landing + brand surface (new in this pass)
 
@@ -131,7 +131,7 @@ Run this before any prospect engagement (~15 min including DNS check).
 3. **Confirm the AI works** — start a candidate session, ask the in-scenario AI a specific question (e.g. for CSO Task 1: "what was the Tier 3 escalation count this month and what was last month's?"), verify a Claude response arrives. If the response 504s, the Amplify SSR Lambda timeout has dropped below the 60s `maxDuration` set in `src/app/api/assess/chat/route.ts`.
 4. **Confirm exhibits render** — the candidate landing should show the SOC report (CSO Task 1), draft accounts (FAM Task 1), or contracts (APLO Task 1) in a styled HTML block. If empty, the serverless bundle is missing `infra/recruit/` (see `next.config.mjs:23` for the `outputFileTracingIncludes` config).
 5. **Preview the OG card** — drop the live URL into <https://www.opengraph.xyz/> or LinkedIn's Post Inspector before sharing the URL anywhere prospects might see a preview.
-6. **(Once DNS is live)** Confirm `https://meritia.org/` returns 200 and `https://meritia.net/` returns 301 to `meritia.org`.
+6. **(Once domain cutover is live)** Confirm `https://www.uniqassess.org/` returns 200 and `https://uniqassess.org/` returns 301 to `https://www.uniqassess.org/`.
 
 ---
 
@@ -139,12 +139,12 @@ Run this before any prospect engagement (~15 min including DNS check).
 
 Surface-level traits that matter in commercial conversations. None are promises; each is something the codebase already does that you can defend with a citation.
 
-- **Single-tenant deployment model.** Meritia runs as an Amplify SSR app + RDS + Cognito. Same shape can be deployed into a customer's AWS account for production. No multi-tenant database; no cross-customer data path.
+- **Single-tenant deployment model.** UNIQAssess runs as an Amplify SSR app + RDS + Cognito. Same shape can be deployed into a customer's AWS account for production. No multi-tenant database; no cross-customer data path.
 - **Anonymised marking with explicit reveal.** Markers see "Candidate A, AD…" until an admin clicks Reveal on the cohort (`src/lib/recruit/scenario-loader.ts`, marker view at `/admin/recruitment/[id]/mark`). Names and emails are stored separately from submission content.
 - **Activity logging without content capture.** Pastes are logged by character count; the pasted content is never stored. Visibility events log the gap, not what was viewed.
 - **Single-use candidate tokens + server-enforced timer.** First browser to call `/api/assess/start` locks the session via cookie + session secret; the timer runs against `candidate.startedAt` in the DB so refresh / second device doesn't help.
 - **AI cost shape under control.** Anthropic calls in `src/app/api/assess/chat/route.ts` use `cache_control: ephemeral` prompt caching, cutting ~90% of repeat-prompt cost within a 5-minute window. Material for a CFO/procurement question on AI run-rate.
-- **Naive-by-design AI personas.** The in-scenario AI does data lookup and standards reference — not advisory output. This is the IP. Each scenario's system prompt enforces it explicitly (e.g. `src/lib/recruit/fam-p4-2026.ts:33–73` for the boundary specification). It is what makes Meritia an _AI-aware_ assessment instead of a writing test.
+- **Naive-by-design AI personas.** The in-scenario AI does data lookup and standards reference — not advisory output. This is the IP. Each scenario's system prompt enforces it explicitly (e.g. `src/lib/recruit/fam-p4-2026.ts:33–73` for the boundary specification). It is what makes UNIQAssess an _AI-aware_ assessment instead of a writing test.
 
 ---
 
@@ -152,26 +152,26 @@ Surface-level traits that matter in commercial conversations. None are promises;
 
 ### Next 2 weeks (before scaled prospect outreach)
 
-1. **Add DNS records for `meritia.org` and `meritia.net`** at the registrar. Records are in `docs/DEPLOYMENT_STATE.md:64–77`. Until done, prospect URLs read `…amplifyapp.com`, which signals "early".
-2. **After DNS is live**: update Amplify env var `NEXTAUTH_URL` to `https://meritia.org`, redeploy, smoke test (`docs/DEPLOYMENT_STATE.md:96–106`).
+1. **Finish the `www.uniqassess.org` cutover.** DNS is in Route 53 (2026-04-29). Remaining: connect domain in Amplify, set Amplify env var `NEXTAUTH_URL=https://www.uniqassess.org`, redeploy, run `scripts/wire-cognito-to-domain.sh` to add the new callback/sign-out URLs to Cognito, and add a 301 rule in Amplify for apex → www. Full checklist in `docs/DEPLOYMENT_STATE.md`.
+2. **(Optional)** Rename Cognito Hosted UI domain from `meritia` → `uniqassess` so the brief OAuth redirect URL also matches the new brand.
 3. **Run the production CSO smoke test.** The risk flagged at `README.md:164` — `process.cwd() + readFileSync` for exhibit loading — is paper-checked but not yet proven for the new `idsc-cso-p3-2026/` directory. Run `B`/`C` from the README golden path against a CSO cohort on the live deployment.
 4. **Privacy / contact pages.** Footer currently links to a `mailto:`. If a prospect lawyer asks for a privacy policy URL, you'll want a `/privacy` page (and an `/about` would help).
 
 ### Next quarter (before scaling past pilot phase)
 
 1. **Playwright e2e tests** for the five golden-path scenarios. Highest-value tests are: candidate landing → start → submit, admin → mark → reveal, scenario registry resolution.
-2. **Admin-users page** (`/admin/users`) — invite, deactivate, list. Cognito hosted UI handles the auth side; Meritia just needs the directory page.
+2. **Admin-users page** (`/admin/users`) — invite, deactivate, list. Cognito hosted UI handles the auth side; UNIQAssess just needs the directory page.
 3. **Migrate RDS to private subnet + DB proxy** (or deploy that shape into the first customer's AWS as the production reference architecture).
 4. **Structured logging + request IDs.** Pino or similar; CloudWatch ingestion already wired by Amplify.
 5. **Prune `crimson` and `teal` Tailwind palettes** (`tailwind.config.ts:31`) once confirmed unused. Cosmetic but reduces noise.
-6. **Polish the scenario builder** to a state where a customer's L&D/HR person can self-serve scenarios for their own roles. This is when Meritia stops being "you build scenarios with us" and becomes a true platform.
+6. **Polish the scenario builder** to a state where a customer's L&D/HR person can self-serve scenarios for their own roles. This is when UNIQAssess stops being "you build scenarios with us" and becomes a true platform.
 
 ---
 
 ## 9. Repo and infrastructure references
 
 - Live URL: <https://main.d1wxabrgr6nkub.amplifyapp.com>
-- Future canonical URL: <https://meritia.org> (DNS pending)
+- Canonical URL: <https://www.uniqassess.org> (DNS in Route 53; final Amplify + Cognito cutover steps in `docs/DEPLOYMENT_STATE.md`)
 - GitHub: <https://github.com/McBellers-unlocked/meritia-assessment>
 - AWS account: `891612540396`, region `eu-west-1`
 - Source repo (Callater): `C:/dev/sdi-assessment-platform/` (ancestor; CSO scenario originated here)

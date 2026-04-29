@@ -1,6 +1,6 @@
-# Meritia
+# UNIQAssess
 
-AI-era professional-judgement assessment platform. Competency simulations for
+Powered by UNICC. AI-era professional-judgement assessment platform. Competency simulations for
 professional hiring: per-scenario cohorts, per-candidate tokens, memo + AI
 investigation tasks, scripted email-inbox tasks, persona chat pops, blind
 marking with reveal.
@@ -132,7 +132,7 @@ DB and a working Cognito pool.
 The code is deployment-agnostic. Validated paths:
 
 - **Vercel / Fly / Railway**: straightforward — set the env vars, run `npm run build`, serve.
-- **AWS Amplify SSR**: the Callater origin deployed here. Meritia will work but verify two things:
+- **AWS Amplify SSR**: the Callater origin deployed here. UNIQAssess will work but verify two things:
   1. The serverless bundle includes `infra/recruit/**` at runtime. `next.config.mjs` has `outputFileTracingIncludes` for the `/api/**` and `/assess/**` routes that call `readFileSync`.
   2. Amplify's SSR Lambda timeout is ≥ 60 s. `api/assess/chat/route.ts` sets `export const maxDuration = 60`. If your target platform caps below that, either raise the cap or shorten the Claude call (reduce `RECRUIT_MAX_TOKENS`).
 - **RDS in a private VPC**: the Prisma client talks to the DB directly. If the SSR runtime can't reach RDS (e.g. Amplify SSR on a public network with RDS in a private subnet), you will need a DB proxy. The Callater repo shipped a Lambda-proxy transport in `src/lib/prisma.ts`; it was dropped during the carve-out but can be restored if needed — see the git history of `sdi-assessment-platform/src/lib/prisma.ts`.
@@ -146,7 +146,7 @@ real use:
 
 ### Must do before any real candidate sees this
 
-- [ ] **Cognito user pool**: create a dedicated Meritia pool. Do NOT reuse the Callater pool. Only invite accounts that should have admin rights.
+- [ ] **Cognito user pool**: create a dedicated UNIQAssess pool. Do NOT reuse the Callater pool. Only invite accounts that should have admin rights.
 - [ ] **Brand assets**: drop in a real `public/favicon.ico`, `apple-touch-icon.png`, `og-image.png`. Placeholder text "M" logo in `/login` works but is temporary.
 - [ ] **NEXTAUTH_SECRET**: generate a new one. Never reuse Callater's.
 - [ ] **Smoke-test `infra/recruit/*` in prod bundle**: after first deploy, hit the candidate URL and confirm the exhibit renders. If empty, `outputFileTracingIncludes` needs adjusting.
@@ -156,7 +156,7 @@ real use:
 - [ ] Prune unused `crimson` / `teal` palettes from `tailwind.config.ts`.
 - [ ] Consider swapping Cognito for a simpler provider (email magic link via Resend, or credentials provider with bcrypt) if the operator doesn't already have a Cognito pool. `src/lib/auth.ts` is the only change needed.
 - [ ] Add a minimal admin-users admin page (create / deactivate). Currently admins are created implicitly by first Cognito sign-in.
-- [ ] Decide on candidate-URL host. If `assess.meritia.com` ≠ `meritia.com`, update `NEXTAUTH_URL` and confirm CSV candidate-URL generation uses the right origin.
+- [ ] Decide on candidate-URL host. If `assess.uniqassess.org` ≠ `www.uniqassess.org`, update `NEXTAUTH_URL` and confirm CSV candidate-URL generation uses the right origin.
 - [ ] Re-introduce a lightweight logger / request-id middleware. The Callater origin used `console.log`; adequate for now.
 
 ### Known brittle bits (flagged)
@@ -203,7 +203,7 @@ meritia/
 
 ## Design principles (from the source platform)
 
-These were the right calls in Callater and Meritia preserves them:
+These were the right calls in Callater and UNIQAssess preserves them:
 
 - **AI personas are naive, not helpful.** The in-scenario AI (IDSC Knowledge
   System, etc.) supplies zero professional judgement — only data retrieval,

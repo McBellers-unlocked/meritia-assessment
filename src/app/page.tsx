@@ -31,17 +31,16 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/logos/meritia-logo-mark.svg"
-              alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8"
+              src="/brand/logos/uniqassess-logo.png"
+              alt="UNIQAssess"
+              width={180}
+              height={48}
+              className="h-9 w-auto"
             />
-            <span className="text-lg font-semibold tracking-tight">Meritia</span>
           </div>
           <div className="flex items-center gap-2">
             <a
-              href={`mailto:${CONTACT_EMAIL}?subject=Meritia%20demo%20request`}
+              href={`mailto:${CONTACT_EMAIL}?subject=UNIQAssess%20demo%20request`}
               className="hidden sm:inline-flex text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2"
             >
               Request a demo
@@ -72,7 +71,7 @@ export default function HomePage() {
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <a
-                href={`mailto:${CONTACT_EMAIL}?subject=Meritia%20demo%20request`}
+                href={`mailto:${CONTACT_EMAIL}?subject=UNIQAssess%20demo%20request`}
                 className="inline-flex items-center px-6 py-3 rounded-md bg-white text-navy-700 font-semibold hover:bg-white/90 transition"
               >
                 Request a demo
@@ -91,7 +90,7 @@ export default function HomePage() {
       <section className="py-20 lg:py-24">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            What Meritia measures
+            What UNIQAssess measures
           </h2>
           <p className="mt-3 text-slate-600 max-w-2xl">
             Three things traditional case interviews don&apos;t catch when
@@ -222,7 +221,7 @@ export default function HomePage() {
             scenario, the platform, and the marking guide.
           </p>
           <a
-            href={`mailto:${CONTACT_EMAIL}?subject=Meritia%20pilot%20enquiry`}
+            href={`mailto:${CONTACT_EMAIL}?subject=UNIQAssess%20pilot%20enquiry`}
             className="mt-8 inline-flex items-center px-6 py-3 rounded-md bg-white text-navy-700 font-semibold hover:bg-white/90 transition"
           >
             Get in touch
@@ -232,7 +231,7 @@ export default function HomePage() {
 
       <footer className="border-t border-slate-100 py-10">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-sm text-slate-500">
-          <div>© {new Date().getFullYear()} Meritia</div>
+          <div>© {new Date().getFullYear()} UNIQAssess · Powered by UNICC</div>
           <div className="flex items-center gap-6">
             <a
               href={`mailto:${CONTACT_EMAIL}`}

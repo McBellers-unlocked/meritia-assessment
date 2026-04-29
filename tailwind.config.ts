@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// Meritia uses a professional navy palette. The hex values are the same
+// UNIQAssess uses a professional navy palette. The hex values are the same
 // generic navy used throughout the candidate UI — they are not a Callater
 // brand mark. Two legacy palettes (crimson, teal) are kept for now in case
 // the admin UI grows toward them; prune in a follow-up once unused.

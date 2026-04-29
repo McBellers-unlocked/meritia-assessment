@@ -217,6 +217,6 @@ See `README.md` for configuration and first-run steps.
 - [ ] Create fresh Cognito user pool (or swap to a credentials/email-magic-link provider — minimal refactor)
 - [ ] Smoke test: `infra/recruit/*` files are present in production bundle (add `outputFileTracingIncludes` to `next.config.mjs` if not)
 - [ ] Prune unused `crimson` / `teal` Tailwind palette entries (follow-up)
-- [ ] Decide on candidate URL host (e.g. `assess.meritia.com` vs `meritia.com/assess/...`) and set `NEXTAUTH_URL` accordingly — candidate URLs currently use whatever host the request arrives on
+- [ ] Decide on candidate URL host (e.g. `assess.uniqassess.org` vs `www.uniqassess.org/assess/...`) and set `NEXTAUTH_URL` accordingly — candidate URLs currently use whatever host the request arrives on
 - [ ] Set up minimum-viable deployment target (Amplify / Vercel / Fly). Current code is deployment-agnostic but the Callater repo carried Amplify assumptions.
 - [ ] Manual test the golden flows listed in the Runbook.

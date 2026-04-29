@@ -1,4 +1,4 @@
-// Module augmentation — tells TypeScript that Meritia's session + JWT carry
+// Module augmentation — tells TypeScript that UNIQAssess's session + JWT carry
 // extra fields (`id`, `role`) set by the NextAuth callbacks in lib/auth.ts.
 // TypeScript picks this up automatically because tsconfig.json includes
 // src/**/*.ts. No explicit import is needed from consumers.
