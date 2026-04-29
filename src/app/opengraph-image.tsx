@@ -6,7 +6,11 @@ export const alt = "UNIQAssess — AI-era professional assessment";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const uniccMark = await fetch(
+    new URL("./unicc-mark.png", import.meta.url)
+  ).then((r) => r.arrayBuffer());
+
   return new ImageResponse(
     (
       <div
@@ -16,7 +20,7 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: "80px",
+          padding: "72px 80px",
           background:
             "linear-gradient(135deg, #0D2E7F 0%, #0A57C6 55%, #0C74D6 100%)",
           color: "white",
@@ -27,14 +31,45 @@ export default function OpengraphImage() {
           style={{
             display: "flex",
             alignItems: "center",
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            color: "#48D3E4",
+            justifyContent: "space-between",
+            width: "100%",
           }}
         >
-          UNIQAssess
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              fontSize: 28,
+              fontWeight: 600,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "#48D3E4",
+            }}
+          >
+            UNIQAssess
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 132,
+              height: 132,
+              background: "white",
+              borderRadius: 24,
+              padding: 14,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={uniccMark as unknown as string}
+              alt=""
+              width={104}
+              height={104}
+              style={{ display: "block" }}
+            />
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
