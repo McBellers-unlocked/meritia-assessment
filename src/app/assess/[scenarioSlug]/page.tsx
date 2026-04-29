@@ -111,10 +111,14 @@ function Landing({
     <div className="min-h-screen bg-[#f5f7fb] text-[#1B2A4A]">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-baseline gap-3">
-            <span className="text-xl font-bold text-[#1B3A5C]">UNIQAssess</span>
-            <span className="text-xs text-slate-500 hidden sm:inline">Powered by UNICC</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logos/uniqassess-logo.png"
+            alt="UNIQAssess"
+            width={220}
+            height={60}
+            className="h-10 w-auto"
+          />
           <span className="text-xs text-slate-400 font-mono">{anonymousId}</span>
         </div>
       </header>
