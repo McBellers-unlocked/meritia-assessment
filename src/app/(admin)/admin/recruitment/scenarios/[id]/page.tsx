@@ -147,6 +147,7 @@ function TasksTab({
   onChanged: () => Promise<void> | void;
 }) {
   const [adding, setAdding] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const addTask = async (kind: EditorTaskKind) => {
@@ -172,6 +173,35 @@ function TasksTab({
     }
   };
 
+  // Re-order via PATCH /tasks/[taskId] with a new `number`. The endpoint
+  // handles the swap in a transaction so candidate-facing ordinals stay
+  // unique. Heads-up: candidates' stored taskNumber references DON'T move
+  // with the task, so reordering after candidates have started will scramble
+  // their saved memos and chat trails.
+  const reorderTask = async (taskId: string, currentNumber: number, dir: "up" | "down") => {
+    const target = dir === "up" ? currentNumber - 1 : currentNumber + 1;
+    if (target < 1 || target > scenario.tasks.length) return;
+    setReordering(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/recruitment/scenarios/${scenario.id}/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ number: target }),
+        }
+      );
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      await onChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReordering(false);
+    }
+  };
+
   const selected = scenario.tasks.find((t) => t.id === selectedTaskId) ?? null;
 
   return (
@@ -183,24 +213,50 @@ function TasksTab({
             <div className="text-xs text-slate-500 py-3 text-center">No tasks yet.</div>
           )}
           <ul className="space-y-1">
-            {scenario.tasks.map((t) => (
-              <li key={t.id}>
-                <button
-                  onClick={() => onSelect(t.id)}
-                  className={`w-full text-left px-2 py-2 rounded text-sm ${
-                    selectedTaskId === t.id ? "bg-emerald-100 text-emerald-900" : "hover:bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs bg-slate-100 text-slate-600 rounded px-1.5">{t.number}</span>
-                    <span className="flex-1 truncate">{t.title || "(untitled)"}</span>
+            {scenario.tasks.map((t, idx) => {
+              const canMoveUp = idx > 0;
+              const canMoveDown = idx < scenario.tasks.length - 1;
+              return (
+                <li key={t.id} className="flex items-stretch gap-1">
+                  <button
+                    onClick={() => onSelect(t.id)}
+                    className={`flex-1 min-w-0 text-left px-2 py-2 rounded text-sm ${
+                      selectedTaskId === t.id ? "bg-emerald-100 text-emerald-900" : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs bg-slate-100 text-slate-600 rounded px-1.5">{t.number}</span>
+                      <span className="flex-1 truncate">{t.title || "(untitled)"}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {kindLabel(t.kind)}
+                    </div>
+                  </button>
+                  <div className="flex flex-col gap-0.5 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => void reorderTask(t.id, t.number, "up")}
+                      disabled={!canMoveUp || reordering}
+                      title={canMoveUp ? `Move "${t.title || "task"}" up` : "Already at the top"}
+                      aria-label={`Move task ${t.number} up`}
+                      className="px-1.5 py-1 rounded text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed leading-none"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void reorderTask(t.id, t.number, "down")}
+                      disabled={!canMoveDown || reordering}
+                      title={canMoveDown ? `Move "${t.title || "task"}" down` : "Already at the bottom"}
+                      aria-label={`Move task ${t.number} down`}
+                      className="px-1.5 py-1 rounded text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed leading-none"
+                    >
+                      ▼
+                    </button>
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {kindLabel(t.kind)}
-                  </div>
-                </button>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
 
           <div className="pt-3 mt-3 border-t border-slate-100">
