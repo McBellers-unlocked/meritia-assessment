@@ -105,15 +105,14 @@ export default function AssessmentView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [interactions, sending, activeTask]);
 
-  /* ------ 2-panel resizable layout + overlay chat drawer ------ */
-  // Layout is Exhibit | Memo. Chat lives in a right-edge rail + slide-in
-  // drawer so the candidate can close it and reclaim full memo width.
-  const [exhibitWidth, setExhibitWidth] = useState<number>(720);
-  const [memoCollapsed, setMemoCollapsed] = useState(false);
-  const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
+  /* ------ tabbed layout + persistent IDSC sidebar ------ */
+  // Candidates pick a view tab (Exhibit | Memo) to focus on. The IDSC
+  // Knowledge System sits in a permanent right-edge sidebar — open by default
+  // so it's discoverable, collapsible to a 48px rail when they want more
+  // room for writing. Tab + collapse state persist in localStorage (v3).
+  const [activeView, setActiveView] = useState<"exhibit" | "memo">("exhibit");
+  const [idscCollapsed, setIdscCollapsed] = useState(false);
   const [hasUnreadAI, setHasUnreadAI] = useState(false);
-  const [isWide, setIsWide] = useState(true);
-  const panelContainerRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   /* ------ activity / integrity logger ------ */
@@ -174,113 +173,66 @@ export default function AssessmentView({
     };
   }, [logActivity, flushActivity]);
 
-  // Track viewport so we only apply pixel widths on lg+ (below lg the sections
-  // stack via flex-col and should use full container width).
-  useEffect(() => {
-    const check = () => setIsWide(window.innerWidth >= 1024);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  // Hydrate + persist layout prefs (v2: dropped the chat column width since
-  // chat is now a drawer, not a permanent layout panel).
+  // Hydrate + persist layout prefs. v3 schema replaces v2 (which described a
+  // resizable two-panel layout); now just two pieces of state — the active
+  // view tab and whether the IDSC sidebar is collapsed.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("fam-layout-v2");
-      if (!raw) return;
-      const p = JSON.parse(raw);
-      if (typeof p.exhibitWidth === "number" && p.exhibitWidth >= 360) {
-        setExhibitWidth(p.exhibitWidth);
+      const raw = localStorage.getItem("fam-layout-v3");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.activeView === "exhibit" || p.activeView === "memo") setActiveView(p.activeView);
+        if (typeof p.idscCollapsed === "boolean") setIdscCollapsed(p.idscCollapsed);
+        return;
       }
-      if (typeof p.memoCollapsed === "boolean") setMemoCollapsed(p.memoCollapsed);
     } catch { /* ignore */ }
+    // First visit: collapse IDSC by default on narrow viewports so a
+    // full-width sidebar doesn't cover the assessment on mobile.
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIdscCollapsed(true);
+    }
   }, []);
   useEffect(() => {
     try {
-      localStorage.setItem("fam-layout-v2", JSON.stringify({
-        exhibitWidth,
-        memoCollapsed,
-      }));
+      localStorage.setItem("fam-layout-v3", JSON.stringify({ activeView, idscCollapsed }));
     } catch { /* ignore */ }
-  }, [exhibitWidth, memoCollapsed]);
+  }, [activeView, idscCollapsed]);
 
-  // Single divider between exhibit and memo. Memo auto-flexes to take the rest.
-  const startExhibitDrag = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    // Capture the pointer on the divider so pointermove keeps firing even when
-    // the cursor crosses into the sandboxed exhibit iframe (otherwise the
-    // iframe swallows the events and the drag freezes going left).
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const startX = e.clientX;
-    const start = exhibitWidth;
-    const container = panelContainerRef.current;
-    const containerW = container?.getBoundingClientRect().width ?? 1200;
-    const MIN_EXHIBIT = 360;
-    const MIN_MEMO = 320;
-    const CHAT_RAIL_W = 48;
-
-    const onMove = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX;
-      const reserveRight = (memoCollapsed ? 48 : MIN_MEMO) + CHAT_RAIL_W + 6;
-      const maxExhibit = containerW - reserveRight;
-      const next = Math.max(MIN_EXHIBIT, Math.min(maxExhibit, start + dx));
-      setExhibitWidth(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, [exhibitWidth, memoCollapsed]);
-
-  // Chat drawer: opening clears the unread indicator; we also try to focus
-  // the textarea so candidates can start typing immediately.
-  const toggleChatDrawer = useCallback((force?: boolean) => {
-    setChatDrawerOpen((current) => {
-      const next = force !== undefined ? force : !current;
-      if (next) setHasUnreadAI(false);
-      return next;
-    });
+  // Toggle the IDSC sidebar; expanding clears the unread badge and focuses
+  // the input so candidates can type immediately.
+  const toggleIdsc = useCallback(() => {
+    setIdscCollapsed((c) => !c);
   }, []);
   useEffect(() => {
-    if (chatDrawerOpen) {
+    if (!idscCollapsed) {
+      setHasUnreadAI(false);
       const id = window.setTimeout(() => chatInputRef.current?.focus(), 140);
       return () => window.clearTimeout(id);
     }
-  }, [chatDrawerOpen]);
+  }, [idscCollapsed]);
 
-  // Cmd/Ctrl+J toggles the drawer; Esc closes it. Mirrors the VSCode terminal
-  // convention and gives the candidate a fast way back to writing.
+  // Cmd/Ctrl+J toggles the sidebar — same shortcut as the previous drawer
+  // and the VSCode terminal convention.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "j") {
         ev.preventDefault();
-        toggleChatDrawer();
-        return;
-      }
-      if (ev.key === "Escape" && chatDrawerOpen) {
-        toggleChatDrawer(false);
+        toggleIdsc();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [chatDrawerOpen, toggleChatDrawer]);
+  }, [toggleIdsc]);
 
-  // Flash the rail when an AI reply arrives while the drawer is closed.
+  // Flash the rail when an AI reply arrives while the sidebar is collapsed.
   const prevAiCountRef = useRef(initial.interactions.filter((i) => i.actor === "ai").length);
   useEffect(() => {
     const aiCount = interactions.filter((i) => i.actor === "ai").length;
-    if (aiCount > prevAiCountRef.current && !chatDrawerOpen) {
+    if (aiCount > prevAiCountRef.current && idscCollapsed) {
       setHasUnreadAI(true);
     }
     prevAiCountRef.current = aiCount;
-  }, [interactions, chatDrawerOpen]);
+  }, [interactions, idscCollapsed]);
 
   /* ------ chat ------ */
   const sendMessage = useCallback(async () => {
@@ -445,85 +397,67 @@ export default function AssessmentView({
       </header>
 
       {/* Layout body.
-          - Main content: Exhibit | drag-handle | Memo, with a 48px chat rail
-            reserved on the right.
-          - Chat is a slide-in overlay drawer launched from the rail (or
-            Ctrl/Cmd+J). It sits above the memo while open; the exhibit stays
-            fully visible and interactive to the candidate's left.
-          - Widths + memo-collapse state persist in localStorage. */}
-      <div
-        ref={panelContainerRef}
-        className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative pr-12"
-      >
-          {/* Exhibit */}
-          <section
-            style={isWide ? { width: exhibitWidth, flexShrink: 0 } : undefined}
-            className="bg-white flex flex-col min-h-0 overflow-hidden flex-1 lg:flex-none border-b lg:border-b-0 lg:border-r border-slate-200"
-          >
-            <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">Exhibit · Task {activeTask}</div>
-                <div className="text-sm font-semibold text-[#1B2A4A] truncate">{activeTaskCfg.exhibitTitle}</div>
-              </div>
-              <button
-                onClick={() => setExhibitFullscreen(true)}
-                className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white flex-shrink-0"
-                title="Open exhibit full screen"
-              >
-                ⤢ Expand
-              </button>
-            </div>
-            <iframe
-              srcDoc={activeTaskCfg.exhibitHtml}
-              sandbox=""
-              className="flex-1 w-full border-0 bg-white"
-              title={activeTaskCfg.exhibitTitle}
+          - Main column: a [Exhibit] / [Memo] tab bar above whichever view is
+            active. Candidates focus on one at a time; a "Peek at exhibit"
+            button on the Memo tab opens the existing fullscreen exhibit modal
+            so they can quickly check source data without losing their place.
+          - IDSC Knowledge System: a permanent right-edge sidebar, open by
+            default so it's discoverable. Collapses to a 48px rail (the same
+            shape the previous design used for the chat rail). */}
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
+        <main
+          className={`flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden transition-[padding] duration-200 ${
+            idscCollapsed ? "pr-12" : "pr-0 lg:pr-[420px]"
+          }`}
+        >
+          {/* View tabs */}
+          <div className="bg-white border-b border-slate-200 flex-shrink-0 flex items-stretch px-2 gap-0.5">
+            <ViewTab
+              active={activeView === "exhibit"}
+              onClick={() => setActiveView("exhibit")}
+              label="Exhibit"
+              sublabel={activeTaskCfg.exhibitTitle}
             />
-          </section>
+            <ViewTab
+              active={activeView === "memo"}
+              onClick={() => setActiveView("memo")}
+              label="Memo"
+              sublabel={`${wordCounts[activeTask]} ${wordCounts[activeTask] === 1 ? "word" : "words"}${memoSaving[activeTask] ? " · saving…" : ""}`}
+              warn={wordCounts[activeTask] === 0}
+            />
+          </div>
 
-          {/* Single divider between exhibit and memo */}
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize exhibit and memo panels"
-            onPointerDown={startExhibitDrag}
-            className="hidden lg:block w-1.5 bg-slate-200 hover:bg-[#4B92DB] active:bg-[#4B92DB] cursor-col-resize flex-shrink-0 transition-colors"
-            title="Drag to resize"
-          />
-
-          {/* Memo (expanded) or memo rail (collapsed, lg+ only) */}
-          {memoCollapsed && isWide ? (
-            <button
-              type="button"
-              onClick={() => setMemoCollapsed(false)}
-              className="hidden lg:flex flex-col items-center justify-between w-12 bg-[#1B2A4A] hover:bg-[#142338] text-white py-3 flex-shrink-0 transition-colors border-l border-slate-300 group"
-              aria-label={`Expand memo editor (currently ${wordCounts[activeTask]} words)`}
-              title={`Expand memo — ${wordCounts[activeTask]} words in Task ${activeTask}`}
-            >
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="text-lg leading-none group-hover:-translate-x-0.5 transition-transform" aria-hidden>◀</span>
-                <span className="text-[9px] uppercase tracking-wider opacity-80 font-semibold">Expand</span>
-              </div>
-              <div className="flex-1 flex items-center justify-center px-1">
-                <span
-                  className="text-xs font-semibold tracking-wider whitespace-nowrap"
-                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          {/* Active tab content */}
+          {activeView === "exhibit" ? (
+            <section className="bg-white flex flex-col min-h-0 overflow-hidden flex-1">
+              <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+                    Exhibit · Task {activeTask}
+                  </div>
+                  <div className="text-sm font-semibold text-[#1B2A4A] truncate">
+                    {activeTaskCfg.exhibitTitle}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setExhibitFullscreen(true)}
+                  className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white flex-shrink-0"
+                  title="Open exhibit full screen"
                 >
-                  MEMO · TASK {activeTask}
-                </span>
+                  ⤢ Expand
+                </button>
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[11px] tabular-nums font-semibold">
-                  {wordCounts[activeTask]}w
-                </span>
-                {wordCounts[activeTask] === 0 && (
-                  <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" aria-hidden />
-                )}
-              </div>
-            </button>
+              <iframe
+                srcDoc={activeTaskCfg.exhibitHtml}
+                sandbox=""
+                className="flex-1 w-full border-0 bg-white"
+                title={activeTaskCfg.exhibitTitle}
+              />
+            </section>
           ) : (
-            <section className="bg-white flex flex-col min-h-0 overflow-hidden flex-1 lg:min-w-0">
-              {/* Memo header with collapse affordance */}
+            <section className="bg-white flex flex-col min-h-0 overflow-hidden flex-1">
+              {/* Memo header — title + Peek at exhibit so candidates can
+                  quickly check source data without leaving the editor. */}
               <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
@@ -535,18 +469,21 @@ export default function AssessmentView({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setMemoCollapsed(true)}
-                  className="hidden lg:flex items-center gap-1 text-xs px-2 py-1 rounded border border-slate-300 hover:bg-white flex-shrink-0 text-slate-600"
-                  title="Collapse the memo to give the exhibit more room"
-                  aria-label="Collapse memo"
+                  onClick={() => setExhibitFullscreen(true)}
+                  className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white flex-shrink-0 text-slate-700 inline-flex items-center gap-1.5"
+                  title="Open the exhibit full screen — close it to return to the memo"
+                  aria-label="Peek at exhibit"
                 >
-                  <span aria-hidden>▶</span>
-                  <span>Collapse</span>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Peek at exhibit
                 </button>
               </div>
 
-              {/* Brief — relocated above the editor so candidates can reference
-                  the task framing without opening the AI drawer. */}
+              {/* Brief — collapsible, default open so candidates can re-anchor
+                  on the task framing as they're writing. */}
               <div className="border-b border-slate-200 bg-slate-50/60 flex-shrink-0">
                 <button
                   onClick={() => setBriefOpen((v) => !v)}
@@ -582,160 +519,144 @@ export default function AssessmentView({
               </div>
             </section>
           )}
+        </main>
 
-        {/* Chat rail — always fixed to the right edge. Opens the drawer. */}
-        <button
-          type="button"
-          onClick={() => toggleChatDrawer(true)}
-          className={`absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-white transition-colors border-l border-slate-300 z-30 ${
-            chatDrawerOpen ? "bg-[#142338]" : "bg-[#1B2A4A] hover:bg-[#142338]"
-          }`}
-          aria-label="Open IDSC investigation chat (Ctrl/Cmd+J)"
-          aria-expanded={chatDrawerOpen}
-          title="Investigation chat — Ctrl/Cmd+J"
-        >
-          <div className="flex flex-col items-center gap-1.5">
-            <svg
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              aria-hidden
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.26-.97L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <span className="text-[9px] uppercase tracking-wider opacity-80 font-semibold">Ask</span>
-          </div>
-          <div className="flex-1 flex items-center justify-center px-1">
-            <span
-              className="text-xs font-semibold tracking-wider whitespace-nowrap"
-              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-            >
-              INVESTIGATION
-            </span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-[10px] tabular-nums opacity-80 font-semibold">
-              {trailForActive.length}
-            </span>
-            {hasUnreadAI && !chatDrawerOpen && (
-              <span
-                className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse"
-                aria-label="New AI reply"
-                title="New reply"
-              />
-            )}
-          </div>
-        </button>
-
-        {/* Dimmed backdrop over the memo area while the drawer is open. The
-            exhibit stays un-dimmed and fully interactive so candidates can
-            still read/scroll source data while querying the AI. */}
-        {chatDrawerOpen && (
-          <div
-            className="absolute top-0 bottom-0 bg-slate-900/15 z-40"
-            style={{ left: isWide ? exhibitWidth + 6 : 0, right: 48 }}
-            onClick={() => toggleChatDrawer(false)}
-            aria-hidden
-          />
-        )}
-
-        {/* Chat drawer — slides in from the right. Fixed 460px on lg+, takes
-            the remaining width (screen minus rail) on smaller screens. */}
-        <aside
-          className="absolute top-0 bottom-0 bg-white border-l border-slate-300 shadow-2xl z-50 flex flex-col"
-          style={{
-            right: 48,
-            width: isWide ? 460 : "calc(100% - 48px)",
-            transform: chatDrawerOpen ? "translateX(0)" : "translateX(calc(100% + 48px))",
-            transition: "transform 220ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-          aria-hidden={!chatDrawerOpen}
-          aria-label="IDSC investigation chat"
-        >
-          <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
-                Investigation · Task {activeTask}
-              </div>
-              <div className="text-sm font-semibold text-[#1B2A4A] truncate">
-                IDSC Knowledge System
-              </div>
+        {/* IDSC Knowledge System — always anchored to the right edge.
+            Collapsed: 48px rail (mirrors the previous chat-rail pattern).
+            Expanded: 420px panel on lg+, full-width overlay on smaller. */}
+        {idscCollapsed ? (
+          <button
+            type="button"
+            onClick={toggleIdsc}
+            className="absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-white transition-colors border-l border-slate-300 z-10 bg-[#1B2A4A] hover:bg-[#142338]"
+            aria-label="Expand IDSC Knowledge System (Ctrl/Cmd+J)"
+            aria-expanded={false}
+            title="IDSC Knowledge System — Ctrl/Cmd+J"
+          >
+            <div className="flex flex-col items-center gap-1.5">
+              <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.26-.97L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <span className="text-[9px] uppercase tracking-wider opacity-80 font-semibold">Open</span>
             </div>
-            <button
-              type="button"
-              onClick={() => toggleChatDrawer(false)}
-              className="text-slate-500 hover:text-slate-900 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center flex-shrink-0 text-2xl leading-none"
-              aria-label="Close chat (Esc)"
-              title="Close (Esc)"
-            >
-              ×
-            </button>
-          </div>
-
-          <div ref={chatScroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
-            {trailForActive.length === 0 && (
-              <div className="text-xs text-slate-500 italic">
-                Ask the system anything. Be specific — request source documents, underlying data,
-                or detail on a particular item.
-              </div>
-            )}
-            {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}
-            {sending && <div className="text-xs text-slate-500 italic">IDSC system is replying…</div>}
-          </div>
-
-          {chatError && (
-            <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-red-800 text-xs">{chatError}</div>
-          )}
-
-          <div className="border-t border-slate-200 p-3 flex-shrink-0">
-            <textarea
-              ref={chatInputRef}
-              value={chatInputs[activeTask] || ""}
-              onChange={(e) => setChatInputs((prev) => ({ ...prev, [activeTask]: e.target.value }))}
-              onPaste={(e) => {
-                const txt = e.clipboardData.getData("text") ?? "";
-                if (txt.length > 0) logActivity("paste", { target: "chat", charCount: txt.length });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void sendMessage();
-                }
-              }}
-              placeholder="Ask the IDSC Knowledge System… (Ctrl/Cmd ⏎ to send)"
-              className="w-full h-20 text-sm border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-[#4B92DB] focus:border-[#4B92DB] resize-none"
-              maxLength={CHAT_MAX_CHARS}
-              disabled={sending}
-            />
-            {(() => {
-              const len = (chatInputs[activeTask] || "").length;
-              const nearLimit = len >= CHAT_MAX_CHARS * 0.9;
-              const atLimit = len >= CHAT_MAX_CHARS;
-              const counterClass = atLimit
-                ? "text-red-600 font-semibold tabular-nums"
-                : nearLimit
-                ? "text-amber-600 font-semibold tabular-nums"
-                : "text-slate-500 tabular-nums";
-              return (
-                <div className="mt-1.5 flex items-center justify-between text-xs">
-                  <span className={counterClass}>
-                    {len.toLocaleString()} / {CHAT_MAX_CHARS.toLocaleString()}
-                    {atLimit && <span className="ml-1.5 font-normal">character limit reached</span>}
-                  </span>
-                  <button
-                    onClick={() => void sendMessage()}
-                    disabled={!(chatInputs[activeTask] || "").trim() || sending}
-                    className="px-3 py-1.5 rounded-md bg-[#4B92DB] text-white text-xs font-semibold hover:bg-[#357fc8] disabled:bg-slate-300"
-                  >
-                    {sending ? "Sending…" : "Send"}
-                  </button>
+            <div className="flex-1 flex items-center justify-center px-1">
+              <span
+                className="text-xs font-semibold tracking-wider whitespace-nowrap"
+                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+              >
+                IDSC INVESTIGATION
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[10px] tabular-nums opacity-80 font-semibold">
+                {trailForActive.length}
+              </span>
+              {hasUnreadAI && (
+                <span
+                  className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse"
+                  aria-label="New AI reply"
+                  title="New reply"
+                />
+              )}
+            </div>
+          </button>
+        ) : (
+          <aside
+            className="absolute right-0 top-0 bottom-0 bg-white border-l border-slate-300 flex flex-col z-10 w-full lg:w-[420px] shadow-lg lg:shadow-none"
+            aria-label="IDSC investigation chat"
+          >
+            <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+                  Investigation · Task {activeTask}
                 </div>
-              );
-            })()}
-          </div>
-        </aside>
+                <div className="text-sm font-semibold text-[#1B2A4A] truncate">
+                  IDSC Knowledge System
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={toggleIdsc}
+                className="text-slate-500 hover:text-slate-900 w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center flex-shrink-0"
+                aria-label="Collapse IDSC sidebar (Ctrl/Cmd+J)"
+                title="Collapse — Ctrl/Cmd+J"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
+            <div ref={chatScroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+              {trailForActive.length === 0 && (
+                <div className="text-xs text-slate-500 italic">
+                  Ask the system anything. Be specific — request source documents, underlying data,
+                  or detail on a particular item.
+                </div>
+              )}
+              {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}
+              {sending && <div className="text-xs text-slate-500 italic">IDSC system is replying…</div>}
+            </div>
+
+            {chatError && (
+              <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-red-800 text-xs">{chatError}</div>
+            )}
+
+            <div className="border-t border-slate-200 p-3 flex-shrink-0">
+              <textarea
+                ref={chatInputRef}
+                value={chatInputs[activeTask] || ""}
+                onChange={(e) => setChatInputs((prev) => ({ ...prev, [activeTask]: e.target.value }))}
+                onPaste={(e) => {
+                  const txt = e.clipboardData.getData("text") ?? "";
+                  if (txt.length > 0) logActivity("paste", { target: "chat", charCount: txt.length });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    void sendMessage();
+                  }
+                }}
+                placeholder="Ask the IDSC Knowledge System… (Ctrl/Cmd ⏎ to send)"
+                className="w-full h-20 text-sm border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-[#4B92DB] focus:border-[#4B92DB] resize-none"
+                maxLength={CHAT_MAX_CHARS}
+                disabled={sending}
+              />
+              {(() => {
+                const len = (chatInputs[activeTask] || "").length;
+                const nearLimit = len >= CHAT_MAX_CHARS * 0.9;
+                const atLimit = len >= CHAT_MAX_CHARS;
+                const counterClass = atLimit
+                  ? "text-red-600 font-semibold tabular-nums"
+                  : nearLimit
+                  ? "text-amber-600 font-semibold tabular-nums"
+                  : "text-slate-500 tabular-nums";
+                return (
+                  <div className="mt-1.5 flex items-center justify-between text-xs">
+                    <span className={counterClass}>
+                      {len.toLocaleString()} / {CHAT_MAX_CHARS.toLocaleString()}
+                      {atLimit && <span className="ml-1.5 font-normal">character limit reached</span>}
+                    </span>
+                    <button
+                      onClick={() => void sendMessage()}
+                      disabled={!(chatInputs[activeTask] || "").trim() || sending}
+                      className="px-3 py-1.5 rounded-md bg-[#4B92DB] text-white text-xs font-semibold hover:bg-[#357fc8] disabled:bg-slate-300"
+                    >
+                      {sending ? "Sending…" : "Send"}
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Fullscreen exhibit modal */}
@@ -1026,6 +947,44 @@ function TaskTabs({
         })}
       </div>
     </div>
+  );
+}
+
+function ViewTab({
+  active, onClick, label, sublabel, warn,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  sublabel?: string;
+  warn?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        "relative px-4 pt-2.5 pb-2 -mb-px text-left flex flex-col gap-0.5 transition border-b-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4B92DB] focus-visible:ring-offset-1 rounded-t",
+        active
+          ? "border-[#1B2A4A] text-[#1B2A4A] bg-white"
+          : "border-transparent text-slate-500 hover:text-[#1B2A4A] hover:bg-slate-50",
+      ].join(" ")}
+    >
+      <span className="text-sm font-semibold inline-flex items-center gap-1.5">
+        {label}
+        {warn && (
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"
+            aria-label="empty"
+            title="Empty"
+          />
+        )}
+      </span>
+      {sublabel && (
+        <span className="text-[11px] text-slate-500 truncate max-w-[260px]">{sublabel}</span>
+      )}
+    </button>
   );
 }
 
