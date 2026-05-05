@@ -55,12 +55,22 @@ export default function ScenariosListPage() {
             Author custom scenarios with memo + AI investigation, email inbox, and chat tasks.
           </p>
         </div>
-        <Link
-          href="/admin/recruitment/scenarios/new"
-          className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338]"
-        >
-          New scenario
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/recruitment/scenarios/new/from-jd"
+            className="px-4 py-2 rounded-md bg-[#4B92DB] text-white text-sm font-semibold hover:bg-[#357fc8] inline-flex items-center gap-1.5"
+            title="Upload a job description and let Claude Opus 4.7 draft the scenario"
+          >
+            <span aria-hidden>✨</span>
+            Generate from JD
+          </Link>
+          <Link
+            href="/admin/recruitment/scenarios/new"
+            className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338]"
+          >
+            New scenario
+          </Link>
+        </div>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2 mb-4">{error}</div>}
