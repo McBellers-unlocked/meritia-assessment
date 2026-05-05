@@ -28,6 +28,14 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
+
+  if (body.kind !== undefined && body.kind !== existing.kind) {
+    return NextResponse.json(
+      { error: "changing task kind is not supported; delete and recreate the task" },
+      { status: 400 }
+    );
+  }
+
   const data: Record<string, unknown> = {};
 
   if (body.title !== undefined) data.title = String(body.title).trim();
@@ -39,26 +47,6 @@ export async function PATCH(
     }
     data.totalMarks = v;
   }
-  if (body.number !== undefined) {
-    const v = Number(body.number);
-    if (!Number.isFinite(v) || v < 1) {
-      return NextResponse.json({ error: "number must be a positive integer" }, { status: 400 });
-    }
-    // If the target number is taken by another task in the same scenario,
-    // swap them so ordering stays dense. Simple implementation: if there's
-    // a conflict, bump that other task to the current task's old number.
-    const conflict = await prisma.recruitmentScenarioTask.findFirst({
-      where: { scenarioId: params.id, number: v, NOT: { id: params.taskId } },
-    });
-    if (conflict) {
-      await prisma.recruitmentScenarioTask.update({
-        where: { id: conflict.id },
-        data: { number: existing.number },
-      });
-    }
-    data.number = v;
-  }
-
   if (body.systemPrompt !== undefined) {
     data.systemPrompt = body.systemPrompt === null ? null : String(body.systemPrompt);
   }
@@ -85,22 +73,66 @@ export async function PATCH(
     data.config = body.config; // trusted admin; Prisma will serialise
   }
 
-  if (body.kind !== undefined && body.kind !== existing.kind) {
-    return NextResponse.json(
-      { error: "changing task kind is not supported; delete and recreate the task" },
-      { status: 400 }
-    );
+  // Number changes need a 3-step swap when the target ordinal is taken,
+  // because the [scenarioId, number] unique index is checked per row and a
+  // single UPDATE either way collides on the conflicting task.
+  let numberSwap: { v: number; conflict: { id: string; number: number } } | null = null;
+  let numberAssign: number | null = null;
+  if (body.number !== undefined) {
+    const v = Number(body.number);
+    if (!Number.isFinite(v) || v < 1) {
+      return NextResponse.json({ error: "number must be a positive integer" }, { status: 400 });
+    }
+    if (v !== existing.number) {
+      const conflict = await prisma.recruitmentScenarioTask.findFirst({
+        where: { scenarioId: params.id, number: v, NOT: { id: params.taskId } },
+        select: { id: true, number: true },
+      });
+      if (conflict) {
+        numberSwap = { v, conflict };
+      } else {
+        numberAssign = v;
+      }
+    }
   }
 
-  const task = await prisma.recruitmentScenarioTask.update({
-    where: { id: params.taskId },
-    data,
-  });
+  if (numberSwap) {
+    // Park the conflicting task at a negative sentinel (real ordinals are
+    // >= 1 so -conflict.number can't collide), update self with all pending
+    // field changes + the new number, then move the conflict into self's
+    // old slot. Wrapped in a transaction so a partial swap can't leave the
+    // scenario with sentinel-numbered or duplicate rows.
+    const sentinel = -numberSwap.conflict.number;
+    await prisma.$transaction([
+      prisma.recruitmentScenarioTask.update({
+        where: { id: numberSwap.conflict.id },
+        data: { number: sentinel },
+      }),
+      prisma.recruitmentScenarioTask.update({
+        where: { id: existing.id },
+        data: { ...data, number: numberSwap.v },
+      }),
+      prisma.recruitmentScenarioTask.update({
+        where: { id: numberSwap.conflict.id },
+        data: { number: existing.number },
+      }),
+    ]);
+  } else {
+    if (numberAssign !== null) data.number = numberAssign;
+    await prisma.recruitmentScenarioTask.update({
+      where: { id: params.taskId },
+      data,
+    });
+  }
+
   await prisma.recruitmentScenario.update({
     where: { id: params.id },
     data: { updatedAt: new Date() },
   });
 
+  const task = await prisma.recruitmentScenarioTask.findUnique({
+    where: { id: params.taskId },
+  });
   return NextResponse.json({ task });
 }
 
