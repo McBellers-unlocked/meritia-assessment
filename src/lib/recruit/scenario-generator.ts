@@ -54,7 +54,13 @@ export interface GenerateTaskInput {
 // to Opus 4.7 if/when generation moves to a host with a longer SSR
 // timeout (Vercel Pro, a dedicated Lambda, etc.).
 const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 16000;
+// Tighter cap: the prompt steers exhibits to ~600–1200 chars; 8000
+// tokens is plenty headroom and shaves the worst-case time floor.
+const MAX_TOKENS = 8000;
+// SDK-level timeout that fires before Amplify's ~30s Lambda timeout,
+// so we get a clean SDK error → SSE error event instead of an empty
+// 500/504 from the runtime.
+const SDK_TIMEOUT_MS = 25_000;
 
 const SYSTEM_PROMPT = `You design technical assessments for senior professional hires. The platform asks each candidate to read an EXHIBIT (a realistic source artefact — a contract, a report, a SIEM alert log, a financial statement, a project brief, etc.) and produce a short written DELIVERABLE (an analysis, a memo, a recommendation) that demonstrates the judgement, technical depth, and communication required for the role.
 
@@ -80,7 +86,7 @@ Do not design generic competency-tests that any senior professional could attemp
 
 4. **Self-contained.** Everything the candidate needs to answer must be visible in the exhibit. Do not reference external systems, prior emails, or "the previous task". The candidate may use an in-app AI knowledge system to ask follow-up questions, but the exhibit should be the primary source.
 
-5. **Time-appropriate.** Assume the candidate has roughly 30–45 minutes per task. The exhibit should be ~600–1500 words equivalent (tables, figures, and structured data count). The expected deliverable should be ~250–600 words of analytical writing.
+5. **Time-appropriate AND concise.** Assume the candidate has roughly 30–45 minutes per task. The exhibit should be **focused and tight — aim for 400–900 words equivalent** (tables, figures, and structured data count toward this). Briefs should be **150–250 words**. The expected deliverable should be 250–500 words of analytical writing. **Resist the urge to over-detail.** A short, sharp exhibit with the right specifics beats a long one with padding — the candidate has a clock running.
 
 6. **Distinct from prior tasks.** When a list of prior task themes is provided, your new task must NOT overlap with their artefact type, decision, or competency. The current focus criterion may be related to a prior task's criterion in the abstract, but the task you design — the artefact, the question put to the candidate, the type of judgement required — must feel different on the page.
 
@@ -92,7 +98,7 @@ The exhibit is rendered inside a sandboxed iframe (sandbox="" with no allow-same
 - Use semantic HTML: <h1>/<h2> for titles, <table> for tabular data with <thead>/<tbody>, <pre> for log excerpts or code, <blockquote> for quoted material, <ul>/<ol> for lists, <p> for prose.
 - Include domain-specific structure: a SIEM log should look like a log; a P&L should look like a P&L (right-aligned numerics, period columns, totals). Make tables readable: borders, padding, header background, monospace for numerics.
 - Plausible but invented: real-looking names, dates, numbers, system identifiers — but do NOT use real company names, real CVEs, real people, or real incidents. Invent everything. Use realistic naming conventions ("Aegis-IDS", "north-eu-prod-01", "GL-3201") and dates in the last 12 months.
-- Length: approximately 800–2500 characters of meaningful content (tables and structured data count by the data they convey, not by character count).
+- Length: target **600–1200 characters** of meaningful content (tables and structured data count by what they convey; aim short — a tight 800-char exhibit beats a flabby 2000-char one).
 
 BRIEF FORMAT
 
@@ -271,21 +277,24 @@ export async function generateOneTask(
 
   const client = await getClient();
 
-  const messageStream = client.messages.stream({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
-    tools: [PROPOSE_TASK_TOOL],
-    tool_choice: { type: "auto" },
-    // Sonnet 4.6 defaults effort to "high" — that's slow for our
-    // single-shot structured output. "low" with no thinking keeps the
-    // call comfortably inside Amplify's ~30s SSR timeout while still
-    // producing strong industry-matched exhibits. The system prompt
-    // does the heavy lifting here.
-    thinking: { type: "disabled" },
-    output_config: { effort: "low" },
-    messages: [buildUserMessage(input)],
-  });
+  const messageStream = client.messages.stream(
+    {
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: SYSTEM_PROMPT,
+      tools: [PROPOSE_TASK_TOOL],
+      tool_choice: { type: "auto" },
+      // Sonnet 4.6 defaults effort to "high" — that's slow for our
+      // single-shot structured output. "low" with no thinking keeps
+      // the call inside Amplify's ~30s SSR timeout while still
+      // producing strong industry-matched exhibits. The system
+      // prompt does the heavy lifting here.
+      thinking: { type: "disabled" },
+      output_config: { effort: "low" },
+      messages: [buildUserMessage(input)],
+    },
+    { timeout: SDK_TIMEOUT_MS }
+  );
 
   // Walk the stream so the SDK feeds it back-to-back (avoids the SDK
   // buffering on its own) and so we can ping the progress callback —

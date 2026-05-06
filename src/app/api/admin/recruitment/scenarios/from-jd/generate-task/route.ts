@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
       // commits to streaming mode rather than buffering the response.
       safeEnqueue(encoder.encode(`: stream-open\n\n`));
 
+      const startedAt = Date.now();
+
       try {
         const result = await generateOneTask(input, () => {
           // The Anthropic SDK fires events frequently — piggyback on
@@ -120,9 +122,18 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (e) {
+        const elapsed = Date.now() - startedAt;
+        // Diagnostic: surface the failure mode in CloudWatch so we can
+        // tell SDK timeouts apart from rate limits and other failures.
+        console.error(
+          `[generate-task] failed after ${elapsed}ms`,
+          e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+        );
         const message =
           e instanceof Anthropic.RateLimitError
             ? "Anthropic API rate limit hit — try again in a moment."
+            : e instanceof Anthropic.APIConnectionTimeoutError
+            ? `Generation took longer than ${Math.round(elapsed / 1000)}s — try fewer criteria per task or rerun.`
             : e instanceof Anthropic.APIError
             ? `Anthropic API error: ${e.message}`
             : (e as Error).message || "Generation failed";

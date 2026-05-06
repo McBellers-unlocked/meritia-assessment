@@ -26,6 +26,9 @@ export interface ExtractedCriteria {
 
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 1500;
+// SDK timeout that fires before Amplify's ~30s Lambda timeout, so a
+// rare slow extraction returns a clean error rather than an empty 500.
+const SDK_TIMEOUT_MS = 25_000;
 
 const SYSTEM_PROMPT = `You extract the structured selection criteria from a job description. Return them by calling the \`report_criteria\` tool.
 
@@ -145,15 +148,18 @@ export async function extractCriteria(
 
   const client = await getClient();
 
-  const stream = client.messages.stream({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
-    tools: [REPORT_CRITERIA_TOOL],
-    tool_choice: { type: "auto" },
-    thinking: { type: "disabled" },
-    messages: [buildUserMessage(input)],
-  });
+  const stream = client.messages.stream(
+    {
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: SYSTEM_PROMPT,
+      tools: [REPORT_CRITERIA_TOOL],
+      tool_choice: { type: "auto" },
+      thinking: { type: "disabled" },
+      messages: [buildUserMessage(input)],
+    },
+    { timeout: SDK_TIMEOUT_MS }
+  );
 
   for await (const _event of stream) {
     onProgress?.();
