@@ -353,31 +353,93 @@ async function generateOne(input: {
       body: JSON.stringify(input),
     }
   );
-  // Read as text first so we can produce a useful message even when the
-  // server returns an empty body — typically a Lambda timeout or crash,
-  // which we want to call out explicitly rather than the cryptic
-  // "Unexpected end of JSON input" that res.json() throws.
-  const raw = await res.text();
-  if (!raw) {
-    throw new Error(
-      `Server returned an empty response (HTTP ${res.status}). The generation likely timed out at the platform layer — try a shorter JD or fewer tasks.`
-    );
+
+  // Validation errors come back as plain JSON (status != 200). The
+  // happy path is text/event-stream — `result` and `error` events
+  // terminate the stream and carry a JSON payload.
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!res.ok || !contentType.includes("text/event-stream")) {
+    const raw = await res.text().catch(() => "");
+    if (!raw) {
+      throw new Error(
+        `Server returned an empty ${res.ok ? "OK" : "HTTP " + res.status} response. The generation may have timed out at the platform — try a shorter JD or fewer tasks.`
+      );
+    }
+    let parsed: { error?: string } = {};
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error(
+        `Server returned non-JSON (HTTP ${res.status}): ${raw.slice(0, 200)}`
+      );
+    }
+    throw new Error(parsed.error || `HTTP ${res.status}`);
   }
-  let body: { task?: GeneratedTaskDraft; error?: string };
+
+  if (!res.body) {
+    throw new Error("Streaming not supported in this browser.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let task: GeneratedTaskDraft | null = null;
+  let errorMessage: string | null = null;
+
   try {
-    body = JSON.parse(raw);
-  } catch {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by a blank line ("\n\n"). Comments
+      // (heartbeats) start with ":" and we skip them.
+      let split: number;
+      while ((split = buffer.indexOf("\n\n")) !== -1) {
+        const block = buffer.slice(0, split);
+        buffer = buffer.slice(split + 2);
+
+        let eventName = "message";
+        const dataLines: string[] = [];
+        for (const line of block.split("\n")) {
+          if (!line || line.startsWith(":")) continue;
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+          }
+        }
+        if (dataLines.length === 0) continue;
+        const dataStr = dataLines.join("\n");
+
+        if (eventName === "result") {
+          try {
+            const payload = JSON.parse(dataStr);
+            if (payload && payload.task) task = payload.task;
+          } catch {
+            errorMessage = "Server returned an unparseable result event.";
+          }
+        } else if (eventName === "error") {
+          try {
+            const payload = JSON.parse(dataStr);
+            errorMessage = payload?.error || "Generation failed";
+          } catch {
+            errorMessage = dataStr || "Generation failed";
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (errorMessage) throw new Error(errorMessage);
+  if (!task) {
     throw new Error(
-      `Server returned non-JSON (HTTP ${res.status}): ${raw.slice(0, 200)}`
+      "Stream ended without a result. The generation likely hit the platform timeout — try a shorter JD or fewer tasks."
     );
   }
-  if (!res.ok) {
-    throw new Error(body.error || `HTTP ${res.status}`);
-  }
-  if (!body.task) {
-    throw new Error("Server response did not include a task.");
-  }
-  return body.task;
+  return task;
 }
 
 /* ---------------- step components ---------------- */

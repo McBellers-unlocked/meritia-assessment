@@ -44,7 +44,17 @@ const MAX_TOKENS = 16000;
 
 const SYSTEM_PROMPT = `You design technical assessments for senior professional hires. The platform asks each candidate to read an EXHIBIT (a realistic source artefact — a contract, a report, a SIEM alert log, a financial statement, a project brief, etc.) and produce a short written DELIVERABLE (an analysis, a memo, a recommendation) that demonstrates the judgement, technical depth, and communication required for the role.
 
-Your job is to design ONE task at a time, given a job description. Each task you produce must be:
+# How to ground the task in the JD
+
+Before designing anything, identify the role's:
+- **Key duties and responsibilities** — what the person actually *does* day-to-day
+- **Essential criteria / selection criteria / required experience** — the competencies and credentials the JD says the candidate must demonstrate
+
+The task you design must concretely test ONE of these duties or essential criteria — a real situation in which the named competency is exercised. If the JD lists "Responds to security incidents and conducts root-cause analysis" as a duty, your task should put the candidate in front of an alert log and ask them to triage and recommend. If the JD lists "Reviews vendor contracts for compliance with UN procurement rules" as essential, your task should put a contract in front of them with embedded compliance issues to find. Do not design generic competency-tests that any senior professional could attempt — design scenarios that the person hired into THIS role would face on a typical Tuesday.
+
+Pick ONE specific duty or criterion per task. Don't try to test several at once.
+
+# Quality bar for each task
 
 1. **Industry-matched.** Pull concrete domain detail from the JD — the tools, frameworks, regulations, or artefact types the role works with day to day. A cybersecurity officer task should involve real-looking SIEM alerts, IOCs, or incident write-ups; a finance manager task should involve real-looking ledgers, journals, or audit findings; a contracts lawyer task should involve real-looking clause language. Avoid generic "analyse this case study" framings.
 
@@ -56,7 +66,7 @@ Your job is to design ONE task at a time, given a job description. Each task you
 
 5. **Time-appropriate.** Assume the candidate has roughly 30–45 minutes per task. The exhibit should be ~600–1500 words equivalent (tables, figures, and structured data count). The expected deliverable should be ~250–600 words of analytical writing.
 
-6. **Distinct from prior tasks.** When a list of prior task themes is provided, your new task must explore a *different* aspect of the role — different artefact type, different decision, different competency — not a variation on the same scenario.
+6. **Distinct from prior tasks.** When a list of prior task themes is provided, your new task must explore a *different* duty / criterion — different artefact type, different decision, different competency — not a variation on the same scenario.
 
 EXHIBIT HTML CONSTRAINTS
 
@@ -196,13 +206,23 @@ async function getClient(): Promise<Anthropic> {
 }
 
 /**
- * Generate one task draft. Tool-use forced via `tool_choice` so the model
- * always returns structured output. On any deviation (tool not called,
- * malformed input) we throw — the caller surfaces the error to the user
- * rather than silently producing a partial scenario.
+ * Generate one task draft. Streams from Anthropic so we can poke an
+ * optional `onProgress` callback as tokens arrive — the API route
+ * wrapping this uses the callback to push SSE heartbeats back to the
+ * browser, keeping CloudFront / the Amplify gateway from timing out
+ * during a long generation. (Internally we still wait for the full
+ * response before parsing, since `tool_use.input` is only valid once
+ * the JSON is complete.)
+ *
+ * `tool_choice` is "auto" — the API rejects "tool" alongside adaptive
+ * thinking, and even with thinking disabled here we keep "auto" for
+ * forwards-compat. The system prompt and user message both instruct
+ * the model to call propose_task, and the post-stream check below
+ * throws if it doesn't.
  */
 export async function generateOneTask(
-  input: GenerateTaskInput
+  input: GenerateTaskInput,
+  onProgress?: () => void
 ): Promise<{ task: GeneratedTaskDraft; usage: Anthropic.Usage }> {
   if (!input.jdText.trim()) {
     throw new Error("JD text is empty — cannot generate a task.");
@@ -215,26 +235,33 @@ export async function generateOneTask(
 
   const client = await getClient();
 
-  const response = await client.messages.create({
+  const messageStream = client.messages.stream({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
     tools: [PROPOSE_TASK_TOOL],
-    // tool_choice "tool" would force the call but the API rejects that
-    // alongside adaptive thinking. We were forced to drop tool_choice in
-    // favour of "auto" — and now we also drop thinking, because adaptive
-    // thinking + a long exhibit typically pushes the per-call time past
-    // Amplify's SSR function timeout (Lambda@Edge caps at 30s; even the
-    // newer SSR runtime has shorter limits than Opus 4.7 + thinking
-    // wants). The system prompt is detailed enough that no-thinking
-    // output is still strong, and we save 20–40s per task.
     tool_choice: { type: "auto" },
+    // Adaptive thinking is incompatible with forced tool_choice and
+    // pushes total generation time well past Amplify's SSR timeout.
+    // Disabled here — the system prompt is detailed enough that the
+    // no-thinking output is strong. Re-enable only if Amplify's
+    // Lambda timeout is configured >= 90s.
     thinking: { type: "disabled" },
     messages: [buildUserMessage(input)],
   });
 
-  // The response should contain exactly one tool_use block for `propose_task`.
-  // Parse via the SDK's typed `input` field — never raw-string the JSON.
+  // Walk the stream so the SDK feeds it back-to-back (avoids the SDK
+  // buffering on its own) and so we can ping the progress callback —
+  // this is what keeps the gateway connection alive for the SSE
+  // wrapper. We don't actually need the deltas; we read `finalMessage`
+  // below to pull the assembled tool_use block.
+  for await (const _event of messageStream) {
+    onProgress?.();
+    void _event;
+  }
+
+  const response = await messageStream.finalMessage();
+
   const toolUse = response.content.find(
     (b): b is Anthropic.ToolUseBlock =>
       b.type === "tool_use" && b.name === PROPOSE_TASK_TOOL.name
@@ -246,8 +273,6 @@ export async function generateOneTask(
   }
 
   const draft = toolUse.input as Partial<GeneratedTaskDraft>;
-  // Defensive validation — strict schemas + tool_choice make this rare,
-  // but a missing field would silently corrupt the saved scenario.
   const required: (keyof GeneratedTaskDraft)[] = [
     "title",
     "briefMarkdown",
