@@ -37,6 +37,11 @@ export interface GenerateTaskInput {
   taskIndex: number; // 1..n
   taskCount: number; // total tasks the admin is asking for
   priorThemes: string[]; // themeSummary values from already-accepted tasks
+  // The selection criterion this task must concretely test. Chosen by
+  // the hiring manager in the wizard's criteria step. Required —
+  // making it optional invites silent regression where the wizard
+  // stops sending it and the model goes back to picking its own focus.
+  focusCriterion: string;
 }
 
 // Sonnet 4.6 instead of Opus 4.7. Amplify Hosting's SSR runtime
@@ -53,13 +58,11 @@ const SYSTEM_PROMPT = `You design technical assessments for senior professional 
 
 # How to ground the task in the JD
 
-Before designing anything, identify the role's:
-- **Key duties and responsibilities** — what the person actually *does* day-to-day
-- **Essential criteria / selection criteria / required experience** — the competencies and credentials the JD says the candidate must demonstrate
+The user message will name ONE specific selection criterion ("focus criterion"). The task you design must concretely test THIS criterion in a real situation the role-holder would face. Do not pivot to a different criterion you find more interesting in the JD — the focus criterion was chosen by the hiring manager and is the binding constraint for this task.
 
-The task you design must concretely test ONE of these duties or essential criteria — a real situation in which the named competency is exercised. If the JD lists "Responds to security incidents and conducts root-cause analysis" as a duty, your task should put the candidate in front of an alert log and ask them to triage and recommend. If the JD lists "Reviews vendor contracts for compliance with UN procurement rules" as essential, your task should put a contract in front of them with embedded compliance issues to find. Do not design generic competency-tests that any senior professional could attempt — design scenarios that the person hired into THIS role would face on a typical Tuesday.
+Use the JD's domain detail (tools, frameworks, regulations, artefact types) to make the exhibit industry-matched, but the competency under test is the focus criterion the user names. If the focus criterion is "Demonstrated experience reviewing vendor contracts under UN procurement framework", your task should put a contract in front of them with embedded compliance issues to find — not a SIEM alert, not a financial statement, even if the JD also lists those.
 
-Pick ONE specific duty or criterion per task. Don't try to test several at once.
+Do not design generic competency-tests that any senior professional could attempt — design a scenario that the person hired into THIS role, doing THIS specific competency, would face on a typical Tuesday.
 
 # Quality bar for each task
 
@@ -73,7 +76,7 @@ Pick ONE specific duty or criterion per task. Don't try to test several at once.
 
 5. **Time-appropriate.** Assume the candidate has roughly 30–45 minutes per task. The exhibit should be ~600–1500 words equivalent (tables, figures, and structured data count). The expected deliverable should be ~250–600 words of analytical writing.
 
-6. **Distinct from prior tasks.** When a list of prior task themes is provided, your new task must explore a *different* duty / criterion — different artefact type, different decision, different competency — not a variation on the same scenario.
+6. **Distinct from prior tasks.** When a list of prior task themes is provided, your new task must NOT overlap with their artefact type, decision, or competency. The current focus criterion may be related to a prior task's criterion in the abstract, but the task you design — the artefact, the question put to the candidate, the type of judgement required — must feel different on the page.
 
 EXHIBIT HTML CONSTRAINTS
 
@@ -194,6 +197,14 @@ ${input.jdText}`,
     type: "text",
     text: `Design **task ${input.taskIndex} of ${input.taskCount}** for the assessment described above.${priorThemesText}
 
+# Focus criterion for this task
+
+The hiring manager has selected this criterion as the one to test:
+
+> ${input.focusCriterion}
+
+Design a task that concretely tests THIS criterion. Use the JD's domain detail (tools, frameworks, artefact types) to make the exhibit industry-matched, but the competency under test is the criterion quoted above.
+
 Call the \`propose_task\` tool with your task draft.`,
   };
 
@@ -238,6 +249,9 @@ export async function generateOneTask(
     throw new Error(
       `taskIndex ${input.taskIndex} out of range for taskCount ${input.taskCount}`
     );
+  }
+  if (!input.focusCriterion?.trim()) {
+    throw new Error("focusCriterion is required — cannot generate a task.");
   }
 
   const client = await getClient();
@@ -301,47 +315,4 @@ export async function generateOneTask(
     task: draft as GeneratedTaskDraft,
     usage: response.usage,
   };
-}
-
-/**
- * Generate the full set of N tasks. Sequence-then-fan-out:
- *   - Task 1 runs alone so the JD prefix is cached before parallel calls fire
- *   - Tasks 2..N run in parallel, each with priorThemes built up from
- *     already-completed tasks
- *
- * Concurrent first-calls would each pay the cache-write premium; serializing
- * the first one cuts cost (and keeps the model from repeating themes).
- */
-export async function generateAllTasks(
-  base: Omit<GenerateTaskInput, "taskIndex" | "priorThemes">
-): Promise<GeneratedTaskDraft[]> {
-  if (base.taskCount < 1) return [];
-
-  const tasks: GeneratedTaskDraft[] = [];
-
-  const first = await generateOneTask({
-    ...base,
-    taskIndex: 1,
-    priorThemes: [],
-  });
-  tasks.push(first.task);
-
-  if (base.taskCount === 1) return tasks;
-
-  // For task 2 onward, feed task 1's themeSummary as priorThemes. Subsequent
-  // parallel tasks all see the same prior set — they may converge on similar
-  // novel themes, but that's acceptable for the MVP. Tighter de-duping would
-  // require strict serialization (slower).
-  const remaining = await Promise.all(
-    Array.from({ length: base.taskCount - 1 }, (_, i) =>
-      generateOneTask({
-        ...base,
-        taskIndex: i + 2,
-        priorThemes: tasks.map((t) => t.themeSummary),
-      })
-    )
-  );
-
-  for (const r of remaining) tasks.push(r.task);
-  return tasks;
 }
