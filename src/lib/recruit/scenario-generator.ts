@@ -220,7 +220,13 @@ export async function generateOneTask(
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
     tools: [PROPOSE_TASK_TOOL],
-    tool_choice: { type: "tool", name: PROPOSE_TASK_TOOL.name },
+    // tool_choice: { type: "tool" } would force the call but the API
+    // rejects it alongside adaptive thinking. With "auto" the model still
+    // calls propose_task reliably (the system prompt + user message both
+    // instruct it to), and we get to keep thinking — meaningfully better
+    // exhibits. The post-call check below catches the rare case the model
+    // returns text instead of a tool_use block.
+    tool_choice: { type: "auto" },
     thinking: { type: "adaptive" },
     messages: [buildUserMessage(input)],
   });
