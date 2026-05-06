@@ -39,7 +39,14 @@ export interface GenerateTaskInput {
   priorThemes: string[]; // themeSummary values from already-accepted tasks
 }
 
-const MODEL = "claude-opus-4-7";
+// Sonnet 4.6 instead of Opus 4.7. Amplify Hosting's SSR runtime
+// timeout (~30s) is fixed by AWS and not customer-configurable; Opus
+// 4.7 with a long industry-matched exhibit ran past it consistently
+// (504s at the gateway). Sonnet 4.6 produces strong structured output
+// for this task in 15–25s — comfortably inside the cap. Switch back
+// to Opus 4.7 if/when generation moves to a host with a longer SSR
+// timeout (Vercel Pro, a dedicated Lambda, etc.).
+const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 16000;
 
 const SYSTEM_PROMPT = `You design technical assessments for senior professional hires. The platform asks each candidate to read an EXHIBIT (a realistic source artefact — a contract, a report, a SIEM alert log, a financial statement, a project brief, etc.) and produce a short written DELIVERABLE (an analysis, a memo, a recommendation) that demonstrates the judgement, technical depth, and communication required for the role.
@@ -241,12 +248,13 @@ export async function generateOneTask(
     system: SYSTEM_PROMPT,
     tools: [PROPOSE_TASK_TOOL],
     tool_choice: { type: "auto" },
-    // Adaptive thinking is incompatible with forced tool_choice and
-    // pushes total generation time well past Amplify's SSR timeout.
-    // Disabled here — the system prompt is detailed enough that the
-    // no-thinking output is strong. Re-enable only if Amplify's
-    // Lambda timeout is configured >= 90s.
+    // Sonnet 4.6 defaults effort to "high" — that's slow for our
+    // single-shot structured output. "low" with no thinking keeps the
+    // call comfortably inside Amplify's ~30s SSR timeout while still
+    // producing strong industry-matched exhibits. The system prompt
+    // does the heavy lifting here.
     thinking: { type: "disabled" },
+    output_config: { effort: "low" },
     messages: [buildUserMessage(input)],
   });
 
