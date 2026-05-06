@@ -38,3 +38,7 @@ next-env.d.ts
 # prisma
 prisma/*.db
 prisma/*.db-journal
+
+# Lambda function packaging
+lambda/**/node_modules/
+lambda/*.zip

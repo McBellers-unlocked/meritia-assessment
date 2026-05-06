@@ -298,3 +298,26 @@ model RecruitmentEmailResponse {
   @@index([candidateId])
   @@map("recruitment_email_responses")
 }
+
+// ============================================================================
+// AI scenario generation jobs (background-job pattern; SQS + worker Lambda)
+// ============================================================================
+// The from-JD wizard kicks off generation by inserting a row here and posting
+// to SQS. A worker Lambda picks it up, calls Anthropic, and writes the result
+// back. Wizard polls the status endpoint until status is completed/failed.
+// Lives in this table because: (a) survives Lambda recycling, (b) gives us a
+// queryable trail of generations for debug, (c) shared between SSR + worker.
+model RecruitmentScenarioGenerationJob {
+  id            String    @id @default(cuid())
+  createdById   String?   @map("created_by_id")
+  status        String    @default("queued") // queued | running | completed | failed
+  inputJson     Json      @map("input_json")
+  resultJson    Json?     @map("result_json")
+  errorMessage  String?   @map("error_message") @db.Text
+  enqueuedAt    DateTime  @default(now()) @map("enqueued_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  @@index([status, enqueuedAt])
+  @@map("recruitment_scenario_generation_jobs")
+}

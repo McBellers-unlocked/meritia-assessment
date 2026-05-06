@@ -532,6 +532,12 @@ function withAt<T>(arr: T[], idx: number, value: T): T[] {
   return next;
 }
 
+/**
+ * Kick off a generation job and poll until it completes. The SSR
+ * route only enqueues the job (fast, well under any timeout); the
+ * actual Anthropic call runs in a worker Lambda that writes the
+ * result back to the DB. We poll the status endpoint every 2s.
+ */
 async function generateOne(input: {
   jdText: string;
   positionTitle: string;
@@ -541,7 +547,8 @@ async function generateOne(input: {
   taskCount: number;
   priorThemes: string[];
 }): Promise<GeneratedTaskDraft> {
-  const res = await fetch(
+  // Enqueue
+  const enqueueRes = await fetch(
     "/api/admin/recruitment/scenarios/from-jd/generate-task",
     {
       method: "POST",
@@ -549,13 +556,37 @@ async function generateOne(input: {
       body: JSON.stringify(input),
     }
   );
-  const payload = await consumeSseResultStream<{ task: GeneratedTaskDraft }>(
-    res
-  );
-  if (!payload.task) {
-    throw new Error("Server response did not include a task.");
+  const enqueueBody = await enqueueRes.json().catch(() => ({}));
+  if (!enqueueRes.ok || !enqueueBody.jobId) {
+    throw new Error(enqueueBody.error || `HTTP ${enqueueRes.status}`);
   }
-  return payload.task;
+  const jobId: string = enqueueBody.jobId;
+
+  // Poll. 2s interval, 5-min cap (matches Lambda timeout — past that
+  // the job is dead anyway).
+  const POLL_INTERVAL_MS = 2_000;
+  const MAX_POLLS = (5 * 60_000) / POLL_INTERVAL_MS; // 150
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    const pollRes = await fetch(
+      `/api/admin/recruitment/scenarios/from-jd/generate-task/${jobId}`,
+      { cache: "no-store" }
+    );
+    const pollBody = await pollRes.json().catch(() => ({}));
+    if (!pollRes.ok) {
+      throw new Error(pollBody.error || `HTTP ${pollRes.status}`);
+    }
+    if (pollBody.status === "completed" && pollBody.result?.task) {
+      return pollBody.result.task as GeneratedTaskDraft;
+    }
+    if (pollBody.status === "failed") {
+      throw new Error(pollBody.error || "Generation failed");
+    }
+    // queued | running → keep polling.
+  }
+  throw new Error(
+    "Generation did not complete within 5 minutes. Check the worker Lambda logs."
+  );
 }
 
 /* ---------------- step components ---------------- */
