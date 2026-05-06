@@ -1,33 +1,26 @@
-import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest, NextResponse } from "next/server";
 
+import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
-import {
-  generateOneTask,
-  type GenerateTaskInput,
-} from "@/lib/recruit/scenario-generator";
+import { enqueueGenerationJob } from "@/lib/recruit/sqs-client";
 
 export const dynamic = "force-dynamic";
-// Single Opus 4.7 generation can run 30–60s. We respond as Server-Sent
-// Events so heartbeats keep CloudFront / Amplify's gateway from giving
-// up while the model is still producing tokens. Lambda's own timeout is
-// configured at the Amplify app level — bump it past 60s if generations
-// keep landing in error.
-export const maxDuration = 90;
 
 /**
  * POST /api/admin/recruitment/scenarios/from-jd/generate-task
- *   body: { jdText, positionTitle, organisation, taskIndex, taskCount, priorThemes }
+ *   body: { jdText, positionTitle, organisation, focusCriteria, taskIndex, taskCount, priorThemes }
+ *   → { jobId }
  *
- *   → Server-Sent Events stream, with two terminal events:
- *       event: result    data: { task: GeneratedTaskDraft, usage: {...} }
- *       event: error     data: { error: string }
- *     plus periodic `: keepalive` comments while the model is generating.
+ * Kicks off a background generation. Inserts a row in
+ * RecruitmentScenarioGenerationJob (status="queued") and posts an SQS
+ * message; the worker Lambda picks it up, calls Anthropic, and writes
+ * the result back. Wizard polls
+ * GET /generate-task/[jobId] until status flips to completed/failed.
  *
- * The streaming response keeps the connection alive on Amplify/CloudFront
- * while the underlying Anthropic call runs to completion. The full task
- * is sent in one `result` event — we don't stream partial JSON to the
- * client because `tool_use.input` is only valid once complete.
+ * The previous version of this endpoint called Anthropic directly and
+ * was strangled by Amplify Hosting's fixed ~30s SSR Lambda timeout on
+ * complex multi-criteria generations. The new architecture moves the
+ * long call out of the SSR boundary entirely.
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin();
@@ -49,139 +42,10 @@ export async function POST(request: NextRequest) {
     ? body.priorThemes.map((t: unknown) => String(t)).filter(Boolean)
     : [];
 
-  const validation = validateInput({
-    jdText,
-    positionTitle,
-    organisation,
-    focusCriteria,
-    taskIndex,
-    taskCount,
-  });
-  if (validation) {
-    return jsonError(validation, 400);
-  }
-
-  const input: GenerateTaskInput = {
-    jdText,
-    positionTitle,
-    organisation,
-    focusCriteria,
-    taskIndex,
-    taskCount,
-    priorThemes,
-  };
-
-  const encoder = new TextEncoder();
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      let closed = false;
-      const safeEnqueue = (chunk: Uint8Array) => {
-        if (closed) return;
-        try {
-          controller.enqueue(chunk);
-        } catch {
-          // Client disconnected mid-stream — nothing to do.
-        }
-      };
-
-      const sendEvent = (event: string, data: unknown) => {
-        safeEnqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-        );
-      };
-
-      // Periodic SSE comment — invisible to the parser, but proves to
-      // CloudFront that the connection is still progressing.
-      const heartbeat = setInterval(() => {
-        safeEnqueue(encoder.encode(`: keepalive ${Date.now()}\n\n`));
-      }, 5000);
-
-      // First heartbeat goes out immediately so any proxy in front of us
-      // commits to streaming mode rather than buffering the response.
-      safeEnqueue(encoder.encode(`: stream-open\n\n`));
-
-      const startedAt = Date.now();
-
-      try {
-        const result = await generateOneTask(input, () => {
-          // The Anthropic SDK fires events frequently — piggyback on
-          // them as additional liveness signals. The 5s heartbeat is
-          // enough on its own; this is belt-and-braces.
-          safeEnqueue(encoder.encode(`: tick\n\n`));
-        });
-        sendEvent("result", {
-          task: result.task,
-          usage: {
-            input_tokens: result.usage.input_tokens,
-            output_tokens: result.usage.output_tokens,
-            cache_creation_input_tokens:
-              result.usage.cache_creation_input_tokens ?? 0,
-            cache_read_input_tokens:
-              result.usage.cache_read_input_tokens ?? 0,
-          },
-        });
-      } catch (e) {
-        const elapsed = Date.now() - startedAt;
-        // Diagnostic: surface the failure mode in CloudWatch so we can
-        // tell SDK timeouts apart from rate limits and other failures.
-        console.error(
-          `[generate-task] failed after ${elapsed}ms`,
-          e instanceof Error ? `${e.name}: ${e.message}` : String(e)
-        );
-        const message =
-          e instanceof Anthropic.RateLimitError
-            ? "Anthropic API rate limit hit — try again in a moment."
-            : e instanceof Anthropic.APIConnectionTimeoutError
-            ? `Generation took longer than ${Math.round(elapsed / 1000)}s — try fewer criteria per task or rerun.`
-            : e instanceof Anthropic.APIError
-            ? `Anthropic API error: ${e.message}`
-            : (e as Error).message || "Generation failed";
-        sendEvent("error", { error: message });
-      } finally {
-        clearInterval(heartbeat);
-        closed = true;
-        try {
-          controller.close();
-        } catch {
-          // Already closed by the runtime.
-        }
-      }
-    },
-  });
-
-  return new Response(stream, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      // Some proxies (notably nginx, sometimes CloudFront) buffer
-      // responses by default. This header asks them not to.
-      "X-Accel-Buffering": "no",
-    },
-  });
-}
-
-function validateInput({
-  jdText,
-  positionTitle,
-  organisation,
-  focusCriteria,
-  taskIndex,
-  taskCount,
-}: {
-  jdText: string;
-  positionTitle: string;
-  organisation: string;
-  focusCriteria: string[];
-  taskIndex: number;
-  taskCount: number;
-}): string | null {
-  if (!jdText) return "jdText is required";
-  if (!positionTitle) return "positionTitle is required";
-  if (!organisation) return "organisation is required";
-  if (!focusCriteria.length) return "focusCriteria must be non-empty";
+  if (!jdText) return jsonError("jdText is required", 400);
+  if (!positionTitle) return jsonError("positionTitle is required", 400);
+  if (!organisation) return jsonError("organisation is required", 400);
+  if (!focusCriteria.length) return jsonError("focusCriteria must be non-empty", 400);
   if (
     !Number.isInteger(taskIndex) ||
     !Number.isInteger(taskCount) ||
@@ -190,14 +54,50 @@ function validateInput({
     taskCount > 5 ||
     taskIndex > taskCount
   ) {
-    return "taskIndex/taskCount invalid (taskCount must be 1–5)";
+    return jsonError("taskIndex/taskCount invalid (taskCount must be 1–5)", 400);
   }
-  return null;
+
+  // Persist the job, then send to SQS. Worth the two-step: a failed
+  // SQS send leaves a "queued" row that won't be picked up — easier to
+  // observe and reap than a phantom message with no DB row.
+  const job = await prisma.recruitmentScenarioGenerationJob.create({
+    data: {
+      createdById: auth.session.user.id,
+      status: "queued",
+      inputJson: {
+        jdText,
+        positionTitle,
+        organisation,
+        focusCriteria,
+        taskIndex,
+        taskCount,
+        priorThemes,
+      },
+    },
+  });
+
+  try {
+    await enqueueGenerationJob(job.id);
+  } catch (e) {
+    // Mark the orphan as failed so the wizard's poll surfaces it
+    // immediately instead of waiting indefinitely.
+    await prisma.recruitmentScenarioGenerationJob.update({
+      where: { id: job.id },
+      data: {
+        status: "failed",
+        errorMessage: `Failed to enqueue: ${(e as Error).message}`,
+        completedAt: new Date(),
+      },
+    });
+    return jsonError(
+      `Could not queue generation job: ${(e as Error).message}`,
+      502
+    );
+  }
+
+  return NextResponse.json({ jobId: job.id });
 }
 
-function jsonError(message: string, status: number): Response {
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+function jsonError(message: string, status: number): NextResponse {
+  return NextResponse.json({ error: message }, { status });
 }
