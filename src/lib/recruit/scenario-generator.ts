@@ -54,9 +54,9 @@ export interface GenerateTaskInput {
 // to Opus 4.7 if/when generation moves to a host with a longer SSR
 // timeout (Vercel Pro, a dedicated Lambda, etc.).
 const MODEL = "claude-sonnet-4-6";
-// Tighter cap: the prompt steers exhibits to ~600–1200 chars; 8000
+// Tighter cap: the prompt steers exhibits to ~600–1200 chars; 6000
 // tokens is plenty headroom and shaves the worst-case time floor.
-const MAX_TOKENS = 8000;
+const MAX_TOKENS = 6000;
 // SDK-level timeout that fires before Amplify's ~30s Lambda timeout,
 // so we get a clean SDK error → SSE error event instead of an empty
 // 500/504 from the runtime.
@@ -239,23 +239,28 @@ async function getClient(): Promise<Anthropic> {
 }
 
 /**
- * Generate one task draft. Streams from Anthropic so we can poke an
- * optional `onProgress` callback as tokens arrive — the API route
- * wrapping this uses the callback to push SSE heartbeats back to the
- * browser, keeping CloudFront / the Amplify gateway from timing out
- * during a long generation. (Internally we still wait for the full
- * response before parsing, since `tool_use.input` is only valid once
- * the JSON is complete.)
+ * Generate one task draft. Uses the non-streaming Anthropic API
+ * because the SDK's `timeout` option on streaming calls only governs
+ * initial connection establishment — it does NOT abort an in-progress
+ * stream. We hit that bug in production: the for-await loop kept
+ * reading tokens until Amplify killed the Lambda at 30s, returning
+ * an empty 500. With messages.create() the timeout reliably fires
+ * and throws APIConnectionTimeoutError before Lambda's hard limit.
  *
  * `tool_choice` is "auto" — the API rejects "tool" alongside adaptive
  * thinking, and even with thinking disabled here we keep "auto" for
  * forwards-compat. The system prompt and user message both instruct
- * the model to call propose_task, and the post-stream check below
+ * the model to call propose_task, and the post-call check below
  * throws if it doesn't.
+ *
+ * `onProgress` is accepted for API compat with the previous streaming
+ * version (the SSE route wrapper passes one in for heartbeats) but
+ * isn't called — the wrapper's setInterval heartbeats run
+ * independently and don't need per-token signals.
  */
 export async function generateOneTask(
   input: GenerateTaskInput,
-  onProgress?: () => void
+  _onProgress?: () => void
 ): Promise<{ task: GeneratedTaskDraft; usage: Anthropic.Usage }> {
   if (!input.jdText.trim()) {
     throw new Error("JD text is empty — cannot generate a task.");
@@ -277,7 +282,7 @@ export async function generateOneTask(
 
   const client = await getClient();
 
-  const messageStream = client.messages.stream(
+  const response = await client.messages.create(
     {
       model: MODEL,
       max_tokens: MAX_TOKENS,
@@ -295,18 +300,6 @@ export async function generateOneTask(
     },
     { timeout: SDK_TIMEOUT_MS }
   );
-
-  // Walk the stream so the SDK feeds it back-to-back (avoids the SDK
-  // buffering on its own) and so we can ping the progress callback —
-  // this is what keeps the gateway connection alive for the SSE
-  // wrapper. We don't actually need the deltas; we read `finalMessage`
-  // below to pull the assembled tool_use block.
-  for await (const _event of messageStream) {
-    onProgress?.();
-    void _event;
-  }
-
-  const response = await messageStream.finalMessage();
 
   const toolUse = response.content.find(
     (b): b is Anthropic.ToolUseBlock =>
