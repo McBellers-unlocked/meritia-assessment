@@ -18,24 +18,45 @@ export default function Nav() {
   if (pathname === "/" && !session) return null;
   if (pathname === "/login") return null;
 
+  const fromJdHref = "/admin/recruitment/scenarios/new/from-jd";
+  const onFromJd = pathname === fromJdHref;
+
   return (
     <header className="bg-[#111] text-white">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link
-          href={session ? "/admin/recruitment" : "/"}
-          className="flex items-center"
-        >
-          <span className="bg-white rounded-md px-2.5 py-1 inline-flex items-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/logos/uniqassess-logo.png"
-              alt="UNIQAssess"
-              width={130}
-              height={36}
-              className="h-6 w-auto"
-            />
-          </span>
-        </Link>
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link
+            href={session ? "/admin/recruitment" : "/"}
+            className="flex items-center flex-shrink-0"
+          >
+            <span className="bg-white rounded-md px-2.5 py-1 inline-flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/logos/uniqassess-logo.png"
+                alt="UNIQAssess"
+                width={130}
+                height={36}
+                className="h-6 w-auto"
+              />
+            </span>
+          </Link>
+
+          {session && (
+            <Link
+              href={fromJdHref}
+              aria-current={onFromJd ? "page" : undefined}
+              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition ${
+                onFromJd
+                  ? "bg-white/15 text-white"
+                  : "text-white/70 hover:text-white hover:bg-white/10"
+              }`}
+              title="Upload a job description and let Claude draft the scenario"
+            >
+              <span aria-hidden>✨</span>
+              Generate from JD
+            </Link>
+          )}
+        </div>
 
         <div className="flex items-center gap-4">
           {status === "loading" ? (
