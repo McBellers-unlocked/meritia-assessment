@@ -32,11 +32,13 @@ export default function GenerateFromJdPage() {
   const [jdText, setJdText] = useState("");
   const [filename, setFilename] = useState("");
 
-  // Configure step
+  // Configure step. Default org is IDSC for the current demo cohort —
+  // edit per scenario if you're authoring for a different organisation.
+  const DEFAULT_ORG = "International Digital Services Centre (IDSC), Geneva";
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
-  const [organisation, setOrganisation] = useState("");
+  const [organisation, setOrganisation] = useState(DEFAULT_ORG);
   const [positionTitle, setPositionTitle] = useState("");
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
   const [taskCount, setTaskCount] = useState(2);
@@ -79,11 +81,18 @@ export default function GenerateFromJdPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
       setJdText(body.text);
-      // Best-effort seed of position title from the first line of the JD —
-      // many JDs lead with "Job Title: X" or just the role name. The user
-      // can override on the next step.
-      const seeded = seedPositionTitle(body.text);
-      if (seeded && !positionTitle) setPositionTitle(seeded);
+      // The /parse endpoint runs a small Claude call to extract the actual
+      // job title (regex heuristics catch section headers like "Position
+      // Description" instead). Seed both Scenario Title and Position Title
+      // from that — the admin can override either on the next step.
+      const suggested =
+        typeof body.suggestedJobTitle === "string" && body.suggestedJobTitle
+          ? body.suggestedJobTitle
+          : null;
+      if (suggested) {
+        if (!title) setTitle(suggested);
+        if (!positionTitle) setPositionTitle(suggested);
+      }
       setStep("configure");
     } catch (e) {
       setParseError((e as Error).message);
@@ -320,21 +329,6 @@ function deriveSlug(s: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .slice(0, 40);
-}
-
-// Best-effort seed of position title from the JD's first non-empty lines.
-function seedPositionTitle(jdText: string): string | null {
-  const lines = jdText.split("\n").map((l) => l.trim()).filter(Boolean);
-  for (const line of lines.slice(0, 8)) {
-    const m =
-      line.match(/^(?:job\s*title|position|role)\s*[:\-]\s*(.+)$/i) ||
-      line.match(/^title\s*[:\-]\s*(.+)$/i);
-    if (m) return m[1].trim().slice(0, 100);
-  }
-  // First short line is often just the role itself
-  const first = lines[0];
-  if (first && first.length < 80 && /^[A-Z]/.test(first)) return first;
-  return null;
 }
 
 function withAt<T>(arr: T[], idx: number, value: T): T[] {
@@ -602,7 +596,7 @@ function ConfigureStep({
           disabled={!canSubmit}
           className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
         >
-          Generate {taskCount} task{taskCount === 1 ? "" : "s"} with Opus 4.7
+          Generate tasks
         </button>
       </div>
     </section>

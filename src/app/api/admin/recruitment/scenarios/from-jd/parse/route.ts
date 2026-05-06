@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 
 import { requireAdmin } from "@/lib/admin-auth";
+import { getAnthropicKey } from "@/lib/secrets";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -112,10 +114,51 @@ export async function POST(request: NextRequest) {
     text = text.slice(0, MAX_TEXT_LENGTH);
   }
 
+  // Best-effort title extraction. Brittle regex heuristics (e.g. matching
+  // "Position:" or the first capitalised line) catch section headers like
+  // "Position Description" instead of the actual title — a model call gets
+  // it right far more reliably. Failures here don't block upload; the user
+  // can type the title themselves on the next step.
+  let suggestedJobTitle: string | null = null;
+  try {
+    suggestedJobTitle = await extractJobTitle(text);
+  } catch {
+    suggestedJobTitle = null;
+  }
+
   return NextResponse.json({
     text,
     filename: file.name,
     byteSize: file.size,
     format,
+    suggestedJobTitle,
   });
+}
+
+async function extractJobTitle(jdText: string): Promise<string | null> {
+  const apiKey = await getAnthropicKey();
+  const client = new Anthropic({ apiKey });
+
+  const response = await client.messages.create({
+    model: "claude-opus-4-7",
+    max_tokens: 100,
+    thinking: { type: "disabled" },
+    system:
+      "You extract the job title from a job description. Reply with ONLY the title, no preamble, no quotes, no period at the end. If there is no clear job title, reply with the single word: Unknown",
+    messages: [
+      {
+        role: "user",
+        content: `Job description:\n\n${jdText.slice(0, 4000)}\n\nJob title:`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find(
+    (b): b is Anthropic.TextBlock => b.type === "text"
+  );
+  if (!textBlock) return null;
+
+  const raw = textBlock.text.trim().replace(/^["']|["']$/g, "").trim();
+  if (!raw || raw.toLowerCase() === "unknown" || raw.length > 120) return null;
+  return raw;
 }
