@@ -38,8 +38,14 @@ function getPool() {
   if (pgPool) return pgPool;
   pgPool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
-    // RDS connections are short-lived in Lambda (warm container reuses
-    // the pool). Keep the pool tiny.
+    // AWS RDS uses a CA chain that isn't in Node's default trust
+    // store; pg v8 treats `sslmode=require` in the URL as
+    // verify-full and rejects the cert. The connection is still
+    // encrypted, we just don't validate the chain. (Prisma handles
+    // this for the SSR side automatically — pg does not.)
+    ssl: { rejectUnauthorized: false },
+    // RDS connections are short-lived in Lambda (warm container
+    // reuses the pool). Keep the pool tiny.
     max: 1,
     idleTimeoutMillis: 1_000,
   });
