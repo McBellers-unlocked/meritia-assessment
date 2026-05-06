@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
   const jdText = String(body.jdText ?? "").trim();
   const positionTitle = String(body.positionTitle ?? "").trim();
   const organisation = String(body.organisation ?? "").trim();
+  const focusCriterion = String(body.focusCriterion ?? "").trim();
   const taskIndex = Number(body.taskIndex);
   const taskCount = Number(body.taskCount);
   const priorThemes = Array.isArray(body.priorThemes)
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
     jdText,
     positionTitle,
     organisation,
+    focusCriterion,
     taskIndex,
     taskCount,
   });
@@ -59,6 +61,7 @@ export async function POST(request: NextRequest) {
     jdText,
     positionTitle,
     organisation,
+    focusCriterion,
     taskIndex,
     taskCount,
     priorThemes,
@@ -149,18 +152,21 @@ function validateInput({
   jdText,
   positionTitle,
   organisation,
+  focusCriterion,
   taskIndex,
   taskCount,
 }: {
   jdText: string;
   positionTitle: string;
   organisation: string;
+  focusCriterion: string;
   taskIndex: number;
   taskCount: number;
 }): string | null {
   if (!jdText) return "jdText is required";
   if (!positionTitle) return "positionTitle is required";
   if (!organisation) return "organisation is required";
+  if (!focusCriterion) return "focusCriterion is required";
   if (
     !Number.isInteger(taskIndex) ||
     !Number.isInteger(taskCount) ||

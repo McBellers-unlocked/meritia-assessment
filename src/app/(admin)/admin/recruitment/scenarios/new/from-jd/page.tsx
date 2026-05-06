@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+
+import { consumeSseResultStream } from "@/lib/recruit/sse-client";
 
 interface GeneratedTaskDraft {
   title: string;
@@ -16,9 +18,11 @@ interface GeneratedTaskDraft {
   themeSummary: string;
 }
 
-type Step = "upload" | "configure" | "review";
+type Step = "upload" | "criteria" | "configure" | "review";
 
-const MAX_TASK_COUNT = 3;
+const MAX_SELECTED_CRITERIA = 5;
+const SOFT_WARN_AT = 4;
+const DEFAULT_ORG = "International Digital Services Centre (IDSC), Geneva";
 
 export default function GenerateFromJdPage() {
   const { status: authStatus } = useSession();
@@ -32,24 +36,46 @@ export default function GenerateFromJdPage() {
   const [jdText, setJdText] = useState("");
   const [filename, setFilename] = useState("");
 
-  // Configure step. Default org is IDSC for the current demo cohort —
-  // edit per scenario if you're authoring for a different organisation.
-  const DEFAULT_ORG = "International Digital Services Centre (IDSC), Geneva";
+  // Criteria step. essentialCriteria/desirableCriteria are the lists
+  // returned by the extractor (mutable — HR can edit each one in
+  // place). selectedCriteria is the set of criterion *texts* (not
+  // indexes) that are ticked; using text as the key makes edits
+  // safer (we update the Set entry alongside the text). When
+  // usingManualCriteria is true, the user is in the empty-extraction
+  // textarea fallback and the lists above are unused.
+  const [extractingCriteria, setExtractingCriteria] = useState(false);
+  const [criteriaError, setCriteriaError] = useState<string | null>(null);
+  const [essentialCriteria, setEssentialCriteria] = useState<string[]>([]);
+  const [desirableCriteria, setDesirableCriteria] = useState<string[]>([]);
+  const [selectedCriteria, setSelectedCriteria] = useState<Set<string>>(
+    new Set()
+  );
+  const [usingManualCriteria, setUsingManualCriteria] = useState(false);
+  const [manualCriteriaText, setManualCriteriaText] = useState("");
+  // Set true once extraction has been kicked off for the current JD,
+  // to prevent the back-navigation re-extract loop.
+  const [extractionStarted, setExtractionStarted] = useState(false);
+
+  // Configure step
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [organisation, setOrganisation] = useState(DEFAULT_ORG);
   const [positionTitle, setPositionTitle] = useState("");
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
-  const [taskCount, setTaskCount] = useState(2);
 
-  // Generation state — drafts keyed by index, status per index so we can
-  // show partial progress while later tasks are still in flight.
+  // Review step
+  // taskCriteria is the ordered list of criteria that drove the
+  // current task slots. Set once in startGeneration; never mutated
+  // for the lifetime of the review session. regenerateTask reads
+  // from it so a regenerated task tests the same criterion as the
+  // original.
   const [tasks, setTasks] = useState<(GeneratedTaskDraft | null)[]>([]);
   const [taskStatuses, setTaskStatuses] = useState<
     ("pending" | "generating" | "ready" | "error")[]
   >([]);
   const [taskErrors, setTaskErrors] = useState<(string | null)[]>([]);
+  const [taskCriteria, setTaskCriteria] = useState<string[]>([]);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(
     null
   );
@@ -71,6 +97,15 @@ export default function GenerateFromJdPage() {
     setParsing(true);
     setJdText("");
     setFilename(file.name);
+    // Reset criteria state for a fresh upload — the new JD will need
+    // its own extraction.
+    setEssentialCriteria([]);
+    setDesirableCriteria([]);
+    setSelectedCriteria(new Set());
+    setUsingManualCriteria(false);
+    setManualCriteriaText("");
+    setExtractionStarted(false);
+    setCriteriaError(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -81,19 +116,18 @@ export default function GenerateFromJdPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
       setJdText(body.text);
-      // The /parse endpoint runs a small Claude call to extract the actual
-      // job title (regex heuristics catch section headers like "Position
-      // Description" instead). Seed both Scenario Title and Position Title
-      // from that — the admin can override either on the next step.
       const suggested =
         typeof body.suggestedJobTitle === "string" && body.suggestedJobTitle
           ? body.suggestedJobTitle
           : null;
       if (suggested) {
-        if (!title) setTitle(suggested);
-        if (!positionTitle) setPositionTitle(suggested);
+        setTitle(suggested);
+        setPositionTitle(suggested);
       }
-      setStep("configure");
+      setStep("criteria");
+      // Fire the criteria extraction now — the criteria step renders
+      // its own loading state and waits for it.
+      void runCriteriaExtraction(body.text, suggested ?? "");
     } catch (e) {
       setParseError((e as Error).message);
     } finally {
@@ -101,33 +135,147 @@ export default function GenerateFromJdPage() {
     }
   };
 
+  const runCriteriaExtraction = async (
+    text: string,
+    extractTitle: string
+  ) => {
+    if (!text.trim()) return;
+    setExtractionStarted(true);
+    setExtractingCriteria(true);
+    setCriteriaError(null);
+    try {
+      const res = await fetch(
+        "/api/admin/recruitment/scenarios/from-jd/extract-criteria",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jdText: text,
+            // Use whatever we have for position title — falls back to
+            // the parsed title if state hasn't been set yet (race on
+            // the first parse).
+            positionTitle: positionTitle || extractTitle || "the role",
+          }),
+        }
+      );
+      const payload = await consumeSseResultStream<{
+        essential: string[];
+        desirable: string[];
+      }>(res);
+      const ess = Array.isArray(payload.essential) ? payload.essential : [];
+      const des = Array.isArray(payload.desirable) ? payload.desirable : [];
+      setEssentialCriteria(ess);
+      setDesirableCriteria(des);
+      // Empty extraction → drop into manual fallback so the user
+      // isn't stuck on an empty step.
+      if (ess.length === 0 && des.length === 0) {
+        setUsingManualCriteria(true);
+      }
+    } catch (e) {
+      setCriteriaError((e as Error).message);
+    } finally {
+      setExtractingCriteria(false);
+    }
+  };
+
+  // Click-to-edit on a criterion: replaces the text in its array AND
+  // updates the selection set if that criterion was ticked.
+  const updateCriterion = (
+    list: "essential" | "desirable",
+    oldText: string,
+    newText: string
+  ) => {
+    const setter =
+      list === "essential" ? setEssentialCriteria : setDesirableCriteria;
+    setter((prev) =>
+      prev.map((t) => (t === oldText ? newText : t))
+    );
+    setSelectedCriteria((prev) => {
+      if (!prev.has(oldText)) return prev;
+      const next = new Set(prev);
+      next.delete(oldText);
+      next.add(newText);
+      return next;
+    });
+  };
+
+  const toggleCriterion = (text: string) => {
+    setSelectedCriteria((prev) => {
+      const next = new Set(prev);
+      if (next.has(text)) {
+        next.delete(text);
+      } else {
+        if (next.size >= MAX_SELECTED_CRITERIA) return prev; // hard cap
+        next.add(text);
+      }
+      return next;
+    });
+  };
+
+  // Manual fallback: when extraction returns empty, the user types
+  // criteria into a textarea (one per line). We treat each non-empty
+  // line as a virtual criterion; selection is applied to ALL of
+  // them up to the cap.
+  const manualCriterionList = useMemo(() => {
+    return manualCriteriaText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 15); // mirror extractor's per-list cap
+  }, [manualCriteriaText]);
+
+  // What lands in startGeneration as the ordered list of criteria.
+  // Essential first, then desirable, in the order they were returned
+  // (or typed in the manual fallback). Filtered by selection.
+  const orderedSelectedCriteria = useMemo(() => {
+    if (usingManualCriteria) {
+      return manualCriterionList.filter((c) => selectedCriteria.has(c));
+    }
+    return [
+      ...essentialCriteria.filter((c) => selectedCriteria.has(c)),
+      ...desirableCriteria.filter((c) => selectedCriteria.has(c)),
+    ];
+  }, [
+    usingManualCriteria,
+    manualCriterionList,
+    essentialCriteria,
+    desirableCriteria,
+    selectedCriteria,
+  ]);
+
+  const taskCount = orderedSelectedCriteria.length;
+
   const startGeneration = async () => {
+    if (taskCount === 0) return;
+    const criteria = orderedSelectedCriteria;
     setStep("review");
+    setTaskCriteria(criteria);
     const initialTasks: (GeneratedTaskDraft | null)[] = Array.from(
-      { length: taskCount },
+      { length: criteria.length },
       () => null
     );
     const initialStatuses: ("pending" | "generating" | "ready" | "error")[] =
-      Array.from({ length: taskCount }, (_, i) =>
+      Array.from({ length: criteria.length }, (_, i) =>
         i === 0 ? "generating" : "pending"
       );
     setTasks(initialTasks);
     setTaskStatuses(initialStatuses);
-    setTaskErrors(Array.from({ length: taskCount }, () => null));
+    setTaskErrors(Array.from({ length: criteria.length }, () => null));
 
-    // Sequence-then-parallel: task 1 runs alone so the JD prefix is cached
-    // before parallel calls fire (concurrent first calls would each pay the
-    // cache-write premium; reads only become possible after the first
-    // response begins streaming). Tasks 2..N then run in parallel and read
-    // the cached prefix, with priorThemes built from task 1.
+    // Sequence-then-parallel: task 1 runs alone so the JD prefix is
+    // cached before parallel calls fire (concurrent first calls would
+    // each pay the cache-write premium; reads only become possible
+    // after the first response begins streaming). Tasks 2..N then run
+    // in parallel and read the cached prefix.
     let firstTask: GeneratedTaskDraft | null;
     try {
       firstTask = await generateOne({
         jdText,
         positionTitle,
         organisation,
+        focusCriterion: criteria[0],
         taskIndex: 1,
-        taskCount,
+        taskCount: criteria.length,
         priorThemes: [],
       });
       setTasks((prev) => withAt(prev, 0, firstTask!));
@@ -135,33 +283,30 @@ export default function GenerateFromJdPage() {
     } catch (e) {
       setTaskErrors((prev) => withAt(prev, 0, (e as Error).message));
       setTaskStatuses((prev) => withAt(prev, 0, "error"));
-      // If task 1 failed, mark the rest pending → error: there's no theme
-      // context to drive them, and we don't want to silently fan out.
-      setTaskStatuses((prev) =>
-        prev.map((s, i) => (i > 0 ? "error" : s))
-      );
+      // If task 1 failed, mark the rest pending → error.
+      setTaskStatuses((prev) => prev.map((s, i) => (i > 0 ? "error" : s)));
       setTaskErrors((prev) =>
         prev.map((err, i) => (i > 0 ? "Task 1 failed; cannot continue." : err))
       );
       return;
     }
 
-    if (taskCount === 1) return;
+    if (criteria.length === 1) return;
 
-    // Mark remaining as generating, fire in parallel.
     setTaskStatuses((prev) =>
       prev.map((s, i) => (i >= 1 ? "generating" : s))
     );
 
     await Promise.all(
-      Array.from({ length: taskCount - 1 }, (_, k) => {
-        const idx = k + 1; // zero-based index in the array (task index + 1 in 1-based)
+      Array.from({ length: criteria.length - 1 }, (_, k) => {
+        const idx = k + 1;
         return generateOne({
           jdText,
           positionTitle,
           organisation,
+          focusCriterion: criteria[idx],
           taskIndex: idx + 1,
-          taskCount,
+          taskCount: criteria.length,
           priorThemes: [firstTask!.themeSummary],
         })
           .then((t) => {
@@ -177,12 +322,12 @@ export default function GenerateFromJdPage() {
   };
 
   const regenerateTask = async (idx: number) => {
+    const focusCriterion = taskCriteria[idx];
+    if (!focusCriterion) return;
     setRegeneratingIndex(idx);
     setTaskErrors((prev) => withAt(prev, idx, null));
     setTaskStatuses((prev) => withAt(prev, idx, "generating"));
     try {
-      // Pass other tasks' themeSummaries so the regenerated task doesn't
-      // duplicate them (excluding the slot being regenerated).
       const priorThemes = tasks
         .map((t, i) => (i !== idx && t ? t.themeSummary : null))
         .filter((s): s is string => Boolean(s));
@@ -190,8 +335,9 @@ export default function GenerateFromJdPage() {
         jdText,
         positionTitle,
         organisation,
+        focusCriterion,
         taskIndex: idx + 1,
-        taskCount,
+        taskCount: taskCriteria.length,
         priorThemes,
       });
       setTasks((prev) => withAt(prev, idx, fresh));
@@ -206,8 +352,7 @@ export default function GenerateFromJdPage() {
 
   const allReady = useMemo(
     () =>
-      taskStatuses.length > 0 &&
-      taskStatuses.every((s) => s === "ready"),
+      taskStatuses.length > 0 && taskStatuses.every((s) => s === "ready"),
     [taskStatuses]
   );
   const anyGenerating = useMemo(
@@ -260,9 +405,9 @@ export default function GenerateFromJdPage() {
         Generate from job description
       </h1>
       <p className="text-sm text-slate-600 mt-1 mb-6">
-        Upload a JD; Claude Opus 4.7 drafts up to {MAX_TASK_COUNT} tasks — each
-        with a brief, an industry-matched exhibit, and a deliverable — for you
-        to review and tweak.
+        Upload a JD; pick the essential or desirable criteria you want to
+        test; Claude generates one task per criterion, each with a brief, an
+        industry-matched exhibit, and a deliverable.
       </p>
 
       <Stepper step={step} />
@@ -272,6 +417,28 @@ export default function GenerateFromJdPage() {
           parsing={parsing}
           parseError={parseError}
           onFileSelected={onFileSelected}
+        />
+      )}
+
+      {step === "criteria" && (
+        <CriteriaStep
+          extracting={extractingCriteria}
+          extractionStarted={extractionStarted}
+          error={criteriaError}
+          essential={essentialCriteria}
+          desirable={desirableCriteria}
+          selected={selectedCriteria}
+          onToggle={toggleCriterion}
+          onEdit={updateCriterion}
+          usingManual={usingManualCriteria}
+          manualText={manualCriteriaText}
+          setManualText={setManualCriteriaText}
+          manualList={manualCriterionList}
+          onRetry={() => void runCriteriaExtraction(jdText, positionTitle)}
+          onSwitchToManual={() => setUsingManualCriteria(true)}
+          taskCount={taskCount}
+          onBack={() => setStep("upload")}
+          onContinue={() => setStep("configure")}
         />
       )}
 
@@ -293,9 +460,8 @@ export default function GenerateFromJdPage() {
           defaultTotalMinutes={defaultTotalMinutes}
           setDefaultTotalMinutes={setDefaultTotalMinutes}
           taskCount={taskCount}
-          setTaskCount={setTaskCount}
-          canSubmit={Boolean(canConfigure)}
-          onBack={() => setStep("upload")}
+          canSubmit={Boolean(canConfigure) && taskCount > 0}
+          onBack={() => setStep("criteria")}
           onSubmit={() => void startGeneration()}
         />
       )}
@@ -305,6 +471,7 @@ export default function GenerateFromJdPage() {
           tasks={tasks}
           statuses={taskStatuses}
           errors={taskErrors}
+          taskCriteria={taskCriteria}
           regeneratingIndex={regeneratingIndex}
           onRegenerate={(i) => void regenerateTask(i)}
           allReady={allReady}
@@ -341,6 +508,7 @@ async function generateOne(input: {
   jdText: string;
   positionTitle: string;
   organisation: string;
+  focusCriterion: string;
   taskIndex: number;
   taskCount: number;
   priorThemes: string[];
@@ -353,93 +521,13 @@ async function generateOne(input: {
       body: JSON.stringify(input),
     }
   );
-
-  // Validation errors come back as plain JSON (status != 200). The
-  // happy path is text/event-stream — `result` and `error` events
-  // terminate the stream and carry a JSON payload.
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!res.ok || !contentType.includes("text/event-stream")) {
-    const raw = await res.text().catch(() => "");
-    if (!raw) {
-      throw new Error(
-        `Server returned an empty ${res.ok ? "OK" : "HTTP " + res.status} response. The generation may have timed out at the platform — try a shorter JD or fewer tasks.`
-      );
-    }
-    let parsed: { error?: string } = {};
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      throw new Error(
-        `Server returned non-JSON (HTTP ${res.status}): ${raw.slice(0, 200)}`
-      );
-    }
-    throw new Error(parsed.error || `HTTP ${res.status}`);
+  const payload = await consumeSseResultStream<{ task: GeneratedTaskDraft }>(
+    res
+  );
+  if (!payload.task) {
+    throw new Error("Server response did not include a task.");
   }
-
-  if (!res.body) {
-    throw new Error("Streaming not supported in this browser.");
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let task: GeneratedTaskDraft | null = null;
-  let errorMessage: string | null = null;
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      // SSE events are separated by a blank line ("\n\n"). Comments
-      // (heartbeats) start with ":" and we skip them.
-      let split: number;
-      while ((split = buffer.indexOf("\n\n")) !== -1) {
-        const block = buffer.slice(0, split);
-        buffer = buffer.slice(split + 2);
-
-        let eventName = "message";
-        const dataLines: string[] = [];
-        for (const line of block.split("\n")) {
-          if (!line || line.startsWith(":")) continue;
-          if (line.startsWith("event:")) {
-            eventName = line.slice(6).trim();
-          } else if (line.startsWith("data:")) {
-            dataLines.push(line.slice(5).trim());
-          }
-        }
-        if (dataLines.length === 0) continue;
-        const dataStr = dataLines.join("\n");
-
-        if (eventName === "result") {
-          try {
-            const payload = JSON.parse(dataStr);
-            if (payload && payload.task) task = payload.task;
-          } catch {
-            errorMessage = "Server returned an unparseable result event.";
-          }
-        } else if (eventName === "error") {
-          try {
-            const payload = JSON.parse(dataStr);
-            errorMessage = payload?.error || "Generation failed";
-          } catch {
-            errorMessage = dataStr || "Generation failed";
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  if (errorMessage) throw new Error(errorMessage);
-  if (!task) {
-    throw new Error(
-      "Stream ended without a result. The generation likely hit the platform timeout — try a shorter JD or fewer tasks."
-    );
-  }
-  return task;
+  return payload.task;
 }
 
 /* ---------------- step components ---------------- */
@@ -447,12 +535,13 @@ async function generateOne(input: {
 function Stepper({ step }: { step: Step }) {
   const items: { key: Step; label: string }[] = [
     { key: "upload", label: "Upload JD" },
+    { key: "criteria", label: "Pick criteria" },
     { key: "configure", label: "Configure" },
     { key: "review", label: "Review & save" },
   ];
   const activeIdx = items.findIndex((i) => i.key === step);
   return (
-    <ol className="flex items-center gap-2 mb-6 text-xs text-slate-600">
+    <ol className="flex items-center gap-2 mb-6 text-xs text-slate-600 flex-wrap">
       {items.map((it, i) => (
         <li key={it.key} className="flex items-center gap-2">
           <span
@@ -467,14 +556,12 @@ function Stepper({ step }: { step: Step }) {
             {i + 1}
           </span>
           <span
-            className={
-              i === activeIdx ? "font-semibold text-[#1B2A4A]" : ""
-            }
+            className={i === activeIdx ? "font-semibold text-[#1B2A4A]" : ""}
           >
             {it.label}
           </span>
           {i < items.length - 1 && (
-            <span className="text-slate-300 mx-1">━━</span>
+            <span className="text-slate-300 mx-1">━</span>
           )}
         </li>
       ))}
@@ -497,10 +584,10 @@ function UploadStep({
         Upload the job description
       </h2>
       <p className="text-sm text-slate-600 mt-1">
-        PDF or DOCX, up to 10MB. The text is extracted server-side and sent to
-        Claude Opus 4.7 alongside the role context. The original file isn&apos;t
-        stored — only the parsed text is saved with the scenario, for use when
-        you regenerate a task later.
+        PDF or DOCX, up to 10MB. The text is extracted server-side and used
+        to identify the role&apos;s essential and desirable criteria. The
+        original file isn&apos;t stored — only the parsed text is saved with
+        the scenario.
       </p>
 
       <label className="mt-5 block border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#4B92DB] hover:bg-slate-50 transition">
@@ -517,7 +604,6 @@ function UploadStep({
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) onFileSelected(f);
-            // Allow re-selecting the same file later
             e.target.value = "";
           }}
           className="hidden"
@@ -530,6 +616,414 @@ function UploadStep({
         </div>
       )}
     </section>
+  );
+}
+
+function CriteriaStep({
+  extracting,
+  extractionStarted,
+  error,
+  essential,
+  desirable,
+  selected,
+  onToggle,
+  onEdit,
+  usingManual,
+  manualText,
+  setManualText,
+  manualList,
+  onRetry,
+  onSwitchToManual,
+  taskCount,
+  onBack,
+  onContinue,
+}: {
+  extracting: boolean;
+  extractionStarted: boolean;
+  error: string | null;
+  essential: string[];
+  desirable: string[];
+  selected: Set<string>;
+  onToggle: (text: string) => void;
+  onEdit: (
+    list: "essential" | "desirable",
+    oldText: string,
+    newText: string
+  ) => void;
+  usingManual: boolean;
+  manualText: string;
+  setManualText: (v: string) => void;
+  manualList: string[];
+  onRetry: () => void;
+  onSwitchToManual: () => void;
+  taskCount: number;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  const atCap = selected.size >= MAX_SELECTED_CRITERIA;
+  const showWarn = selected.size >= SOFT_WARN_AT;
+  const continueLabel =
+    taskCount === 0
+      ? "Pick at least one criterion"
+      : `Continue (${taskCount} task${taskCount === 1 ? "" : "s"})`;
+
+  return (
+    <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+      <div>
+        <h2 className="text-base font-semibold text-[#1B2A4A]">
+          Pick the criteria to test
+        </h2>
+        <p className="text-sm text-slate-600 mt-1">
+          Tick the essential or desirable criteria you want this assessment
+          to probe. One task is generated per ticked criterion, anchored on
+          its specific wording. Click any criterion to edit the text before
+          generating.
+        </p>
+      </div>
+
+      {extracting && (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center">
+          <div className="inline-flex items-center gap-2 text-sm text-slate-700">
+            <span className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse" />
+            Extracting essential and desirable criteria from the JD…
+          </div>
+        </div>
+      )}
+
+      {!extracting && error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="font-medium">Extraction failed</div>
+          <div className="mt-1 text-xs">{error}</div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={onRetry}
+              className="text-xs px-2.5 py-1 rounded border border-red-300 hover:bg-white text-red-700"
+            >
+              Retry
+            </button>
+            <button
+              onClick={onSwitchToManual}
+              className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white text-slate-700"
+            >
+              Type criteria manually
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!extracting && !error && extractionStarted && !usingManual && (
+        <>
+          <CriterionList
+            kind="essential"
+            label="Essential criteria"
+            sublabel="Required experience or competencies."
+            items={essential}
+            selected={selected}
+            atCap={atCap}
+            onToggle={onToggle}
+            onEdit={(oldText, newText) => onEdit("essential", oldText, newText)}
+          />
+          <CriterionList
+            kind="desirable"
+            label="Desirable criteria"
+            sublabel="Nice-to-have experience or competencies. Optional."
+            items={desirable}
+            selected={selected}
+            atCap={atCap}
+            onToggle={onToggle}
+            onEdit={(oldText, newText) => onEdit("desirable", oldText, newText)}
+          />
+
+          <div className="text-xs text-slate-500 italic">
+            Don&apos;t see what you wanted to test?{" "}
+            <button
+              type="button"
+              onClick={onSwitchToManual}
+              className="text-[#4B92DB] hover:underline"
+            >
+              Type custom criteria instead
+            </button>
+            .
+          </div>
+        </>
+      )}
+
+      {!extracting && usingManual && (
+        <ManualCriteriaEditor
+          text={manualText}
+          setText={setManualText}
+          items={manualList}
+          selected={selected}
+          atCap={atCap}
+          onToggle={onToggle}
+        />
+      )}
+
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        <div className="text-xs text-slate-600">
+          <span
+            className={`font-mono ${
+              atCap ? "text-amber-700 font-semibold" : ""
+            }`}
+          >
+            {selected.size} of {MAX_SELECTED_CRITERIA}
+          </span>{" "}
+          selected
+          {showWarn && !atCap && (
+            <span className="ml-2 text-amber-700">
+              · 4+ tasks may take 60–90s to generate
+            </span>
+          )}
+          {atCap && (
+            <span className="ml-2 text-amber-700">
+              · cap reached — untick to free a slot
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="text-sm text-slate-600 hover:text-slate-900"
+          >
+            ← Back
+          </button>
+          <button
+            onClick={onContinue}
+            disabled={taskCount === 0 || extracting}
+            className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+          >
+            {continueLabel}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CriterionList({
+  kind,
+  label,
+  sublabel,
+  items,
+  selected,
+  atCap,
+  onToggle,
+  onEdit,
+}: {
+  kind: "essential" | "desirable";
+  label: string;
+  sublabel: string;
+  items: string[];
+  selected: Set<string>;
+  atCap: boolean;
+  onToggle: (text: string) => void;
+  onEdit: (oldText: string, newText: string) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+          {label}
+        </div>
+        <div className="text-xs text-slate-500 mt-1 italic">
+          None identified in this JD.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+        {label}
+      </div>
+      <div className="text-xs text-slate-500 mt-0.5 mb-2">{sublabel}</div>
+      <ul className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+        {items.map((text) => (
+          <CriterionRow
+            key={`${kind}-${text}`}
+            text={text}
+            checked={selected.has(text)}
+            atCap={atCap}
+            onToggle={() => onToggle(text)}
+            onEdit={(newText) => {
+              if (newText && newText !== text) onEdit(text, newText);
+            }}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CriterionRow({
+  text,
+  checked,
+  atCap,
+  onToggle,
+  onEdit,
+}: {
+  text: string;
+  checked: boolean;
+  atCap: boolean;
+  onToggle: () => void;
+  onEdit: (newText: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Keep draft in sync if external text changes (e.g. selection state).
+  useEffect(() => {
+    if (!editing) setDraft(text);
+  }, [text, editing]);
+
+  useEffect(() => {
+    if (editing && taRef.current) {
+      taRef.current.focus();
+      taRef.current.setSelectionRange(
+        taRef.current.value.length,
+        taRef.current.value.length
+      );
+    }
+  }, [editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    setEditing(false);
+    if (trimmed && trimmed !== text) onEdit(trimmed);
+    else setDraft(text);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setDraft(text);
+  };
+
+  // Disable the checkbox if at cap AND not currently checked.
+  const checkboxDisabled = !checked && atCap;
+
+  return (
+    <li className="group">
+      <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={checkboxDisabled}
+          onChange={onToggle}
+          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#1B2A4A] focus:ring-[#4B92DB] flex-shrink-0 disabled:opacity-40"
+        />
+        {editing ? (
+          <div className="flex-1 flex flex-col gap-1.5">
+            <textarea
+              ref={taRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  commit();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancel();
+                }
+              }}
+              rows={Math.max(2, Math.min(6, Math.ceil(draft.length / 80)))}
+              className="text-sm border border-[#4B92DB] rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#4B92DB]"
+            />
+            <div className="text-[10px] text-slate-500">
+              Press Enter to save, Esc to cancel.
+            </div>
+          </div>
+        ) : (
+          <span
+            className="flex-1 text-sm text-slate-700 leading-relaxed"
+            onClick={(e) => {
+              // Click on text (but not the checkbox) → enter edit mode.
+              // We stopPropagation so the surrounding label doesn't
+              // toggle the checkbox at the same time.
+              const target = e.target as HTMLElement;
+              if (target.tagName !== "INPUT") {
+                e.preventDefault();
+                e.stopPropagation();
+                setEditing(true);
+              }
+            }}
+          >
+            {text}
+            <span className="ml-1.5 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition">
+              (click to edit)
+            </span>
+          </span>
+        )}
+      </label>
+    </li>
+  );
+}
+
+function ManualCriteriaEditor({
+  text,
+  setText,
+  items,
+  selected,
+  atCap,
+  onToggle,
+}: {
+  text: string;
+  setText: (v: string) => void;
+  items: string[];
+  selected: Set<string>;
+  atCap: boolean;
+  onToggle: (text: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+          Type criteria manually
+        </div>
+        <div className="text-xs text-slate-500 mt-0.5">
+          One criterion per line. Each one becomes a tickable option below.
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={5}
+          placeholder={
+            "Demonstrated experience triaging multi-stage SIEM alerts under operational pressure\nFamiliarity with NIST CSF and ISO 27001 control frameworks\nWritten communication clear enough for a CISO audience"
+          }
+          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono"
+        />
+      </div>
+      {items.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+            Tick which to test
+          </div>
+          <ul className="mt-2 space-y-1.5 max-h-72 overflow-y-auto pr-1">
+            {items.map((line) => {
+              const checked = selected.has(line);
+              return (
+                <li key={line}>
+                  <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!checked && atCap}
+                      onChange={() => onToggle(line)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#1B2A4A] focus:ring-[#4B92DB] flex-shrink-0 disabled:opacity-40"
+                    />
+                    <span className="flex-1 text-sm text-slate-700 leading-relaxed">
+                      {line}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -547,7 +1041,6 @@ function ConfigureStep({
   defaultTotalMinutes,
   setDefaultTotalMinutes,
   taskCount,
-  setTaskCount,
   canSubmit,
   onBack,
   onSubmit,
@@ -565,12 +1058,11 @@ function ConfigureStep({
   defaultTotalMinutes: string;
   setDefaultTotalMinutes: (v: string) => void;
   taskCount: number;
-  setTaskCount: (n: number) => void;
   canSubmit: boolean;
   onBack: () => void;
   onSubmit: () => void;
 }) {
-  const tokenEstimate = Math.round(jdText.length / 4); // rough char→token heuristic
+  const tokenEstimate = Math.round(jdText.length / 4);
   return (
     <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
       <div>
@@ -578,8 +1070,9 @@ function ConfigureStep({
           Parsed JD
         </div>
         <div className="text-sm text-slate-600">
-          <span className="font-mono">{filename}</span> · {jdText.length.toLocaleString()} characters
-          (~{tokenEstimate.toLocaleString()} tokens)
+          <span className="font-mono">{filename}</span> ·{" "}
+          {jdText.length.toLocaleString()} characters (~
+          {tokenEstimate.toLocaleString()} tokens)
         </div>
         <details className="mt-2">
           <summary className="cursor-pointer text-xs text-[#4B92DB] hover:underline">
@@ -648,24 +1141,17 @@ function ConfigureStep({
             className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
           />
         </label>
-        <label className="block text-sm">
-          <span className="text-slate-600">Number of tasks</span>
-          <select
-            value={taskCount}
-            onChange={(e) => setTaskCount(Number(e.target.value))}
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white"
-          >
-            {Array.from({ length: MAX_TASK_COUNT }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                {n} task{n === 1 ? "" : "s"}
-              </option>
-            ))}
-          </select>
+        <div className="block text-sm">
+          <span className="text-slate-600">Tasks to generate</span>
+          <div className="mt-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md text-slate-700">
+            <span className="font-mono">{taskCount}</span> task
+            {taskCount === 1 ? "" : "s"} · one per criterion you ticked
+          </div>
           <span className="text-xs text-slate-500 mt-1 block">
-            Each is generated as a memo + AI investigation task. Add other task
-            kinds (email inbox, chat) afterwards in the standard editor.
+            Add other task kinds (email inbox, chat) afterwards in the
+            standard editor.
           </span>
-        </label>
+        </div>
       </div>
 
       <div className="flex items-center justify-between pt-2">
@@ -691,6 +1177,7 @@ function ReviewStep({
   tasks,
   statuses,
   errors,
+  taskCriteria,
   regeneratingIndex,
   onRegenerate,
   allReady,
@@ -703,6 +1190,7 @@ function ReviewStep({
   tasks: (GeneratedTaskDraft | null)[];
   statuses: ("pending" | "generating" | "ready" | "error")[];
   errors: (string | null)[];
+  taskCriteria: string[];
   regeneratingIndex: number | null;
   onRegenerate: (i: number) => void;
   allReady: boolean;
@@ -719,7 +1207,8 @@ function ReviewStep({
           Generated tasks
         </h2>
         <div className="text-xs text-slate-500">
-          {statuses.filter((s) => s === "ready").length} of {statuses.length} ready
+          {statuses.filter((s) => s === "ready").length} of {statuses.length}{" "}
+          ready
         </div>
       </div>
 
@@ -728,6 +1217,7 @@ function ReviewStep({
           key={i}
           index={i}
           task={t}
+          focusCriterion={taskCriteria[i] ?? null}
           status={statuses[i]}
           error={errors[i]}
           regenerating={regeneratingIndex === i}
@@ -764,6 +1254,7 @@ function ReviewStep({
 function TaskCard({
   index,
   task,
+  focusCriterion,
   status,
   error,
   regenerating,
@@ -771,6 +1262,7 @@ function TaskCard({
 }: {
   index: number;
   task: GeneratedTaskDraft | null;
+  focusCriterion: string | null;
   status: "pending" | "generating" | "ready" | "error";
   error: string | null;
   regenerating: boolean;
@@ -806,7 +1298,7 @@ function TaskCard({
             onClick={onRegenerate}
             disabled={regenerating}
             className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-50"
-            title="Discard this draft and generate a new one"
+            title="Discard this draft and generate a new one for the same criterion"
           >
             {regenerating ? "Regenerating…" : "↻ Regenerate"}
           </button>
@@ -822,6 +1314,15 @@ function TaskCard({
         )}
       </div>
 
+      {focusCriterion && (
+        <div className="px-4 py-2 bg-[#f5f8fb] border-b border-slate-200 text-xs">
+          <span className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+            Testing
+          </span>
+          <span className="ml-2 text-slate-700">{focusCriterion}</span>
+        </div>
+      )}
+
       {error && (
         <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-red-800 text-xs">
           {error}
@@ -830,19 +1331,14 @@ function TaskCard({
 
       {status === "ready" && task && (
         <div className="p-4 space-y-3">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
-              Theme
-            </div>
-            <div className="text-sm text-slate-700">{task.themeSummary}</div>
-          </div>
-
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
                 Exhibit
               </div>
-              <div className="font-medium text-[#1B2A4A]">{task.exhibitTitle}</div>
+              <div className="font-medium text-[#1B2A4A]">
+                {task.exhibitTitle}
+              </div>
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
