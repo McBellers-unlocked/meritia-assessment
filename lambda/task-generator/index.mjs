@@ -36,16 +36,21 @@ const MAX_TOKENS = 16_000;
 let pgPool = null;
 function getPool() {
   if (pgPool) return pgPool;
+  // Strip sslmode from the URL — pg v8's URL parser converts
+  // sslmode=require into a verify-full SSL config that overrides
+  // anything we pass in `ssl:`, and AWS RDS's CA chain isn't in
+  // Node's default trust store (Prisma handles this on the SSR
+  // side; pg does not). With sslmode removed from the URL, our
+  // explicit ssl: { rejectUnauthorized: false } wins. Connection
+  // is still encrypted (RDS requires it server-side), we just
+  // skip CA chain validation.
+  const rawUrl = process.env.DATABASE_URL || "";
+  const cleanUrl = rawUrl
+    .replace(/[?&]sslmode=[^&]*/gi, "")
+    .replace(/\?$/, "");
   pgPool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    // AWS RDS uses a CA chain that isn't in Node's default trust
-    // store; pg v8 treats `sslmode=require` in the URL as
-    // verify-full and rejects the cert. The connection is still
-    // encrypted, we just don't validate the chain. (Prisma handles
-    // this for the SSR side automatically — pg does not.)
+    connectionString: cleanUrl,
     ssl: { rejectUnauthorized: false },
-    // RDS connections are short-lived in Lambda (warm container
-    // reuses the pool). Keep the pool tiny.
     max: 1,
     idleTimeoutMillis: 1_000,
   });
