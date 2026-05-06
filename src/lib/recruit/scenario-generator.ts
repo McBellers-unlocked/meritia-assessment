@@ -220,14 +220,16 @@ export async function generateOneTask(
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
     tools: [PROPOSE_TASK_TOOL],
-    // tool_choice: { type: "tool" } would force the call but the API
-    // rejects it alongside adaptive thinking. With "auto" the model still
-    // calls propose_task reliably (the system prompt + user message both
-    // instruct it to), and we get to keep thinking — meaningfully better
-    // exhibits. The post-call check below catches the rare case the model
-    // returns text instead of a tool_use block.
+    // tool_choice "tool" would force the call but the API rejects that
+    // alongside adaptive thinking. We were forced to drop tool_choice in
+    // favour of "auto" — and now we also drop thinking, because adaptive
+    // thinking + a long exhibit typically pushes the per-call time past
+    // Amplify's SSR function timeout (Lambda@Edge caps at 30s; even the
+    // newer SSR runtime has shorter limits than Opus 4.7 + thinking
+    // wants). The system prompt is detailed enough that no-thinking
+    // output is still strong, and we save 20–40s per task.
     tool_choice: { type: "auto" },
-    thinking: { type: "adaptive" },
+    thinking: { type: "disabled" },
     messages: [buildUserMessage(input)],
   });
 
