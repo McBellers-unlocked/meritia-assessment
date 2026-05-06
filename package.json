@@ -16,6 +16,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
     "@aws-sdk/client-secrets-manager": "^3.1023.0",
+    "@floating-ui/dom": "^1.7.6",
     "@prisma/client": "^6.19.3",
     "@tiptap/extension-placeholder": "^3.22.3",
     "@tiptap/pm": "^3.22.3",
