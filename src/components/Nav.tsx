@@ -20,6 +20,12 @@ export default function Nav() {
 
   const fromJdHref = "/admin/recruitment/scenarios/new/from-jd";
   const onFromJd = pathname === fromJdHref;
+  const scenariosHref = "/admin/recruitment/scenarios";
+  // "Scenarios" link is active when we're anywhere under /scenarios, but
+  // not when we're specifically on the from-JD wizard (which has its
+  // own highlighted entry).
+  const onScenarios =
+    pathname.startsWith(scenariosHref) && !onFromJd;
 
   return (
     <header className="bg-[#111] text-white">
@@ -42,19 +48,33 @@ export default function Nav() {
           </Link>
 
           {session && (
-            <Link
-              href={fromJdHref}
-              aria-current={onFromJd ? "page" : undefined}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition ${
-                onFromJd
-                  ? "bg-white/15 text-white"
-                  : "text-white/70 hover:text-white hover:bg-white/10"
-              }`}
-              title="Upload a job description and let Claude draft the scenario"
-            >
-              <span aria-hidden>✨</span>
-              Generate from JD
-            </Link>
+            <>
+              <Link
+                href={scenariosHref}
+                aria-current={onScenarios ? "page" : undefined}
+                className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded text-sm font-medium transition ${
+                  onScenarios
+                    ? "bg-white/15 text-white"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
+                }`}
+                title="Scenario templates — including ones generated from a JD"
+              >
+                Scenarios
+              </Link>
+              <Link
+                href={fromJdHref}
+                aria-current={onFromJd ? "page" : undefined}
+                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition ${
+                  onFromJd
+                    ? "bg-white/15 text-white"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
+                }`}
+                title="Upload a job description and let Claude draft the scenario"
+              >
+                <span aria-hidden>✨</span>
+                Generate from JD
+              </Link>
+            </>
           )}
         </div>
 

@@ -76,6 +76,11 @@ export default function ScenarioEditorPage() {
         </div>
       </div>
 
+      <NextStepsBanner
+        scenario={scenario}
+        onJumpToPublish={() => setTab("publish")}
+      />
+
       <nav className="mt-6 border-b border-slate-200 flex gap-1">
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>Overview</TabButton>
         <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")}>Tasks ({scenario.tasks.length})</TabButton>
@@ -101,6 +106,79 @@ export default function ScenarioEditorPage() {
         {tab === "publish" && (
           <PublishTab scenario={scenario} onChanged={reload} />
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Surfaces "what's next?" guidance after the wizard or any time a
+ * scenario is in a state that can't yet take candidates. Common cases:
+ *  - status=draft → must publish first
+ *  - status=published with no assessments → ready to use, create one
+ *  - status=published with assessments → nothing to nudge; banner hides
+ */
+function NextStepsBanner({
+  scenario,
+  onJumpToPublish,
+}: {
+  scenario: EditorScenario;
+  onJumpToPublish: () => void;
+}) {
+  const isDraft = scenario.status === "draft";
+  const noTasks = scenario.tasks.length === 0;
+  const noAssessments = scenario._count.assessments === 0;
+
+  if (!isDraft && !noAssessments) return null;
+
+  const baseClass =
+    "mt-4 rounded-lg border px-4 py-3 text-sm flex items-start gap-3";
+
+  if (isDraft) {
+    return (
+      <div
+        className={`${baseClass} bg-amber-50 border-amber-200 text-amber-900`}
+      >
+        <span aria-hidden className="text-base leading-tight">📝</span>
+        <div className="flex-1">
+          <div className="font-semibold">Next step: publish</div>
+          <div className="mt-0.5 text-amber-800">
+            This scenario is a draft. Candidates can&apos;t take it until
+            it&apos;s published.{noTasks && " Add at least one task first."}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              onClick={onJumpToPublish}
+              className="text-xs px-2.5 py-1 rounded bg-amber-200 text-amber-900 hover:bg-amber-300 font-semibold"
+            >
+              Open Publish tab →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Published but no assessment yet
+  return (
+    <div
+      className={`${baseClass} bg-[#f5f8fb] border-[#cfe1f5] text-[#1B2A4A]`}
+    >
+      <span aria-hidden className="text-base leading-tight">✅</span>
+      <div className="flex-1">
+        <div className="font-semibold">Ready to use</div>
+        <div className="mt-0.5 text-slate-700">
+          The scenario is published. To run candidates through it, create an
+          assessment that uses it.
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Link
+            href="/admin/recruitment"
+            className="text-xs px-2.5 py-1 rounded bg-[#1B2A4A] text-white hover:bg-[#142338] font-semibold inline-flex items-center"
+          >
+            Create an assessment →
+          </Link>
+        </div>
       </div>
     </div>
   );
