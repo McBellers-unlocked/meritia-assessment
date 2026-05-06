@@ -131,13 +131,16 @@ function cleanCriteria(raw: unknown): string[] {
 }
 
 /**
- * Extract criteria from the JD. Streams the Anthropic call so the
- * caller (typically an SSE route handler) can ping `onProgress` to
- * keep its connection alive.
+ * Extract criteria from the JD. Uses messages.create() (non-streaming)
+ * because the SDK timeout option only reliably aborts non-streaming
+ * calls — see scenario-generator.ts for the long version of why.
+ *
+ * `onProgress` accepted for API compat but unused; the SSE wrapper's
+ * setInterval heartbeats handle gateway keepalives.
  */
 export async function extractCriteria(
   input: ExtractCriteriaInput,
-  onProgress?: () => void
+  _onProgress?: () => void
 ): Promise<{ result: ExtractedCriteria; usage: Anthropic.Usage }> {
   if (!input.jdText.trim()) {
     throw new Error("JD text is empty — cannot extract criteria.");
@@ -148,7 +151,7 @@ export async function extractCriteria(
 
   const client = await getClient();
 
-  const stream = client.messages.stream(
+  const response = await client.messages.create(
     {
       model: MODEL,
       max_tokens: MAX_TOKENS,
@@ -160,13 +163,6 @@ export async function extractCriteria(
     },
     { timeout: SDK_TIMEOUT_MS }
   );
-
-  for await (const _event of stream) {
-    onProgress?.();
-    void _event;
-  }
-
-  const response = await stream.finalMessage();
 
   const toolUse = response.content.find(
     (b): b is Anthropic.ToolUseBlock =>
