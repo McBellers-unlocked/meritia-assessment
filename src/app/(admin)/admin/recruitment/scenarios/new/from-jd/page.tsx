@@ -20,9 +20,30 @@ interface GeneratedTaskDraft {
 
 type Step = "upload" | "criteria" | "configure" | "review";
 
-const MAX_SELECTED_CRITERIA = 5;
-const SOFT_WARN_AT = 4;
+// memo_ai is fixed at 2 tasks per assessment — the selected criteria
+// are distributed across them. Cap at 6 ticked (3 per task) so an
+// individual task isn't overloaded with too many competencies to
+// test in a single coherent scenario.
+const MEMO_AI_TASK_COUNT = 2;
+const MAX_SELECTED_CRITERIA = 6;
+const SOFT_WARN_AT = 5;
 const DEFAULT_ORG = "International Digital Services Centre (IDSC), Geneva";
+
+/**
+ * Split a flat list of selected criteria into one bucket per
+ * generated task. With memo_ai at 2 tasks: first half goes to task 1,
+ * second half to task 2. If only 1 criterion is ticked, both tasks
+ * test the same one — the priorThemes mechanism keeps the scenarios
+ * distinct.
+ */
+function distributeCriteria(criteria: string[]): string[][] {
+  if (criteria.length === 0) return [];
+  if (criteria.length === 1) {
+    return [[criteria[0]], [criteria[0]]];
+  }
+  const splitPoint = Math.ceil(criteria.length / 2);
+  return [criteria.slice(0, splitPoint), criteria.slice(splitPoint)];
+}
 
 export default function GenerateFromJdPage() {
   const { status: authStatus } = useSession();
@@ -65,17 +86,19 @@ export default function GenerateFromJdPage() {
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
 
   // Review step
-  // taskCriteria is the ordered list of criteria that drove the
-  // current task slots. Set once in startGeneration; never mutated
-  // for the lifetime of the review session. regenerateTask reads
-  // from it so a regenerated task tests the same criterion as the
+  // taskCriteriaBuckets is the per-task list of criteria for each
+  // generated slot. Set once in startGeneration; never mutated for
+  // the lifetime of the review session. regenerateTask reads from it
+  // so a regenerated task tests the same set of criteria as the
   // original.
   const [tasks, setTasks] = useState<(GeneratedTaskDraft | null)[]>([]);
   const [taskStatuses, setTaskStatuses] = useState<
     ("pending" | "generating" | "ready" | "error")[]
   >([]);
   const [taskErrors, setTaskErrors] = useState<(string | null)[]>([]);
-  const [taskCriteria, setTaskCriteria] = useState<string[]>([]);
+  const [taskCriteriaBuckets, setTaskCriteriaBuckets] = useState<string[][]>(
+    []
+  );
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(
     null
   );
@@ -243,24 +266,27 @@ export default function GenerateFromJdPage() {
     selectedCriteria,
   ]);
 
-  const taskCount = orderedSelectedCriteria.length;
+  // Always 2 tasks for memo_ai. The criteria ticked are distributed
+  // across both — see `distributeCriteria` for the split logic.
+  const selectedCount = orderedSelectedCriteria.length;
+  const generatedTaskCount = selectedCount === 0 ? 0 : MEMO_AI_TASK_COUNT;
 
   const startGeneration = async () => {
-    if (taskCount === 0) return;
-    const criteria = orderedSelectedCriteria;
+    if (selectedCount === 0) return;
+    const buckets = distributeCriteria(orderedSelectedCriteria);
     setStep("review");
-    setTaskCriteria(criteria);
+    setTaskCriteriaBuckets(buckets);
     const initialTasks: (GeneratedTaskDraft | null)[] = Array.from(
-      { length: criteria.length },
+      { length: buckets.length },
       () => null
     );
     const initialStatuses: ("pending" | "generating" | "ready" | "error")[] =
-      Array.from({ length: criteria.length }, (_, i) =>
+      Array.from({ length: buckets.length }, (_, i) =>
         i === 0 ? "generating" : "pending"
       );
     setTasks(initialTasks);
     setTaskStatuses(initialStatuses);
-    setTaskErrors(Array.from({ length: criteria.length }, () => null));
+    setTaskErrors(Array.from({ length: buckets.length }, () => null));
 
     // Sequence-then-parallel: task 1 runs alone so the JD prefix is
     // cached before parallel calls fire (concurrent first calls would
@@ -273,9 +299,9 @@ export default function GenerateFromJdPage() {
         jdText,
         positionTitle,
         organisation,
-        focusCriterion: criteria[0],
+        focusCriteria: buckets[0],
         taskIndex: 1,
-        taskCount: criteria.length,
+        taskCount: buckets.length,
         priorThemes: [],
       });
       setTasks((prev) => withAt(prev, 0, firstTask!));
@@ -291,22 +317,22 @@ export default function GenerateFromJdPage() {
       return;
     }
 
-    if (criteria.length === 1) return;
+    if (buckets.length === 1) return;
 
     setTaskStatuses((prev) =>
       prev.map((s, i) => (i >= 1 ? "generating" : s))
     );
 
     await Promise.all(
-      Array.from({ length: criteria.length - 1 }, (_, k) => {
+      Array.from({ length: buckets.length - 1 }, (_, k) => {
         const idx = k + 1;
         return generateOne({
           jdText,
           positionTitle,
           organisation,
-          focusCriterion: criteria[idx],
+          focusCriteria: buckets[idx],
           taskIndex: idx + 1,
-          taskCount: criteria.length,
+          taskCount: buckets.length,
           priorThemes: [firstTask!.themeSummary],
         })
           .then((t) => {
@@ -322,8 +348,8 @@ export default function GenerateFromJdPage() {
   };
 
   const regenerateTask = async (idx: number) => {
-    const focusCriterion = taskCriteria[idx];
-    if (!focusCriterion) return;
+    const focusCriteria = taskCriteriaBuckets[idx];
+    if (!focusCriteria || focusCriteria.length === 0) return;
     setRegeneratingIndex(idx);
     setTaskErrors((prev) => withAt(prev, idx, null));
     setTaskStatuses((prev) => withAt(prev, idx, "generating"));
@@ -335,9 +361,9 @@ export default function GenerateFromJdPage() {
         jdText,
         positionTitle,
         organisation,
-        focusCriterion,
+        focusCriteria,
         taskIndex: idx + 1,
-        taskCount: taskCriteria.length,
+        taskCount: taskCriteriaBuckets.length,
         priorThemes,
       });
       setTasks((prev) => withAt(prev, idx, fresh));
@@ -436,7 +462,8 @@ export default function GenerateFromJdPage() {
           manualList={manualCriterionList}
           onRetry={() => void runCriteriaExtraction(jdText, positionTitle)}
           onSwitchToManual={() => setUsingManualCriteria(true)}
-          taskCount={taskCount}
+          selectedCount={selectedCount}
+          generatedTaskCount={generatedTaskCount}
           onBack={() => setStep("upload")}
           onContinue={() => setStep("configure")}
         />
@@ -459,8 +486,9 @@ export default function GenerateFromJdPage() {
           setPositionTitle={setPositionTitle}
           defaultTotalMinutes={defaultTotalMinutes}
           setDefaultTotalMinutes={setDefaultTotalMinutes}
-          taskCount={taskCount}
-          canSubmit={Boolean(canConfigure) && taskCount > 0}
+          generatedTaskCount={generatedTaskCount}
+          selectedCount={selectedCount}
+          canSubmit={Boolean(canConfigure) && selectedCount > 0}
           onBack={() => setStep("criteria")}
           onSubmit={() => void startGeneration()}
         />
@@ -471,7 +499,7 @@ export default function GenerateFromJdPage() {
           tasks={tasks}
           statuses={taskStatuses}
           errors={taskErrors}
-          taskCriteria={taskCriteria}
+          taskCriteriaBuckets={taskCriteriaBuckets}
           regeneratingIndex={regeneratingIndex}
           onRegenerate={(i) => void regenerateTask(i)}
           allReady={allReady}
@@ -508,7 +536,7 @@ async function generateOne(input: {
   jdText: string;
   positionTitle: string;
   organisation: string;
-  focusCriterion: string;
+  focusCriteria: string[];
   taskIndex: number;
   taskCount: number;
   priorThemes: string[];
@@ -634,7 +662,8 @@ function CriteriaStep({
   manualList,
   onRetry,
   onSwitchToManual,
-  taskCount,
+  selectedCount,
+  generatedTaskCount,
   onBack,
   onContinue,
 }: {
@@ -656,16 +685,17 @@ function CriteriaStep({
   manualList: string[];
   onRetry: () => void;
   onSwitchToManual: () => void;
-  taskCount: number;
+  selectedCount: number;
+  generatedTaskCount: number;
   onBack: () => void;
   onContinue: () => void;
 }) {
   const atCap = selected.size >= MAX_SELECTED_CRITERIA;
   const showWarn = selected.size >= SOFT_WARN_AT;
   const continueLabel =
-    taskCount === 0
+    selectedCount === 0
       ? "Pick at least one criterion"
-      : `Continue (${taskCount} task${taskCount === 1 ? "" : "s"})`;
+      : `Continue (${generatedTaskCount} task${generatedTaskCount === 1 ? "" : "s"} · ${selectedCount} criteri${selectedCount === 1 ? "on" : "a"})`;
 
   return (
     <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
@@ -674,10 +704,11 @@ function CriteriaStep({
           Pick the criteria to test
         </h2>
         <p className="text-sm text-slate-600 mt-1">
-          Tick the essential or desirable criteria you want this assessment
-          to probe. One task is generated per ticked criterion, anchored on
-          its specific wording. Click any criterion to edit the text before
-          generating.
+          Tick the essential or desirable criteria this assessment should
+          probe. memo_ai assessments are always {MEMO_AI_TASK_COUNT} tasks —
+          your ticked criteria are distributed across them, with each task
+          designed as a single coherent scenario testing its share. Click
+          any criterion to edit the text before generating.
         </p>
       </div>
 
@@ -769,9 +800,16 @@ function CriteriaStep({
             {selected.size} of {MAX_SELECTED_CRITERIA}
           </span>{" "}
           selected
+          {selected.size > 0 && (
+            <span className="ml-2 text-slate-500">
+              · {Math.ceil(selected.size / MEMO_AI_TASK_COUNT)} criteri
+              {Math.ceil(selected.size / MEMO_AI_TASK_COUNT) === 1 ? "on" : "a"}{" "}
+              per task
+            </span>
+          )}
           {showWarn && !atCap && (
             <span className="ml-2 text-amber-700">
-              · 4+ tasks may take 60–90s to generate
+              · packing many criteria into a single task can dilute focus
             </span>
           )}
           {atCap && (
@@ -789,7 +827,7 @@ function CriteriaStep({
           </button>
           <button
             onClick={onContinue}
-            disabled={taskCount === 0 || extracting}
+            disabled={selectedCount === 0 || extracting}
             className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
           >
             {continueLabel}
@@ -1040,7 +1078,8 @@ function ConfigureStep({
   setPositionTitle,
   defaultTotalMinutes,
   setDefaultTotalMinutes,
-  taskCount,
+  generatedTaskCount,
+  selectedCount,
   canSubmit,
   onBack,
   onSubmit,
@@ -1057,7 +1096,8 @@ function ConfigureStep({
   setPositionTitle: (v: string) => void;
   defaultTotalMinutes: string;
   setDefaultTotalMinutes: (v: string) => void;
-  taskCount: number;
+  generatedTaskCount: number;
+  selectedCount: number;
   canSubmit: boolean;
   onBack: () => void;
   onSubmit: () => void;
@@ -1144,8 +1184,11 @@ function ConfigureStep({
         <div className="block text-sm">
           <span className="text-slate-600">Tasks to generate</span>
           <div className="mt-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md text-slate-700">
-            <span className="font-mono">{taskCount}</span> task
-            {taskCount === 1 ? "" : "s"} · one per criterion you ticked
+            <span className="font-mono">{generatedTaskCount}</span> task
+            {generatedTaskCount === 1 ? "" : "s"} ·{" "}
+            {selectedCount === 1
+              ? "1 criterion split across both"
+              : `${selectedCount} criteria distributed across them`}
           </div>
           <span className="text-xs text-slate-500 mt-1 block">
             Add other task kinds (email inbox, chat) afterwards in the
@@ -1177,7 +1220,7 @@ function ReviewStep({
   tasks,
   statuses,
   errors,
-  taskCriteria,
+  taskCriteriaBuckets,
   regeneratingIndex,
   onRegenerate,
   allReady,
@@ -1190,7 +1233,7 @@ function ReviewStep({
   tasks: (GeneratedTaskDraft | null)[];
   statuses: ("pending" | "generating" | "ready" | "error")[];
   errors: (string | null)[];
-  taskCriteria: string[];
+  taskCriteriaBuckets: string[][];
   regeneratingIndex: number | null;
   onRegenerate: (i: number) => void;
   allReady: boolean;
@@ -1217,7 +1260,7 @@ function ReviewStep({
           key={i}
           index={i}
           task={t}
-          focusCriterion={taskCriteria[i] ?? null}
+          focusCriteria={taskCriteriaBuckets[i] ?? []}
           status={statuses[i]}
           error={errors[i]}
           regenerating={regeneratingIndex === i}
@@ -1254,7 +1297,7 @@ function ReviewStep({
 function TaskCard({
   index,
   task,
-  focusCriterion,
+  focusCriteria,
   status,
   error,
   regenerating,
@@ -1262,7 +1305,7 @@ function TaskCard({
 }: {
   index: number;
   task: GeneratedTaskDraft | null;
-  focusCriterion: string | null;
+  focusCriteria: string[];
   status: "pending" | "generating" | "ready" | "error";
   error: string | null;
   regenerating: boolean;
@@ -1314,12 +1357,18 @@ function TaskCard({
         )}
       </div>
 
-      {focusCriterion && (
+      {focusCriteria.length > 0 && (
         <div className="px-4 py-2 bg-[#f5f8fb] border-b border-slate-200 text-xs">
-          <span className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
-            Testing
-          </span>
-          <span className="ml-2 text-slate-700">{focusCriterion}</span>
+          <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+            Testing {focusCriteria.length === 1 ? "criterion" : `${focusCriteria.length} criteria together`}
+          </div>
+          <ul className="mt-1 space-y-0.5">
+            {focusCriteria.map((c) => (
+              <li key={c} className="text-slate-700 leading-snug">
+                · {c}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

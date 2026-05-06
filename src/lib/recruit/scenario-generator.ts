@@ -37,11 +37,13 @@ export interface GenerateTaskInput {
   taskIndex: number; // 1..n
   taskCount: number; // total tasks the admin is asking for
   priorThemes: string[]; // themeSummary values from already-accepted tasks
-  // The selection criterion this task must concretely test. Chosen by
-  // the hiring manager in the wizard's criteria step. Required —
-  // making it optional invites silent regression where the wizard
-  // stops sending it and the model goes back to picking its own focus.
-  focusCriterion: string;
+  // The selection criteria this task must concretely test. Chosen by
+  // the hiring manager in the wizard's criteria step. May contain one
+  // or more — a single task can test multiple competencies in one
+  // coherent scenario (e.g., a memo that exercises both technical
+  // judgement and clear communication, the way a real role challenge
+  // would). Required and non-empty.
+  focusCriteria: string[];
 }
 
 // Sonnet 4.6 instead of Opus 4.7. Amplify Hosting's SSR runtime
@@ -58,11 +60,15 @@ const SYSTEM_PROMPT = `You design technical assessments for senior professional 
 
 # How to ground the task in the JD
 
-The user message will name ONE specific selection criterion ("focus criterion"). The task you design must concretely test THIS criterion in a real situation the role-holder would face. Do not pivot to a different criterion you find more interesting in the JD — the focus criterion was chosen by the hiring manager and is the binding constraint for this task.
+The user message will list ONE OR MORE selection criteria ("focus criteria") that this task must test. The hiring manager has chosen these — they are the binding constraint for this task. Do not pivot to a different criterion you find more interesting in the JD.
 
-Use the JD's domain detail (tools, frameworks, regulations, artefact types) to make the exhibit industry-matched, but the competency under test is the focus criterion the user names. If the focus criterion is "Demonstrated experience reviewing vendor contracts under UN procurement framework", your task should put a contract in front of them with embedded compliance issues to find — not a SIEM alert, not a financial statement, even if the JD also lists those.
+**If multiple focus criteria are listed**, design a single coherent task that exercises ALL of them in one realistic scenario — the way a real role challenge would. Do not stitch together separate sub-questions per criterion. For example, if the focus criteria are "incident response judgement under operational pressure" and "clear written communication for executive audiences", a single task can test both: put the candidate in front of a live alert chain and ask for a CISO-facing memo — the technical reasoning AND the communication are exercised by the same exhibit and deliverable. The address-bullets in the brief can map onto the criteria, but the scenario itself should be one situation, not three.
 
-Do not design generic competency-tests that any senior professional could attempt — design a scenario that the person hired into THIS role, doing THIS specific competency, would face on a typical Tuesday.
+**If a single focus criterion is listed**, the task tests just that one — but still anchored on a specific real situation the role-holder would face, not a generic competency probe.
+
+Use the JD's domain detail (tools, frameworks, regulations, artefact types) to make the exhibit industry-matched. The competency under test is whatever the focus criteria name. If the focus criterion is "Demonstrated experience reviewing vendor contracts under UN procurement framework", your task should put a contract in front of the candidate with embedded compliance issues to find — not a SIEM alert, not a financial statement, even if the JD also lists those.
+
+Do not design generic competency-tests that any senior professional could attempt — design a scenario that the person hired into THIS role, doing THESE specific competencies, would face on a typical Tuesday.
 
 # Quality bar for each task
 
@@ -193,17 +199,20 @@ ${input.jdText}`,
     ? `\n\n**Themes already covered by sibling tasks (do NOT repeat or vary on these):**\n${input.priorThemes.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
     : "";
 
+  const focusCriteriaText =
+    input.focusCriteria.length === 1
+      ? `The hiring manager has selected this criterion as the one to test:\n\n> ${input.focusCriteria[0]}`
+      : `The hiring manager has selected ${input.focusCriteria.length} criteria for this task. Design ONE coherent scenario that tests ALL of them together (not as separate sub-questions):\n\n${input.focusCriteria.map((c) => `> ${c}`).join("\n>\n")}`;
+
   const taskBlock: Anthropic.TextBlockParam = {
     type: "text",
     text: `Design **task ${input.taskIndex} of ${input.taskCount}** for the assessment described above.${priorThemesText}
 
-# Focus criterion for this task
+# Focus criteria for this task
 
-The hiring manager has selected this criterion as the one to test:
+${focusCriteriaText}
 
-> ${input.focusCriterion}
-
-Design a task that concretely tests THIS criterion. Use the JD's domain detail (tools, frameworks, artefact types) to make the exhibit industry-matched, but the competency under test is the criterion quoted above.
+Design a task that concretely tests ${input.focusCriteria.length === 1 ? "THIS criterion" : "ALL of these criteria together"}. Use the JD's domain detail (tools, frameworks, artefact types) to make the exhibit industry-matched, but the competenc${input.focusCriteria.length === 1 ? "y" : "ies"} under test ${input.focusCriteria.length === 1 ? "is the criterion" : "are the criteria"} quoted above.
 
 Call the \`propose_task\` tool with your task draft.`,
   };
@@ -250,8 +259,14 @@ export async function generateOneTask(
       `taskIndex ${input.taskIndex} out of range for taskCount ${input.taskCount}`
     );
   }
-  if (!input.focusCriterion?.trim()) {
-    throw new Error("focusCriterion is required — cannot generate a task.");
+  if (
+    !Array.isArray(input.focusCriteria) ||
+    input.focusCriteria.length === 0 ||
+    !input.focusCriteria.every((c) => typeof c === "string" && c.trim())
+  ) {
+    throw new Error(
+      "focusCriteria must be a non-empty array of criterion strings."
+    );
   }
 
   const client = await getClient();
