@@ -70,16 +70,16 @@ export async function POST(request: NextRequest) {
   }
 
   let text: string;
-  let parser: { destroy(): Promise<void> } | null = null;
   try {
     if (format === "pdf") {
-      // pdf-parse v2+ uses a class API and pulls in pdf.js — import it lazily
-      // so the dev server doesn't choke on first compile of unrelated routes.
-      const { PDFParse } = await import("pdf-parse");
-      const p = new PDFParse({ data: bytes });
-      parser = p;
-      const result = await p.getText();
-      text = result.text;
+      // unpdf wraps pdfjs-dist with the polyfills it needs to run in
+      // serverless Node (Lambda doesn't expose DOMMatrix etc., which
+      // pdf-parse v2 used directly). Lazy import so the dev server
+      // doesn't pull pdf.js into unrelated route compiles.
+      const { extractText, getDocumentProxy } = await import("unpdf");
+      const pdf = await getDocumentProxy(new Uint8Array(bytes));
+      const result = await extractText(pdf, { mergePages: true });
+      text = Array.isArray(result.text) ? result.text.join("\n\n") : result.text;
     } else {
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer: bytes });
@@ -90,9 +90,6 @@ export async function POST(request: NextRequest) {
       { error: `Failed to parse ${format.toUpperCase()}: ${(e as Error).message}` },
       { status: 422 }
     );
-  } finally {
-    // PDFParse holds a worker reference; release it so the lambda can recycle.
-    if (parser) await parser.destroy().catch(() => {});
   }
 
   // Normalise whitespace — PDF extraction often produces ragged line breaks
