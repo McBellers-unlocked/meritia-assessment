@@ -353,9 +353,31 @@ async function generateOne(input: {
       body: JSON.stringify(input),
     }
   );
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-  return body.task as GeneratedTaskDraft;
+  // Read as text first so we can produce a useful message even when the
+  // server returns an empty body — typically a Lambda timeout or crash,
+  // which we want to call out explicitly rather than the cryptic
+  // "Unexpected end of JSON input" that res.json() throws.
+  const raw = await res.text();
+  if (!raw) {
+    throw new Error(
+      `Server returned an empty response (HTTP ${res.status}). The generation likely timed out at the platform layer — try a shorter JD or fewer tasks.`
+    );
+  }
+  let body: { task?: GeneratedTaskDraft; error?: string };
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `Server returned non-JSON (HTTP ${res.status}): ${raw.slice(0, 200)}`
+    );
+  }
+  if (!res.ok) {
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+  if (!body.task) {
+    throw new Error("Server response did not include a task.");
+  }
+  return body.task;
 }
 
 /* ---------------- step components ---------------- */
