@@ -99,25 +99,59 @@ interface SupabaseRawJob {
 export async function listWipoJobs(
   filters: WipoListFilters = {}
 ): Promise<WipoJobListResult> {
+  // Fetch the full upstream page (cap at 100, the upstream max) so we
+  // can filter to currently-open postings ourselves before slicing.
+  // The upstream `total` includes stale rows whose closing_date is in
+  // the past or missing entirely — pagination on top of that returns
+  // mostly-empty pages once the filter is applied.
   const url = new URL(SUPABASE_BASE);
   if (filters.q) url.searchParams.set("q", filters.q);
   if (filters.grade) url.searchParams.set("grade", filters.grade);
   if (filters.level) url.searchParams.set("level", filters.level);
-  url.searchParams.set("limit", String(filters.limit ?? 50));
-  url.searchParams.set("offset", String(filters.offset ?? 0));
+  url.searchParams.set("limit", "100");
+  url.searchParams.set("offset", "0");
 
   const raw = await fetchJson<SupabaseListResponse>(url.toString());
-  const items = Array.isArray(raw.items) ? raw.items : [];
+  const rawItems = Array.isArray(raw.items) ? raw.items : [];
+
+  const filtered = rawItems
+    .map(normalizeJob)
+    // Drop Supabase placeholder rows ("No Jobs Found").
+    .filter((j) => j.title && !/^no jobs? found$/i.test(j.title))
+    // Only currently-open postings: closing_date must be present and
+    // today-or-later. Jobs without a closing_date are stale entries
+    // the upstream kept around — drop them.
+    .filter((j) => isStillOpen(j.closingDate));
+
+  const requestedLimit = filters.limit ?? 50;
+  const requestedOffset = filters.offset ?? 0;
+  const sliced = filtered.slice(
+    requestedOffset,
+    requestedOffset + requestedLimit
+  );
+
   return {
-    items: items
-      .map(normalizeJob)
-      // Filter out Supabase placeholder rows ("No Jobs Found" etc.) so
-      // they don't pollute the picker.
-      .filter((j) => j.title && !/^no jobs? found$/i.test(j.title)),
-    total: typeof raw.total === "number" ? raw.total : items.length,
-    limit: typeof raw.limit === "number" ? raw.limit : items.length,
-    offset: typeof raw.offset === "number" ? raw.offset : 0,
+    items: sliced,
+    total: filtered.length,
+    limit: requestedLimit,
+    offset: requestedOffset,
   };
+}
+
+/**
+ * A posting is "open" if its closing_date is today or later. No date
+ * means we don't know — treat as closed (matches the observed dataset
+ * where dateless rows are stale entries the upstream keeps around).
+ */
+function isStillOpen(closingDate: string | null): boolean {
+  if (!closingDate) return false;
+  const closing = Date.parse(closingDate);
+  if (!Number.isFinite(closing)) return false;
+  // Compare against start-of-day UTC so a job closing TODAY still
+  // counts as open.
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return closing >= today.getTime();
 }
 
 export async function fetchWipoJobDetail(
