@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { jobId: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const job = await prisma.recruitmentScenarioGenerationJob.findUnique({
@@ -26,9 +26,10 @@ export async function GET(
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  // Lock down to the admin who created the job (or any admin — for now
-  // any admin can view any job; revisit if multi-tenant).
-  // NOTE: requireAdmin already gates to admin role; no per-user check here.
+  // DEMO sessions can only poll their own jobs; full ADMIN can poll any.
+  if (auth.role === "DEMO" && job.createdById !== auth.userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const now = Date.now();
   const startedRef = job.startedAt ?? job.enqueuedAt;

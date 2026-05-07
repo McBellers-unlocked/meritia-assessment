@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,7 @@ interface IncomingTaskDraft {
  * redirects to the standard scenario editor for tweaks.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const body = await request.json().catch(() => ({}));

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 import { getAnthropicKey } from "@/lib/secrets";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ const DOCX_MIME =
  * the generate-task endpoint.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const formData = await request.formData().catch(() => null);

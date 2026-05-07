@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 import {
   fetchWipoJobDetail,
   WipoUpstreamError,
@@ -23,7 +23,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const id = params.id?.trim();

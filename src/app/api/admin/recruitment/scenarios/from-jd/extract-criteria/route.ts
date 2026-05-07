@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 import {
   extractCriteria,
   type ExtractCriteriaInput,
@@ -22,7 +22,7 @@ export const maxDuration = 60;
  *     plus periodic `: keepalive` comments while the model is running.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const body = await request.json().catch(() => ({}));

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import {
+  requireScenarioBuilder,
+  scenarioScopeWhere,
+} from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +14,15 @@ export const dynamic = "force-dynamic";
  *   body: { title, slug, organisation, positionTitle, defaultTotalMinutes? }
  */
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const status = request.nextUrl.searchParams.get("status");
+  // DEMO sessions can only see scenarios they themselves created;
+  // ADMIN sees all. scenarioScopeWhere returns the right Prisma fragment.
+  const scopeWhere = scenarioScopeWhere(auth);
   const scenarios = await prisma.recruitmentScenario.findMany({
-    where: status ? { status } : undefined,
+    where: { ...scopeWhere, ...(status ? { status } : {}) },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { tasks: true, assessments: true } },
@@ -44,7 +50,7 @@ export async function GET(request: NextRequest) {
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const body = await request.json().catch(() => ({}));

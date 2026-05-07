@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 import { enqueueGenerationJob } from "@/lib/recruit/sqs-client";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  * long call out of the SSR boundary entirely.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const body = await request.json().catch(() => ({}));

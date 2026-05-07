@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireScenarioBuilder } from "@/lib/admin-auth";
 import { listWipoJobs, WipoUpstreamError } from "@/lib/recruit/wipo-jobs";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export const maxDuration = 30;
  * "No Jobs Found" rows. Server-side cached for 5 minutes inside the lib.
  */
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);

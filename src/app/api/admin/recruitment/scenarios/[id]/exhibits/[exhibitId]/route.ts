@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import {
+  assertScenarioAccess,
+  requireScenarioBuilder,
+} from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +13,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; exhibitId: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertScenarioAccess(auth, params.id);
+  if (denied) return denied;
 
   const existing = await prisma.recruitmentScenarioExhibit.findUnique({
     where: { id: params.exhibitId },
@@ -55,8 +60,10 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string; exhibitId: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertScenarioAccess(auth, params.id);
+  if (denied) return denied;
 
   const existing = await prisma.recruitmentScenarioExhibit.findUnique({
     where: { id: params.exhibitId },

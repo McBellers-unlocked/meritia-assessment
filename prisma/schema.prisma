@@ -15,6 +15,7 @@ datasource db {
 
 enum Role {
   ADMIN
+  DEMO
 }
 
 // -------------------------------------------------------------------
@@ -28,6 +29,32 @@ model User {
   role      Role     @default(ADMIN)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  demoSession RecruitmentDemoSession?
+}
+
+// -------------------------------------------------------------------
+// Tokenized demo sessions for prospect-facing self-serve trials.
+// One row per share-with-prospect URL: clicking the activation link
+// signs the user in as the linked DEMO User. Demo users see only
+// scenarios they created themselves (`createdById` scope) and have
+// no access to candidates / results / cohorts.
+//
+// Mint via scripts/mint-demo-session.ts; revoke by setting revokedAt.
+// -------------------------------------------------------------------
+model RecruitmentDemoSession {
+  id        String    @id @default(cuid())
+  token     String    @unique // 64-char hex; appears in the URL
+  name      String // for the operator's records, e.g. "WIPO Director"
+  email     String? // optional contact email
+  userId    String    @unique @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@index([expiresAt])
+  @@map("recruitment_demo_sessions")
 }
 
 // ============================================================================
