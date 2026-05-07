@@ -31,7 +31,12 @@ import {
 } from "./prompt.mjs";
 
 const MODEL = "claude-opus-4-7";
-const MAX_TOKENS = 16_000;
+// Includes adaptive-thinking tokens + the tool call (which carries the
+// rendered exhibit HTML, brief, etc.). Adaptive thinking on a complex
+// JD can easily burn 10K, leaving too little room for a richly
+// formatted exhibit at the previous 16K cap. 32K gives headroom and
+// is still far below the model's actual ceiling.
+const MAX_TOKENS = 32_000;
 
 let pgPool = null;
 function getPool() {
@@ -226,11 +231,24 @@ async function callAnthropic(input) {
     "totalMarks",
     "themeSummary",
   ];
-  for (const field of required) {
+  const missing = required.filter((field) => {
     const value = draft?.[field];
-    if (value === undefined || value === null || value === "") {
-      throw new Error(`Generated task missing field: ${field}`);
+    return value === undefined || value === null || value === "";
+  });
+  if (missing.length > 0) {
+    // Surface stop_reason so a max-tokens truncation is obvious from the
+    // wizard error rather than buried in CloudWatch.
+    const stop = response.stop_reason ?? "unknown";
+    if (stop === "max_tokens") {
+      throw new Error(
+        `Model output was truncated (max_tokens hit) before finishing the task draft. ` +
+          `Missing field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. ` +
+          `Try regenerating, or split this task's criteria into a separate run.`
+      );
     }
+    throw new Error(
+      `Generated task missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")} (stop_reason=${stop})`
+    );
   }
 
   return {
