@@ -1200,12 +1200,17 @@ function ConfigureStep({
   onSubmit: () => void;
 }) {
   const tokenEstimate = Math.round(jdText.length / 4);
-  const fromWipo = filename.startsWith("WIPO posting");
+  // Pickers (WIPO, ITU, …) all set filename to `<NAME> posting · <id>`
+  // so we can show provenance generically. Anything else is a JD upload.
+  const postingMatch = filename.match(/^([A-Z][A-Z0-9-]*)\s+posting\b/);
+  const sourceLabel = postingMatch
+    ? `Source job description (${postingMatch[1]})`
+    : "Parsed JD";
   return (
     <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
       <div>
         <div className="text-xs uppercase tracking-wider text-[#4B92DB] font-semibold">
-          {fromWipo ? "Source job description (WIPO)" : "Parsed JD"}
+          {sourceLabel}
         </div>
         <div className="text-sm text-slate-600">
           <span className="font-mono">{filename}</span> ·{" "}

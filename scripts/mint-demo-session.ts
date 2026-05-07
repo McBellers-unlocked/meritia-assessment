@@ -2,13 +2,18 @@
  * Mint a tokenized demo session for a prospect.
  *
  * Usage:
- *   npx tsx scripts/mint-demo-session.ts --name "WIPO Director" [--email her@example.com] [--days 7]
+ *   npx tsx scripts/mint-demo-session.ts --name "<their name>" \
+ *     [--email <them@example.com>] [--days 7] [--dest <path>] [--base-url <https://...>]
  *
- * Creates:
- *   - a DEMO-role User (with the supplied email or a synthetic one)
- *   - a RecruitmentDemoSession row carrying the token + expiry
+ * --dest sets where the activation URL drops the prospect after sign-in
+ *   (default: /admin/recruitment/scenarios/new/from-wipo).
+ *   Example for an ITU prospect: --dest /admin/recruitment/scenarios/new/from-itu
  *
- * Prints the activation URL (one URL per session — share over email/Slack).
+ * --base-url overrides the host the printed URL uses. Useful when
+ *   .env.local has NEXTAUTH_URL=http://localhost:3000 — without this
+ *   flag the script would print a localhost URL even though the
+ *   token is valid against the prod DB.
+ *   Default: https://www.uniqassess.org (or NEXTAUTH_URL if it's https).
  *
  * Revoke an active session:
  *   npx tsx scripts/mint-demo-session.ts --revoke <token-or-session-id>
@@ -23,6 +28,8 @@ interface ParsedArgs {
   name?: string;
   email?: string;
   days?: number;
+  dest?: string;
+  baseUrl?: string;
   revoke?: string;
 }
 
@@ -44,6 +51,14 @@ function parseArgs(argv: string[]): ParsedArgs {
         out.days = Number(next);
         i++;
         break;
+      case "--dest":
+        out.dest = next;
+        i++;
+        break;
+      case "--base-url":
+        out.baseUrl = next;
+        i++;
+        break;
       case "--revoke":
         out.revoke = next;
         i++;
@@ -56,10 +71,22 @@ function parseArgs(argv: string[]): ParsedArgs {
 function usage(): never {
   process.stderr.write(
     `Usage:\n` +
-      `  npx tsx scripts/mint-demo-session.ts --name "WIPO Director" [--email her@example.com] [--days 7]\n` +
+      `  npx tsx scripts/mint-demo-session.ts --name "<their name>"\n` +
+      `       [--email <them@example.com>] [--days 7] [--dest <path>] [--base-url <https://...>]\n` +
       `  npx tsx scripts/mint-demo-session.ts --revoke <token-or-session-id>\n`
   );
   process.exit(2);
+}
+
+function resolveBaseUrl(override: string | undefined): string {
+  if (override) return override.replace(/\/$/, "");
+  // Ignore NEXTAUTH_URL when it's a non-https value (common when
+  // .env.local points to localhost) — printing a localhost URL the
+  // operator would have to manually rewrite is worse than defaulting
+  // to prod.
+  const env = process.env.NEXTAUTH_URL?.replace(/\/$/, "");
+  if (env && env.startsWith("https://")) return env;
+  return "https://www.uniqassess.org";
 }
 
 async function main() {
@@ -106,10 +133,11 @@ async function main() {
       });
     });
 
-    const baseUrl =
-      process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
-      "https://www.uniqassess.org";
-    const url = `${baseUrl}/api/demo/activate?t=${token}`;
+    const baseUrl = resolveBaseUrl(args.baseUrl);
+    const dest = args.dest?.trim();
+    const url = new URL("/api/demo/activate", baseUrl);
+    url.searchParams.set("t", token);
+    if (dest) url.searchParams.set("dest", dest);
 
     console.log("✓ Demo session created");
     console.log(`  name:       ${session.name}`);
@@ -117,10 +145,11 @@ async function main() {
     console.log(`  sessionId:  ${session.id}`);
     console.log(`  expires:    ${session.expiresAt.toISOString()}`);
     console.log(`  days valid: ${days}`);
+    if (dest) console.log(`  lands at:   ${dest}`);
     console.log("");
     console.log("Send this URL to the prospect:");
     console.log("");
-    console.log(`  ${url}`);
+    console.log(`  ${url.toString()}`);
     console.log("");
     console.log(
       `To revoke later: npx tsx scripts/mint-demo-session.ts --revoke ${token}`

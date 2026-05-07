@@ -55,7 +55,7 @@ export default function ScenariosListPage() {
             Author custom scenarios with memo + AI investigation, email inbox, and chat tasks.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Link
             href="/admin/recruitment/scenarios/new/from-wipo"
             className="px-5 py-2.5 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] inline-flex items-center gap-2 shadow-sm"
@@ -63,6 +63,14 @@ export default function ScenariosListPage() {
           >
             <span aria-hidden>✨</span>
             Build from WIPO open jobs
+          </Link>
+          <Link
+            href="/admin/recruitment/scenarios/new/from-itu"
+            className="px-5 py-2.5 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] inline-flex items-center gap-2 shadow-sm"
+            title="Browse currently open ITU postings and build an assessment from one"
+          >
+            <span aria-hidden>✨</span>
+            Build from ITU open jobs
           </Link>
           <Link
             href="/admin/recruitment/scenarios/new/from-jd"
