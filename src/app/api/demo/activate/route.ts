@@ -98,24 +98,52 @@ export async function GET(request: NextRequest) {
     maxAge: maxAgeSeconds,
   });
 
-  // NextAuth uses different cookie names in HTTPS vs HTTP — match its
-  // convention so getServerSession picks up the cookie on subsequent
-  // requests. (Source: next-auth/src/core/lib/cookie.ts)
-  const useSecureCookies =
-    process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
-  const cookieName = useSecureCookies
+  // Derive the *public* origin from forwarded headers (Amplify sits
+  // behind a load balancer, and request.url can reflect the internal
+  // Lambda hostname). NEXTAUTH_URL is checked too, but only if it's
+  // an https URL — a stale localhost value (common leftover from
+  // dev .env files) would otherwise redirect the user to localhost
+  // and trigger a browser SSL error.
+  const origin = publicOrigin(request);
+  const isSecureScheme = origin.startsWith("https://");
+
+  // Cookie name has to match NextAuth's convention so getServerSession
+  // picks it up on subsequent requests. The `__Secure-` prefix is
+  // mandatory when the cookie has the Secure flag.
+  const cookieName = isSecureScheme
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
 
-  const response = NextResponse.redirect(new URL(dest, request.url));
+  const response = NextResponse.redirect(`${origin}${dest}`);
   response.cookies.set(cookieName, jwt, {
     httpOnly: true,
-    secure: useSecureCookies,
+    secure: isSecureScheme,
     sameSite: "lax",
     path: "/",
     maxAge: maxAgeSeconds,
   });
   return response;
+}
+
+/**
+ * Resolve the public origin of the current request. Order:
+ *   1. NEXTAUTH_URL — only when it's an https URL. A localhost value
+ *      (left over from a copied .env.local) is ignored.
+ *   2. x-forwarded-host + x-forwarded-proto — set by Amplify's load
+ *      balancer.
+ *   3. request.nextUrl.origin — last-resort fallback for local dev.
+ */
+function publicOrigin(request: NextRequest): string {
+  const env = process.env.NEXTAUTH_URL?.replace(/\/$/, "");
+  if (env && env.startsWith("https://")) return env;
+
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedHost) {
+    const proto = forwardedProto ?? "https";
+    return `${proto}://${forwardedHost}`;
+  }
+  return request.nextUrl.origin;
 }
 
 const ALLOWED_DEST_PREFIXES = ["/admin/recruitment/scenarios"];
