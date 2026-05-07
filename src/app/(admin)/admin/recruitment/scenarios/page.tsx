@@ -55,20 +55,31 @@ export default function ScenariosListPage() {
             Author custom scenarios with memo + AI investigation, email inbox, and chat tasks.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Link
-            href="/admin/recruitment/scenarios/new/from-jd"
-            className="px-4 py-2 rounded-md bg-[#4B92DB] text-white text-sm font-semibold hover:bg-[#357fc8] inline-flex items-center gap-1.5"
-            title="Upload a job description and let Claude Opus 4.7 draft the scenario"
+            href="/admin/recruitment/scenarios/new/from-wipo"
+            className="px-5 py-2.5 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] inline-flex items-center gap-2 shadow-sm"
+            title="Browse currently open WIPO postings and build an assessment from one"
           >
             <span aria-hidden>✨</span>
-            Generate from JD
+            Build from WIPO open jobs
           </Link>
           <Link
-            href="/admin/recruitment/scenarios/new"
-            className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338]"
+            href="/admin/recruitment/scenarios/new/from-jd"
+            className="text-sm text-slate-600 hover:text-[#1B2A4A] hover:underline"
+            title="Upload a PDF/DOCX job description"
           >
-            New scenario
+            Upload your own JD
+          </Link>
+          <span className="text-slate-300" aria-hidden>
+            ·
+          </span>
+          <Link
+            href="/admin/recruitment/scenarios/new"
+            className="text-sm text-slate-600 hover:text-[#1B2A4A] hover:underline"
+            title="Start with a blank scenario"
+          >
+            Blank scenario
           </Link>
         </div>
       </div>
@@ -81,10 +92,10 @@ export default function ScenariosListPage() {
           <div className="p-8 text-center">
             <div className="text-sm text-slate-500 mb-3">No scenarios yet.</div>
             <Link
-              href="/admin/recruitment/scenarios/new"
+              href="/admin/recruitment/scenarios/new/from-wipo"
               className="inline-block px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338]"
             >
-              Create your first scenario
+              ✨ Build from WIPO open jobs
             </Link>
           </div>
         )}

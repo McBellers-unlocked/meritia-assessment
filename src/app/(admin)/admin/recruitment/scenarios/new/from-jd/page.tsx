@@ -29,6 +29,21 @@ const MAX_SELECTED_CRITERIA = 6;
 const SOFT_WARN_AT = 5;
 const DEFAULT_ORG = "International Digital Services Centre (IDSC), Geneva";
 
+// sessionStorage key set by the WIPO picker page
+// (/admin/recruitment/scenarios/new/from-wipo). When present on mount,
+// we hydrate the form from a real WIPO posting and skip the upload
+// step.
+const WIPO_HANDOFF_STORAGE_KEY = "wipo-jd-handoff";
+
+interface WipoHandoff {
+  jdText: string;
+  title: string;
+  positionTitle: string;
+  organisation: string;
+  filename: string;
+  sourceLink: string | null;
+}
+
 /**
  * Split a flat list of selected criteria into one bucket per
  * generated task. With memo_ai at 2 tasks: first half goes to task 1,
@@ -84,6 +99,13 @@ export default function GenerateFromJdPage() {
   const [organisation, setOrganisation] = useState(DEFAULT_ORG);
   const [positionTitle, setPositionTitle] = useState("");
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
+  // Set when this flow was started from a WIPO posting — used to show
+  // a "Source: WIPO posting →" link on the configure step.
+  const [sourceLink, setSourceLink] = useState<string | null>(null);
+
+  // Guard so the WIPO hand-off effect runs at most once even under
+  // React strict-mode double-invocation.
+  const wipoHandoffConsumedRef = useRef(false);
 
   // Review step
   // taskCriteriaBuckets is the per-task list of criteria for each
@@ -200,6 +222,47 @@ export default function GenerateFromJdPage() {
       setExtractingCriteria(false);
     }
   };
+
+  // WIPO hand-off: when the picker page navigates here after the user
+  // chose a posting, it leaves a payload in sessionStorage. Hydrate the
+  // form from it, skip the upload step, and fire criteria extraction
+  // immediately — same flow as a successful PDF/DOCX upload, just with
+  // a pre-fetched JD.
+  useEffect(() => {
+    if (wipoHandoffConsumedRef.current) return;
+    if (typeof window === "undefined") return;
+    let raw: string | null = null;
+    try {
+      raw = window.sessionStorage.getItem(WIPO_HANDOFF_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    wipoHandoffConsumedRef.current = true;
+    try {
+      window.sessionStorage.removeItem(WIPO_HANDOFF_STORAGE_KEY);
+    } catch {
+      // Storage may be locked down (incognito, quota); already consumed.
+    }
+    let payload: WipoHandoff;
+    try {
+      payload = JSON.parse(raw) as WipoHandoff;
+    } catch {
+      return;
+    }
+    if (!payload.jdText?.trim() || !payload.title?.trim()) return;
+
+    setJdText(payload.jdText);
+    setTitle(payload.title);
+    setPositionTitle(payload.positionTitle || payload.title);
+    setOrganisation(payload.organisation || "WIPO");
+    setFilename(payload.filename || "WIPO posting");
+    setSourceLink(payload.sourceLink || null);
+    setStep("criteria");
+    void runCriteriaExtraction(payload.jdText, payload.title);
+    // Run only once on mount; the ref guards against double-invoke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Click-to-edit on a criterion: replaces the text in its array AND
   // updates the selection set if that criterion was ticked.
@@ -473,6 +536,7 @@ export default function GenerateFromJdPage() {
         <ConfigureStep
           jdText={jdText}
           filename={filename}
+          sourceLink={sourceLink}
           title={title}
           setTitle={setTitle}
           slug={slug}
@@ -1099,6 +1163,7 @@ function ManualCriteriaEditor({
 function ConfigureStep({
   jdText,
   filename,
+  sourceLink,
   title,
   setTitle,
   slug,
@@ -1117,6 +1182,7 @@ function ConfigureStep({
 }: {
   jdText: string;
   filename: string;
+  sourceLink: string | null;
   title: string;
   setTitle: (v: string) => void;
   slug: string;
@@ -1134,16 +1200,30 @@ function ConfigureStep({
   onSubmit: () => void;
 }) {
   const tokenEstimate = Math.round(jdText.length / 4);
+  const fromWipo = filename.startsWith("WIPO posting");
   return (
     <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
       <div>
         <div className="text-xs uppercase tracking-wider text-[#4B92DB] font-semibold">
-          Parsed JD
+          {fromWipo ? "Source job description (WIPO)" : "Parsed JD"}
         </div>
         <div className="text-sm text-slate-600">
           <span className="font-mono">{filename}</span> ·{" "}
           {jdText.length.toLocaleString()} characters (~
           {tokenEstimate.toLocaleString()} tokens)
+          {sourceLink && (
+            <>
+              {" · "}
+              <a
+                href={sourceLink.replace(/^http:\/\//i, "https://")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#4B92DB] hover:underline"
+              >
+                ↗ original posting
+              </a>
+            </>
+          )}
         </div>
         <details className="mt-2">
           <summary className="cursor-pointer text-xs text-[#4B92DB] hover:underline">
