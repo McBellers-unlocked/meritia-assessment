@@ -135,12 +135,12 @@ export async function POST(request: NextRequest) {
       { status: 409 }
     );
   }
-  const slugClash = await prisma.recruitmentScenario.findUnique({
-    where: { slug },
-  });
-  if (slugClash) {
-    return NextResponse.json({ error: "slug already in use" }, { status: 409 });
-  }
+  // The slug arrives auto-derived from the JD title. If a previous run
+  // already saved a scenario with the same title (re-tests of the same
+  // WIPO posting are common during demos), disambiguate by appending
+  // `-2`, `-3`, ... rather than failing the save and forcing the user
+  // back to edit the slug field.
+  const finalSlug = await ensureUniqueSlug(slug);
 
   // One transaction: scenario header, exhibits, tasks (each linked to its
   // exhibit by id). If anything fails, the whole thing rolls back.
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     const scenario = await tx.recruitmentScenario.create({
       data: {
         title,
-        slug,
+        slug: finalSlug,
         organisation,
         positionTitle,
         defaultTotalMinutes,
@@ -194,6 +194,42 @@ export async function POST(request: NextRequest) {
       title: created.title,
     },
   });
+}
+
+/**
+ * Find a free slug starting from `base`, appending `-2`, `-3`, ... if
+ * needed. Race-safe enough for a single-operator product (the create
+ * itself runs in a transaction; in the unlikely event of a concurrent
+ * insert wining a slug between the lookup and the insert, the unique
+ * constraint will surface a P2002 error which the caller can retry).
+ *
+ * Truncates to 40 chars to match the auto-derive in the wizard.
+ */
+async function ensureUniqueSlug(base: string): Promise<string> {
+  const trimmedBase = base.slice(0, 40).replace(/-+$/, "") || "scenario";
+
+  const existingSlugs = await prisma.recruitmentScenario.findMany({
+    where: { slug: { startsWith: trimmedBase } },
+    select: { slug: true },
+  });
+  const taken = new Set(existingSlugs.map((s) => s.slug));
+  taken.add("fam-p4");
+  taken.add("aplo-p2");
+
+  if (!taken.has(trimmedBase)) return trimmedBase;
+
+  for (let i = 2; i < 1000; i++) {
+    const suffix = `-${i}`;
+    // Keep total length under 40 by trimming the base, not the suffix.
+    const room = 40 - suffix.length;
+    const candidate = `${trimmedBase.slice(0, room).replace(/-+$/, "")}${suffix}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  // Astronomical: 1000+ scenarios with the same title prefix. Fall
+  // back to a random tail.
+  return `${trimmedBase.slice(0, 32).replace(/-+$/, "")}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
 }
 
 function defaultMemoSystemPrompt(
