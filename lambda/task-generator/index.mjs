@@ -193,7 +193,14 @@ function validateInput(input) {
 async function callAnthropic(input) {
   const client = getAnthropic();
 
-  const response = await client.messages.create({
+  // Use the streaming helper rather than non-streaming `create`. With
+  // 32K max_tokens + adaptive thinking + effort:high, the SDK's
+  // pre-flight time estimate trips its "use streaming for ops that
+  // may take >10 min" guard and refuses a non-streaming request. The
+  // Lambda has a 5-min ceiling regardless, so streaming just lets us
+  // pass that check; we still wait for the final assembled message
+  // before validating.
+  const stream = client.messages.stream({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
@@ -210,6 +217,7 @@ async function callAnthropic(input) {
       },
     ],
   });
+  const response = await stream.finalMessage();
 
   const toolUse = response.content.find(
     (b) => b.type === "tool_use" && b.name === PROPOSE_TASK_TOOL.name
