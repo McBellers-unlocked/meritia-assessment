@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import {
+  assertScenarioAccess,
+  assessmentScopeWhere,
+  requireScenarioBuilder,
+} from "@/lib/admin-auth";
 import { getRecruitScenarioById } from "@/lib/recruit/fam-p4-2026";
 import { getDbScenarioById } from "@/lib/recruit/scenario-loader";
 
@@ -12,10 +16,12 @@ export const dynamic = "force-dynamic";
  *   body: { title, scenarioId, openDate, closeDate, totalMinutes? }
  */
 export async function GET() {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
+  // DEMO users see only their own assessments; ADMIN sees all.
   const assessments = await prisma.recruitmentAssessment.findMany({
+    where: assessmentScopeWhere(auth),
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { candidates: true } },
@@ -38,7 +44,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
 
   const body = await request.json().catch(() => ({}));
@@ -65,6 +71,11 @@ export async function POST(request: NextRequest) {
   let resolvedCustomId: string | null = null;
 
   if (customScenarioId) {
+    // DEMO users can only build cohorts on top of scenarios they
+    // themselves created — assertScenarioAccess returns 403/404 if not.
+    const denied = await assertScenarioAccess(auth, customScenarioId);
+    if (denied) return denied;
+
     const dbScenario = await getDbScenarioById(customScenarioId);
     if (!dbScenario) {
       return NextResponse.json({ error: `Unknown customScenarioId: ${customScenarioId}` }, { status: 400 });
@@ -79,6 +90,15 @@ export async function POST(request: NextRequest) {
     defaultMinutes = dbScenario.defaultTotalMinutes;
     resolvedCustomId = customScenarioId;
   } else {
+    // Built-in code-based scenarios are off-limits to DEMO sessions —
+    // they aren't owned by any user and would let a demo prospect run
+    // assessments against templates the operator hasn't reviewed.
+    if (auth.role === "DEMO") {
+      return NextResponse.json(
+        { error: "Demo sessions can only build assessments from scenarios you've authored." },
+        { status: 403 }
+      );
+    }
     const scenario = getRecruitScenarioById(scenarioId);
     if (!scenario) return NextResponse.json({ error: `Unknown scenarioId: ${scenarioId}` }, { status: 400 });
     resolvedSlug = scenario.slug;

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import {
+  assertAssessmentAccess,
+  requireScenarioBuilder,
+} from "@/lib/admin-auth";
 import { generateToken, indexToAnonymousId, anonymousIdToIndex } from "@/lib/recruit/tokens";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 
@@ -19,8 +22,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertAssessmentAccess(auth, params.id);
+  if (denied) return denied;
 
   const body = await request.json().catch(() => ({}));
   const entriesRaw = Array.isArray(body.entries) ? body.entries : [];
@@ -107,8 +112,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertAssessmentAccess(auth, params.id);
+  if (denied) return denied;
 
   const assessment = await prisma.recruitmentAssessment.findUnique({ where: { id: params.id } });
   if (!assessment) return NextResponse.json({ error: "Not found" }, { status: 404 });

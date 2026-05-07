@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import {
+  assertAssessmentAccess,
+  requireScenarioBuilder,
+} from "@/lib/admin-auth";
 import { loadRubric } from "@/lib/recruit/rubric";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +21,10 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string; candidateId: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertAssessmentAccess(auth, params.id);
+  if (denied) return denied;
 
   const c = await prisma.recruitmentCandidate.findUnique({
     where: { id: params.candidateId },
@@ -81,8 +86,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string; candidateId: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertAssessmentAccess(auth, params.id);
+  if (denied) return denied;
 
   const body = await request.json().catch(() => ({}));
 

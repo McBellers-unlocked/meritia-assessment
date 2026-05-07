@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin-auth";
+import {
+  assertAssessmentAccess,
+  requireScenarioBuilder,
+} from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +16,10 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireScenarioBuilder();
   if (!auth.ok) return auth.response;
+  const denied = await assertAssessmentAccess(auth, params.id);
+  if (denied) return denied;
 
   const a = await prisma.recruitmentAssessment.findUnique({
     where: { id: params.id },

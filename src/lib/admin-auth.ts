@@ -108,3 +108,37 @@ export function scenarioScopeWhere(
   if (auth.role === "ADMIN") return {};
   return { createdById: auth.userId };
 }
+
+/**
+ * Per-resource ownership check for assessments (cohorts).
+ * Mirror of assertScenarioAccess but for RecruitmentAssessment.
+ * DEMO users can only see/edit assessments they themselves created.
+ */
+export async function assertAssessmentAccess(
+  auth: Extract<AuthResult, { ok: true }>,
+  assessmentId: string
+): Promise<NextResponse | null> {
+  if (auth.role === "ADMIN") return null;
+  const assessment = await prisma.recruitmentAssessment.findUnique({
+    where: { id: assessmentId },
+    select: { id: true, createdById: true },
+  });
+  if (!assessment) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (assessment.createdById !== auth.userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return null;
+}
+
+/**
+ * Prisma `where` fragment scoping an assessments query. Same shape as
+ * scenarioScopeWhere — empty for ADMIN, createdById-bound for DEMO.
+ */
+export function assessmentScopeWhere(
+  auth: Extract<AuthResult, { ok: true }>
+): { createdById?: string } {
+  if (auth.role === "ADMIN") return {};
+  return { createdById: auth.userId };
+}
