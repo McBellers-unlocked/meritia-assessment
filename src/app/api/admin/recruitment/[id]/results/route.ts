@@ -4,7 +4,8 @@ import {
   assertAssessmentAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
-import { allIssues, loadRubric } from "@/lib/recruit/rubric";
+import { allIssuesNormalized, loadRubricForAssessment } from "@/lib/recruit/rubric";
+import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,16 @@ export async function GET(
   if (!a) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const revealed = a.revealedAt != null;
 
+  // Real task numbers for this scenario (1–5 generated, 2 legacy),
+  // resolved via the shared loader so it works for code and DB scenarios.
+  // Used as the source of truth for "fully marked" — the old hardcoded
+  // t1 && t2 could never be satisfied by a 3+ task generated scenario.
+  const scenario = await getScenarioForAssessment(a);
+  const markTaskNumbers = (() => {
+    const nums = (scenario?.tasks ?? []).map((t) => t.number).sort((x, y) => x - y);
+    return nums.length > 0 ? nums : [1, 2];
+  })();
+
   const candidates = await prisma.recruitmentCandidate.findMany({
     where: { assessmentId: a.id },
     orderBy: { totalScore: { sort: "desc", nulls: "last" } },
@@ -47,6 +58,15 @@ export async function GET(
   const ranking = candidates.map((c) => {
     const t1 = c.responses.find((r) => r.taskNumber === 1);
     const t2 = c.responses.find((r) => r.taskNumber === 2);
+    // Embedded issues ticked across ALL tasks (generated scenarios can
+    // have up to 5), used by the cohort issue analytics below.
+    const allIssuesIdentified = c.responses.flatMap(
+      (r) => (r.issuesIdentified as string[] | null) ?? [],
+    );
+    // Fully marked = every real task for this scenario has been marked.
+    const fullyMarked = markTaskNumbers.every(
+      (n) => c.responses.find((r) => r.taskNumber === n)?.markedAt != null,
+    );
     return {
       candidateId: c.id,
       anonymousId: c.anonymousId,
@@ -67,7 +87,8 @@ export async function GET(
       candidateMessageCount: c._count.interactions,
       task1IssuesIdentified: (t1?.issuesIdentified as string[] | null) ?? [],
       task2IssuesIdentified: (t2?.issuesIdentified as string[] | null) ?? [],
-      fullyMarked: t1?.markedAt != null && t2?.markedAt != null,
+      allIssuesIdentified,
+      fullyMarked,
     };
   });
 
@@ -105,12 +126,14 @@ export async function GET(
     histogram[idx].count += 1;
   }
 
-  // IPSAS issue identification analytics — derived from rubric metadata
-  const rubric = loadRubric(a.scenarioId);
+  // Embedded-issue identification analytics — derived from rubric
+  // metadata. Now N-task aware: works for both the legacy JSON rubrics
+  // and the per-task rubrics authored for generated scenarios.
+  const rubric = await loadRubricForAssessment(a);
   const issueAnalytics = rubric
-    ? allIssues(rubric).map((iss) => {
+    ? allIssuesNormalized(rubric).map((iss) => {
         const found = fullyMarked.filter((c) =>
-          [...c.task1IssuesIdentified, ...c.task2IssuesIdentified].includes(iss.id),
+          c.allIssuesIdentified.includes(iss.id),
         );
         return {
           id: iss.id,

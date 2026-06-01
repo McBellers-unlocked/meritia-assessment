@@ -16,6 +16,7 @@ interface IncomingTaskDraft {
   deliverableLabel: unknown;
   deliverablePlaceholder: unknown;
   totalMarks: unknown;
+  rubric: unknown;
 }
 
 /**
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
     deliverableLabel: string;
     deliverablePlaceholder: string;
     totalMarks: number;
+    rubric: object | null;
   }> = [];
   for (let i = 0; i < tasksInput.length; i++) {
     const t = tasksInput[i] as IncomingTaskDraft;
@@ -118,6 +120,28 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Rubric is the per-task `categories` object authored by the Lambda
+    // (or null when its call failed soft). Accept object-or-null; NEVER
+    // hard-reject — a usable rubric should not be discarded over a maths
+    // quibble. If the category maxes don't sum to totalMarks, just log:
+    // the marking screen caps scores at the task max regardless.
+    const rubric =
+      t.rubric && typeof t.rubric === "object" && !Array.isArray(t.rubric)
+        ? (t.rubric as Record<string, { max?: unknown }>)
+        : null;
+    if (rubric) {
+      const sum = Object.values(rubric).reduce(
+        (s, cat) => s + (typeof cat?.max === "number" ? cat.max : 0),
+        0
+      );
+      if (sum !== totalMarks) {
+        console.warn(
+          `[from-jd] Task ${i + 1} rubric category maxes sum to ${sum}, expected ${totalMarks} (saving anyway)`
+        );
+      }
+    }
+
     tasks.push({
       title: taskTitle,
       briefMarkdown,
@@ -126,6 +150,7 @@ export async function POST(request: NextRequest) {
       deliverableLabel,
       deliverablePlaceholder,
       totalMarks,
+      rubric,
     });
   }
 
@@ -180,6 +205,10 @@ export async function POST(request: NextRequest) {
           exhibitId: exhibit.id,
           deliverableLabel: t.deliverableLabel,
           deliverablePlaceholder: t.deliverablePlaceholder,
+          // Json? column; pass undefined (not null) when absent so the
+          // column is left SQL NULL. Cast mirrors the issuesIdentified
+          // write in the marking route.
+          rubric: (t.rubric ?? undefined) as unknown as object | undefined,
         },
       });
     }

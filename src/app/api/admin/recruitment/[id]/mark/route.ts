@@ -4,6 +4,7 @@ import {
   assertAssessmentAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
+import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,16 @@ export async function GET(
   const a = await prisma.recruitmentAssessment.findUnique({ where: { id: params.id } });
   if (!a) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Real task numbers for this scenario (1–5 for generated, 2 for legacy),
+  // resolved through the same loader the candidate UI uses so it works for
+  // both code-based and DB scenarios. This is the single source of truth
+  // for "how many tasks must be marked", replacing the old hardcoded 2.
+  const scenario = await getScenarioForAssessment(a);
+  const taskNumbers = (scenario?.tasks ?? [])
+    .map((t) => t.number)
+    .sort((x, y) => x - y);
+  const fallbackTaskNumbers = taskNumbers.length > 0 ? taskNumbers : [1, 2];
+
   const candidates = await prisma.recruitmentCandidate.findMany({
     where: { assessmentId: a.id, status: "submitted" },
     orderBy: { anonymousId: "asc" },
@@ -39,9 +50,17 @@ export async function GET(
   });
 
   const enriched = candidates.map((c) => {
-    const t1 = c.responses.find((r) => r.taskNumber === 1);
-    const t2 = c.responses.find((r) => r.taskNumber === 2);
-    const fullyMarked = (t1?.markedAt && t2?.markedAt) ? true : false;
+    const perTask = fallbackTaskNumbers.map((n) => {
+      const r = c.responses.find((rr) => rr.taskNumber === n);
+      return {
+        taskNumber: n,
+        score: r?.score ?? null,
+        markedAt: r?.markedAt ?? null,
+        wordCount: r?.wordCount ?? 0,
+      };
+    });
+    const fullyMarked = perTask.every((t) => t.markedAt != null);
+    const anyMarked = perTask.some((t) => t.score != null);
     return {
       id: c.id,
       anonymousId: c.anonymousId,
@@ -51,23 +70,24 @@ export async function GET(
         c.startedAt && c.submittedAt
           ? Math.round((c.submittedAt.getTime() - c.startedAt.getTime()) / 60_000)
           : null,
-      task1: { score: t1?.score ?? null, markedAt: t1?.markedAt ?? null, wordCount: t1?.wordCount ?? 0 },
-      task2: { score: t2?.score ?? null, markedAt: t2?.markedAt ?? null, wordCount: t2?.wordCount ?? 0 },
+      perTask,
       totalScore: c.totalScore,
       interactionCount: c._count.interactions,
       fullyMarked,
+      anyMarked,
     };
   });
 
   const summary = {
     totalSubmitted: enriched.length,
     fullyMarked: enriched.filter((e) => e.fullyMarked).length,
-    partiallyMarked: enriched.filter((e) => !e.fullyMarked && (e.task1.score != null || e.task2.score != null)).length,
-    unmarked: enriched.filter((e) => e.task1.score == null && e.task2.score == null).length,
+    partiallyMarked: enriched.filter((e) => !e.fullyMarked && e.anyMarked).length,
+    unmarked: enriched.filter((e) => !e.anyMarked).length,
   };
 
   return NextResponse.json({
     assessment: { id: a.id, title: a.title, scenarioId: a.scenarioId, revealedAt: a.revealedAt },
+    taskNumbers: fallbackTaskNumbers,
     candidates: enriched,
     summary,
   });

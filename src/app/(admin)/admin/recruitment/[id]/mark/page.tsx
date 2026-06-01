@@ -5,24 +5,25 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+interface PerTaskCell { taskNumber: number; score: number | null; markedAt: string | null; wordCount: number }
 interface MarkRow {
   id: string;
   anonymousId: string;
   startedAt: string;
   submittedAt: string;
   timeTakenMin: number | null;
-  task1: { score: number | null; markedAt: string | null; wordCount: number };
-  task2: { score: number | null; markedAt: string | null; wordCount: number };
+  perTask: PerTaskCell[];
   totalScore: number | null;
   interactionCount: number;
   fullyMarked: boolean;
+  anyMarked: boolean;
 }
 
 export default function MarkListPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { status } = useSession();
-  const [data, setData] = useState<{ candidates: MarkRow[]; summary: any; assessment: any } | null>(null);
+  const [data, setData] = useState<{ candidates: MarkRow[]; summary: any; assessment: any; taskNumbers: number[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
@@ -41,6 +42,11 @@ export default function MarkListPage() {
 
   if (error) return <Box error={error} />;
   if (!data) return <Box loading />;
+
+  const taskNumbers = data.taskNumbers ?? [1, 2];
+  // 3 fixed left cols (anon/time/messages) + word col per task + score
+  // col per task + total + action.
+  const colCount = 3 + taskNumbers.length * 2 + 2;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -75,27 +81,33 @@ export default function MarkListPage() {
               <th className="px-3 py-2 text-left">Anon ID</th>
               <th className="px-3 py-2 text-right">Time (min)</th>
               <th className="px-3 py-2 text-right">Messages</th>
-              <th className="px-3 py-2 text-right">T1 words</th>
-              <th className="px-3 py-2 text-right">T2 words</th>
-              <th className="px-3 py-2 text-right">T1 score</th>
-              <th className="px-3 py-2 text-right">T2 score</th>
+              {taskNumbers.map((n) => (
+                <th key={`w${n}`} className="px-3 py-2 text-right">T{n} words</th>
+              ))}
+              {taskNumbers.map((n) => (
+                <th key={`s${n}`} className="px-3 py-2 text-right">T{n} score</th>
+              ))}
               <th className="px-3 py-2 text-right">Total</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {data.candidates.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-4 text-sm text-slate-500">No submissions yet.</td></tr>
+              <tr><td colSpan={colCount} className="px-3 py-4 text-sm text-slate-500">No submissions yet.</td></tr>
             )}
-            {data.candidates.map((c) => (
+            {data.candidates.map((c) => {
+              const byTask = (n: number) => c.perTask.find((t) => t.taskNumber === n);
+              return (
               <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-3 py-2 font-mono text-xs">{c.anonymousId}</td>
                 <td className="px-3 py-2 text-right font-mono">{c.timeTakenMin ?? "—"}</td>
                 <td className="px-3 py-2 text-right font-mono">{c.interactionCount}</td>
-                <td className="px-3 py-2 text-right font-mono text-slate-500">{c.task1.wordCount}</td>
-                <td className="px-3 py-2 text-right font-mono text-slate-500">{c.task2.wordCount}</td>
-                <td className="px-3 py-2 text-right font-mono">{c.task1.score ?? <span className="text-amber-600">—</span>}</td>
-                <td className="px-3 py-2 text-right font-mono">{c.task2.score ?? <span className="text-amber-600">—</span>}</td>
+                {taskNumbers.map((n) => (
+                  <td key={`w${n}`} className="px-3 py-2 text-right font-mono text-slate-500">{byTask(n)?.wordCount ?? 0}</td>
+                ))}
+                {taskNumbers.map((n) => (
+                  <td key={`s${n}`} className="px-3 py-2 text-right font-mono">{byTask(n)?.score ?? <span className="text-amber-600">—</span>}</td>
+                ))}
                 <td className="px-3 py-2 text-right font-mono font-semibold">
                   {c.totalScore != null ? c.totalScore : <span className="text-slate-400">—</span>}
                 </td>
@@ -108,7 +120,8 @@ export default function MarkListPage() {
                   </Link>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </section>

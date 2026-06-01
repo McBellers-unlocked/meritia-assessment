@@ -16,6 +16,10 @@ interface GeneratedTaskDraft {
   deliverablePlaceholder: string;
   totalMarks: number;
   themeSummary: string;
+  // Per-task marking rubric (the `categories` object) authored by the
+  // Lambda's second call; null when that call failed soft. Carried
+  // opaquely through to the save POST — the wizard never renders it.
+  rubric?: Record<string, unknown> | null;
 }
 
 type Step = "upload" | "criteria" | "configure" | "review";
@@ -641,7 +645,13 @@ async function generateOne(input: {
       throw new Error(pollBody.error || `HTTP ${pollRes.status}`);
     }
     if (pollBody.status === "completed" && pollBody.result?.task) {
-      return pollBody.result.task as GeneratedTaskDraft;
+      // result_json = { task, rubric, usage }. Fold the sibling rubric
+      // onto the draft so it rides along in the save POST body. null when
+      // the rubric call failed soft.
+      return {
+        ...(pollBody.result.task as GeneratedTaskDraft),
+        rubric: pollBody.result.rubric ?? null,
+      };
     }
     if (pollBody.status === "failed") {
       throw new Error(pollBody.error || "Generation failed");

@@ -28,6 +28,9 @@ import {
   SYSTEM_PROMPT,
   PROPOSE_TASK_TOOL,
   buildUserMessageContent,
+  RUBRIC_SYSTEM_PROMPT,
+  PROPOSE_RUBRIC_TOOL,
+  buildRubricUserMessageContent,
 } from "./prompt.mjs";
 
 const MODEL = "claude-opus-4-7";
@@ -37,6 +40,11 @@ const MODEL = "claude-opus-4-7";
 // formatted exhibit at the previous 16K cap. 32K gives headroom and
 // is still far below the model's actual ceiling.
 const MAX_TOKENS = 32_000;
+// The rubric call carries no exhibit HTML in its output (just the
+// categories object: a handful of embedded issues + indicators + bands),
+// so it needs far less room than task generation. 16K leaves generous
+// headroom for adaptive thinking on top of the structured output.
+const RUBRIC_MAX_TOKENS = 16_000;
 
 let pgPool = null;
 function getPool() {
@@ -150,17 +158,41 @@ async function processJob(jobId) {
     return;
   }
 
+  // Second call: author the marking rubric for the task we just designed,
+  // while the model still has the exhibit fresh (warm prompt cache). This
+  // FAILS SOFT — a rubric failure must not fail the job, because the task
+  // itself is already valid and savable. On failure we store rubric: null
+  // and the marking screen degrades to an empty rubric panel.
+  let rubric = null;
+  let rubricUsage = null;
+  try {
+    const result = await generateRubric(input, draft);
+    rubric = result.categories;
+    rubricUsage = result.usage;
+  } catch (e) {
+    console.error(
+      `[task-generator] rubric generation failed for ${jobId} (task still saved):`,
+      e
+    );
+  }
+
   await pool.query(
     `UPDATE recruitment_scenario_generation_jobs
        SET status = 'completed',
            result_json = $2,
            completed_at = $3
      WHERE id = $1`,
-    [jobId, { task: draft, usage }, new Date()]
+    [
+      jobId,
+      { task: draft, rubric, usage: mergeUsage(usage, rubricUsage) },
+      new Date(),
+    ]
   );
 
   const elapsed = Date.now() - startedAt.getTime();
-  console.log(`[task-generator] job ${jobId} completed in ${elapsed}ms`);
+  console.log(
+    `[task-generator] job ${jobId} completed in ${elapsed}ms (rubric: ${rubric ? "ok" : "null"})`
+  );
 }
 
 function validateInput(input) {
@@ -268,5 +300,92 @@ async function callAnthropic(input) {
         response.usage?.cache_creation_input_tokens ?? 0,
       cache_read_input_tokens: response.usage?.cache_read_input_tokens ?? 0,
     },
+  };
+}
+
+/**
+ * Second Anthropic call: author the marking rubric for the task `draft`
+ * we just generated. Mirrors callAnthropic — same model, streaming (to
+ * dodge the SDK's non-streaming time-estimate guard with adaptive
+ * thinking on), adaptive thinking, high effort — but swaps in the rubric
+ * system prompt + tool and a smaller token budget. Returns the per-task
+ * `categories` object (the stored rubric shape) plus usage.
+ *
+ * Throws on a missing/empty rubric; the caller treats any throw as
+ * fail-soft (stores rubric: null) so a bad rubric never blocks the task.
+ */
+async function generateRubric(input, draft) {
+  const client = getAnthropic();
+
+  const stream = client.messages.stream({
+    model: MODEL,
+    max_tokens: RUBRIC_MAX_TOKENS,
+    system: RUBRIC_SYSTEM_PROMPT,
+    tools: [PROPOSE_RUBRIC_TOOL],
+    tool_choice: { type: "auto" },
+    thinking: { type: "adaptive" },
+    output_config: { effort: "high" },
+    messages: [
+      {
+        role: "user",
+        content: buildRubricUserMessageContent(input, draft),
+      },
+    ],
+  });
+  const response = await stream.finalMessage();
+
+  const toolUse = response.content.find(
+    (b) => b.type === "tool_use" && b.name === PROPOSE_RUBRIC_TOOL.name
+  );
+  if (!toolUse) {
+    throw new Error(
+      `Model did not call propose_rubric. stop_reason=${response.stop_reason}`
+    );
+  }
+
+  const categories = toolUse.input?.categories;
+  if (!categories || typeof categories !== "object") {
+    throw new Error(
+      `propose_rubric returned no categories object (stop_reason=${response.stop_reason})`
+    );
+  }
+  // Minimum viable rubric: the technical category with at least one
+  // embedded issue. Without that there's nothing for a marker to follow,
+  // so reject (soft — caller stores rubric: null and the panel degrades).
+  const technical = categories.technical;
+  if (
+    !technical ||
+    !Array.isArray(technical.embedded_issues) ||
+    technical.embedded_issues.length === 0
+  ) {
+    throw new Error(
+      `propose_rubric output missing technical.embedded_issues (stop_reason=${response.stop_reason})`
+    );
+  }
+
+  return {
+    categories,
+    usage: {
+      input_tokens: response.usage?.input_tokens ?? 0,
+      output_tokens: response.usage?.output_tokens ?? 0,
+      cache_creation_input_tokens:
+        response.usage?.cache_creation_input_tokens ?? 0,
+      cache_read_input_tokens: response.usage?.cache_read_input_tokens ?? 0,
+    },
+  };
+}
+
+/** Sum two usage objects field-by-field; either may be null. */
+function mergeUsage(a, b) {
+  const ua = a || {};
+  const ub = b || {};
+  return {
+    input_tokens: (ua.input_tokens ?? 0) + (ub.input_tokens ?? 0),
+    output_tokens: (ua.output_tokens ?? 0) + (ub.output_tokens ?? 0),
+    cache_creation_input_tokens:
+      (ua.cache_creation_input_tokens ?? 0) +
+      (ub.cache_creation_input_tokens ?? 0),
+    cache_read_input_tokens:
+      (ua.cache_read_input_tokens ?? 0) + (ub.cache_read_input_tokens ?? 0),
   };
 }

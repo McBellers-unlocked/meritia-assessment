@@ -1,7 +1,14 @@
 /**
  * System prompt + propose_task tool definition for the JD-to-scenario
- * generator. Mirrors src/lib/recruit/scenario-generator.ts in the
- * Next.js app — KEEP THESE TWO IN SYNC.
+ * generator. The task-generation half (SYSTEM_PROMPT, PROPOSE_TASK_TOOL,
+ * buildUserMessageContent) mirrors src/lib/recruit/scenario-generator.ts
+ * in the Next.js app — KEEP THOSE THREE IN SYNC.
+ *
+ * The rubric half (RUBRIC_SYSTEM_PROMPT, PROPOSE_RUBRIC_TOOL,
+ * buildRubricUserMessageContent) is LAMBDA-ONLY: the second Anthropic
+ * call that authors a task's marking rubric runs exclusively in this
+ * worker, so there is no SSR counterpart to keep in sync. Do not mirror
+ * those exports back into scenario-generator.ts.
  *
  * The Next.js module is no longer in the runtime path of generation
  * (the worker Lambda calls Anthropic now), but it's kept because
@@ -154,6 +161,147 @@ export function buildUserMessageContent(input) {
     {
       type: "text",
       text: `Design **task ${input.taskIndex} of ${input.taskCount}** for the assessment described above.${priorThemesText}\n\n# Focus criteria for this task\n\n${focusCriteriaText}\n\nDesign a task that concretely tests ${input.focusCriteria.length === 1 ? "THIS criterion" : "ALL of these criteria together"}. Use the JD's domain detail (tools, frameworks, artefact types) to make the exhibit industry-matched.\n\nCall the \`propose_task\` tool with your task draft.`,
+    },
+  ];
+}
+
+/* ------------------------------------------------------------------ *
+ * Rubric generation (LAMBDA-ONLY — see file header).
+ *
+ * A second Anthropic call, made right after a task is designed, that
+ * authors that task's marking rubric while the model still has the
+ * exhibit it just wrote in context. The output is the per-task
+ * `categories` object stored on RecruitmentScenarioTask.rubric and read
+ * by the marking screen.
+ * ------------------------------------------------------------------ */
+
+export const RUBRIC_SYSTEM_PROMPT = `You author defensible marking rubrics for senior professional hiring assessments. A task has already been designed — you will be given its brief, its exhibit, and the selection criteria it tests. Your job is to produce the rubric a hiring manager will use to mark candidate submissions against THAT specific exhibit.
+
+The rubric divides the task's total marks across up to four categories. Return it by calling the \`propose_rubric\` tool.
+
+# The categories
+
+1. **technical** (always present) — the domain substance: the specific issues, errors, risks, or opportunities a strong candidate should identify IN THIS EXHIBIT, and the correct technical treatment of each. This is the heart of the rubric.
+   - \`embedded_issues\` is the list of concrete things hidden in the exhibit that the task is really testing for. Each is a discrete, checkable item — not a vague competency. Typically 3–6 of them.
+   - Each issue needs: a stable \`id\` (snake_case, unique within the task — e.g. \`unhedged_fx_exposure\`, \`missing_termination_clause\`); a marker-facing \`title\` (short noun phrase); \`max_marks\`; and an \`expected\` model answer that states what a strong candidate identifies AND the correct treatment/quantification (e.g. "Notes the 90-day payment term breaches the 30-day procurement standard; should flag for renegotiation or escalation"). The \`expected\` text is what the marker reads to decide whether the candidate got it — make it concrete and exhibit-specific, citing the actual figures, clauses, or identifiers in the exhibit.
+   - The sum of the \`max_marks\` across embedded_issues should equal \`technical.max\`.
+
+2. **investigation_quality** (always present) — how well the candidate interrogated the exhibit: did they dig past the surface, cross-check figures, notice what's missing, ask the right follow-ups. \`indicators\` is a list of observable behaviours that distinguish a thorough investigation from a shallow one.
+
+3. **professional_skills** (always present) — communication and craft: structure, clarity, register appropriate to the deliverable's audience, prioritisation, actionable recommendations. \`indicators\` is a list of observable markers of a well-constructed deliverable.
+
+4. **judgment** (OPTIONAL — include ONLY when the task forces a stakeholder-facing decision or a call under uncertainty, e.g. "recommend whether to escalate", "advise the board"). When present, \`rubric\` maps performance bands to descriptors — e.g. { "Strong": "Makes a clear, defensible recommendation and owns the trade-off", "Adequate": "Reaches a recommendation but hedges or under-weights the key risk", "Weak": "Avoids a decision or recommends against the evidence" }. Omit this category entirely for pure-analysis tasks that don't require a recommendation.
+
+# Hard constraints
+
+- The category \`max\` values MUST sum EXACTLY to the task's total marks (given in the user message). This is non-negotiable — the marking screen caps scores at these maxima.
+- Author from the SAME exhibit and brief the candidate sees. Every embedded issue must be genuinely present in the exhibit — do not invent issues the exhibit doesn't contain, and do not reference external material.
+- Be specific to this task. A rubric that could apply to any assessment in this domain is too generic — cite the exhibit's actual content.
+- This rubric is marker-only; never written for the candidate to see.
+
+Return the rubric by calling \`propose_rubric\`. The tool call IS the response — no prose.`;
+
+export const PROPOSE_RUBRIC_TOOL = {
+  name: "propose_rubric",
+  description:
+    "Submit the marking rubric for the task just designed. Category 'max' values MUST sum to the task total. Author concrete, defensible criteria from the same exhibit/brief the candidate sees.",
+  input_schema: {
+    type: "object",
+    required: ["categories"],
+    properties: {
+      categories: {
+        type: "object",
+        required: ["technical", "investigation_quality", "professional_skills"],
+        properties: {
+          technical: {
+            type: "object",
+            required: ["max", "description", "embedded_issues"],
+            properties: {
+              max: { type: "integer" },
+              description: { type: "string" },
+              embedded_issues: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["id", "title", "max_marks", "expected"],
+                  properties: {
+                    id: {
+                      type: "string",
+                      description:
+                        "Stable snake_case key, unique within the task; used as the analytics id.",
+                    },
+                    title: { type: "string" },
+                    max_marks: { type: "integer" },
+                    expected: {
+                      type: "string",
+                      description:
+                        "Model answer: what a strong candidate identifies + correct treatment/quantification.",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          investigation_quality: {
+            type: "object",
+            required: ["max", "description", "indicators"],
+            properties: {
+              max: { type: "integer" },
+              description: { type: "string" },
+              indicators: { type: "array", items: { type: "string" } },
+            },
+          },
+          professional_skills: {
+            type: "object",
+            required: ["max", "description", "indicators"],
+            properties: {
+              max: { type: "integer" },
+              description: { type: "string" },
+              indicators: { type: "array", items: { type: "string" } },
+            },
+          },
+          judgment: {
+            type: "object",
+            required: ["max", "description", "rubric"],
+            description:
+              "Include only when the task tests stakeholder navigation / decision under uncertainty.",
+            properties: {
+              max: { type: "integer" },
+              description: { type: "string" },
+              rubric: {
+                type: "object",
+                additionalProperties: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+/**
+ * User message for the rubric call. Reuses the SAME cached JD/role
+ * prefix block as buildUserMessageContent (byte-identical, so the
+ * ephemeral prompt cache primed by the task call stays warm), then a
+ * suffix carrying the just-generated task draft and asking the model to
+ * author its rubric.
+ */
+export function buildRubricUserMessageContent(input, draft) {
+  const focusCriteriaText =
+    input.focusCriteria.length === 1
+      ? `The task tests this selection criterion:\n\n> ${input.focusCriteria[0]}`
+      : `The task tests these ${input.focusCriteria.length} selection criteria together:\n\n${input.focusCriteria.map((c) => `> ${c}`).join("\n>\n")}`;
+
+  return [
+    {
+      type: "text",
+      text: `# Role being assessed\n\n**Position:** ${input.positionTitle}\n**Organisation:** ${input.organisation}\n\n# Job description\n\n${input.jdText}`,
+      cache_control: { type: "ephemeral" },
+    },
+    {
+      type: "text",
+      text: `A task has been designed for this role. Author its marking rubric.\n\n${focusCriteriaText}\n\n# The task\n\n**Title:** ${draft.title}\n\n**Total marks:** ${draft.totalMarks} — the rubric's category \`max\` values MUST sum to exactly this.\n\n## Brief shown to the candidate\n\n${draft.briefMarkdown}\n\n## Exhibit the candidate analyses — "${draft.exhibitTitle}"\n\n${draft.exhibitHtml}\n\n# Your job\n\nAuthor a marking rubric grounded in THIS exhibit: the \`embedded_issues\` must be the specific things a strong candidate should catch in the exhibit above, each with its model answer. The category \`max\` values must sum to exactly ${draft.totalMarks}. Call the \`propose_rubric\` tool.`,
     },
   ];
 }

@@ -4,7 +4,7 @@ import {
   assertAssessmentAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
-import { loadRubric } from "@/lib/recruit/rubric";
+import { loadRubricForAssessment } from "@/lib/recruit/rubric";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export async function GET(
       startedAt: true,
       submittedAt: true,
       totalScore: true,
-      assessment: { select: { id: true, title: true, scenarioId: true, revealedAt: true } },
+      assessment: { select: { id: true, title: true, scenarioId: true, customScenarioId: true, revealedAt: true } },
       responses: {
         select: {
           taskNumber: true, content: true, wordCount: true,
@@ -60,7 +60,7 @@ export async function GET(
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (c.assessmentId !== params.id) return NextResponse.json({ error: "Mismatch" }, { status: 400 });
 
-  const rubric = loadRubric(c.assessment.scenarioId);
+  const rubric = await loadRubricForAssessment(c.assessment);
 
   return NextResponse.json({
     candidate: {
@@ -104,9 +104,16 @@ export async function POST(
   const markerId = auth.session.user.id;
   const now = new Date();
   type TaskUpdate = { score?: number | null; comments?: string | null; issuesIdentified?: string[] | null };
+  // Accept any `taskN` key (N a positive integer), not just task1/task2 —
+  // generated scenarios carry 1–5 tasks. The marking page posts one task
+  // at a time, but a loop keeps this robust to multi-task payloads.
   const incoming: Record<number, TaskUpdate> = {};
-  if (body.task1) incoming[1] = body.task1;
-  if (body.task2) incoming[2] = body.task2;
+  for (const [key, value] of Object.entries(body)) {
+    const m = /^task(\d+)$/.exec(key);
+    if (m && value && typeof value === "object") {
+      incoming[Number(m[1])] = value as TaskUpdate;
+    }
+  }
 
   for (const [k, v] of Object.entries(incoming)) {
     const taskNumber = Number(k);

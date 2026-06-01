@@ -20,10 +20,12 @@ interface ResponseRow {
   taskNumber: number; content: string; wordCount: number;
   score: number | null; comments: string | null; issuesIdentified: string[] | null; markedAt: string | null;
 }
-interface RubricIssue { id: string; title: string; max_marks?: number; description?: string; }
+interface RubricIssue { id: string; title: string; max_marks?: number; description?: string; expected?: string; }
 interface RubricCategory { max: number; description?: string; embedded_issues?: RubricIssue[]; indicators?: string[]; rubric?: Record<string,string>; descriptors?: Record<string,string>; }
 interface RubricTask { title: string; max_marks: number; categories: Record<string, RubricCategory>; }
-interface Rubric { task1: RubricTask; task2: RubricTask; total_marks: number; }
+// N-task shape (mirrors NormalizedRubric in src/lib/recruit/rubric.ts).
+// tasks is keyed by task number, so a scenario can carry 1–5 tasks.
+interface Rubric { tasks: Record<number, RubricTask>; total_marks: number; }
 
 interface MarkData {
   candidate: { id: string; anonymousId: string; startedAt: string; submittedAt: string; timeTakenMin: number | null; totalScore: number | null; };
@@ -40,14 +42,16 @@ export default function MarkCandidatePage() {
   const { status } = useSession();
   const [data, setData] = useState<MarkData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTask, setActiveTask] = useState<1 | 2>(1);
+  const [activeTask, setActiveTask] = useState<number>(1);
 
-  // Per-task marking state — initialised from server
-  const [scores, setScores] = useState<Record<number, string>>({ 1: "", 2: "" });
-  const [comments, setComments] = useState<Record<number, string>>({ 1: "", 2: "" });
-  const [issues, setIssues] = useState<Record<number, Set<string>>>({ 1: new Set(), 2: new Set() });
-  const [savingTask, setSavingTask] = useState<Record<number, boolean>>({ 1: false, 2: false });
-  const [savedAt, setSavedAt] = useState<Record<number, string | null>>({ 1: null, 2: null });
+  // Per-task marking state — keyed by task number, populated from the
+  // server load. Empty until data arrives; all reads use a ?? fallback so
+  // an unseeded task number never produces an uncontrolled input.
+  const [scores, setScores] = useState<Record<number, string>>({});
+  const [comments, setComments] = useState<Record<number, string>>({});
+  const [issues, setIssues] = useState<Record<number, Set<string>>>({});
+  const [savingTask, setSavingTask] = useState<Record<number, boolean>>({});
+  const [savedAt, setSavedAt] = useState<Record<number, string | null>>({});
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
 
@@ -58,25 +62,31 @@ export default function MarkCandidatePage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body: MarkData = await res.json();
         setData(body);
-        const newScores: Record<number, string> = { 1: "", 2: "" };
-        const newComments: Record<number, string> = { 1: "", 2: "" };
-        const newIssues: Record<number, Set<string>> = { 1: new Set<string>(), 2: new Set<string>() };
+        const newScores: Record<number, string> = {};
+        const newComments: Record<number, string> = {};
+        const newIssues: Record<number, Set<string>> = {};
         for (const r of body.responses) {
           newScores[r.taskNumber] = r.score != null ? String(r.score) : "";
           newComments[r.taskNumber] = r.comments ?? "";
           newIssues[r.taskNumber] = new Set(Array.isArray(r.issuesIdentified) ? r.issuesIdentified : []);
         }
         setScores(newScores); setComments(newComments); setIssues(newIssues);
+        // Default the active tab to the lowest task number present.
+        const firstTask = Math.min(
+          ...body.responses.map((r) => r.taskNumber),
+          ...Object.keys(body.rubric?.tasks ?? {}).map(Number),
+        );
+        if (Number.isFinite(firstTask)) setActiveTask(firstTask);
       } catch (e) {
         setError((e as Error).message);
       }
     })();
   }, [params.id, params.candidateId]);
 
-  const saveTask = async (taskNumber: 1 | 2) => {
+  const saveTask = async (taskNumber: number) => {
     setSavingTask((s) => ({ ...s, [taskNumber]: true }));
     try {
-      const score = scores[taskNumber] === "" ? null : Number(scores[taskNumber]);
+      const score = (scores[taskNumber] ?? "") === "" ? null : Number(scores[taskNumber]);
       const res = await fetch(`/api/admin/recruitment/${params.id}/mark/${params.candidateId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,7 +94,7 @@ export default function MarkCandidatePage() {
           [`task${taskNumber}`]: {
             score,
             comments: comments[taskNumber] || null,
-            issuesIdentified: Array.from(issues[taskNumber]),
+            issuesIdentified: Array.from(issues[taskNumber] ?? new Set<string>()),
           },
         }),
       });
@@ -101,8 +111,8 @@ export default function MarkCandidatePage() {
   };
 
   // Debounced auto-save on score / comments / issues change
-  const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({ 1: null, 2: null });
-  const triggerSave = (taskNumber: 1 | 2) => {
+  const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({});
+  const triggerSave = (taskNumber: number) => {
     if (saveTimers.current[taskNumber]) clearTimeout(saveTimers.current[taskNumber] as any);
     saveTimers.current[taskNumber] = setTimeout(() => void saveTask(taskNumber), 1000);
   };
@@ -110,8 +120,18 @@ export default function MarkCandidatePage() {
   if (error) return <Box error={error} />;
   if (!data) return <Box loading />;
 
+  // Task numbers to mark = union of submitted responses and rubric tasks,
+  // sorted ascending. Robust to a response with no rubric (failed-soft
+  // rubric) or a rubric task with no response yet.
+  const taskNums = Array.from(
+    new Set<number>([
+      ...data.responses.map((r) => r.taskNumber),
+      ...Object.keys(data.rubric?.tasks ?? {}).map(Number),
+    ]),
+  ).sort((a, b) => a - b);
+
   const responseForActive = data.responses.find((r) => r.taskNumber === activeTask);
-  const rubricTask = activeTask === 1 ? data.rubric?.task1 : data.rubric?.task2;
+  const rubricTask = data.rubric?.tasks[activeTask];
   const trailForActive = data.interactions.filter((i) => i.taskNumber === activeTask);
   const activityForActive = (data.activityEvents ?? []).filter(
     (e) => e.taskNumber === activeTask || e.taskNumber === null,
@@ -120,8 +140,10 @@ export default function MarkCandidatePage() {
     ? Object.values(rubricTask.categories).flatMap((c) => c.embedded_issues ?? [])
     : [];
 
-  const totalScore =
-    (Number(scores[1]) || 0) + (Number(scores[2]) || 0);
+  const totalScore = taskNums.reduce(
+    (sum, n) => sum + (Number(scores[n]) || 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
@@ -145,10 +167,10 @@ export default function MarkCandidatePage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 pb-2 flex gap-2">
-          {[1, 2].map((n) => (
+          {taskNums.map((n) => (
             <button
               key={n}
-              onClick={() => setActiveTask(n as 1 | 2)}
+              onClick={() => setActiveTask(n)}
               className={[
                 "px-3 py-1.5 text-xs font-semibold rounded-md transition",
                 activeTask === n
@@ -157,7 +179,7 @@ export default function MarkCandidatePage() {
               ].join(" ")}
             >
               Task {n}
-              {scores[n] && <span className="ml-2 opacity-80">{scores[n]}/{(activeTask === n ? rubricTask : (n === 1 ? data.rubric?.task1 : data.rubric?.task2))?.max_marks ?? 50}</span>}
+              {scores[n] && <span className="ml-2 opacity-80">{scores[n]}/{data.rubric?.tasks[n]?.max_marks ?? 50}</span>}
             </button>
           ))}
         </div>
@@ -220,7 +242,7 @@ export default function MarkCandidatePage() {
                   min={0}
                   max={rubricTask?.max_marks ?? 50}
                   step="0.5"
-                  value={scores[activeTask]}
+                  value={scores[activeTask] ?? ""}
                   onChange={(e) => {
                     setScores((prev) => ({ ...prev, [activeTask]: e.target.value }));
                     triggerSave(activeTask);
@@ -231,7 +253,7 @@ export default function MarkCandidatePage() {
               <label className="block text-xs mt-3">
                 <span className="text-slate-600">Comments / notes</span>
                 <textarea
-                  value={comments[activeTask]}
+                  value={comments[activeTask] ?? ""}
                   onChange={(e) => {
                     setComments((prev) => ({ ...prev, [activeTask]: e.target.value }));
                     triggerSave(activeTask);
@@ -256,10 +278,10 @@ export default function MarkCandidatePage() {
                     <label key={iss.id} className="flex items-start gap-2 text-sm">
                       <input
                         type="checkbox"
-                        checked={issues[activeTask].has(iss.id)}
+                        checked={(issues[activeTask] ?? new Set<string>()).has(iss.id)}
                         onChange={(e) => {
                           setIssues((prev) => {
-                            const next = new Set(prev[activeTask]);
+                            const next = new Set(prev[activeTask] ?? []);
                             if (e.target.checked) next.add(iss.id); else next.delete(iss.id);
                             return { ...prev, [activeTask]: next };
                           });
@@ -290,6 +312,23 @@ export default function MarkCandidatePage() {
                       </summary>
                       <div className="p-3 space-y-2">
                         {cat.description && <div className="text-slate-600">{cat.description}</div>}
+                        {cat.embedded_issues && cat.embedded_issues.length > 0 && (
+                          <div className="space-y-2">
+                            {cat.embedded_issues.map((iss) => (
+                              <div key={iss.id} className="border-l-2 border-slate-200 pl-2">
+                                <div className="font-medium text-[#1B2A4A]">
+                                  {iss.title}
+                                  {iss.max_marks != null && <span className="text-slate-500 font-normal ml-1">({iss.max_marks}m)</span>}
+                                </div>
+                                {iss.expected && (
+                                  <div className="text-slate-600 mt-0.5">
+                                    <span className="text-slate-400">Model answer: </span>{iss.expected}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {cat.descriptors && Object.entries(cat.descriptors).map(([range, text]) => (
                           <div key={range}><span className="font-mono text-slate-500">{range}:</span> {text}</div>
                         ))}
@@ -323,7 +362,7 @@ function Box({ loading, error }: { loading?: boolean; error?: string }) {
   );
 }
 
-function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; activeTask: 1 | 2 }) {
+function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; activeTask: number }) {
   const pasteCount = events.filter((e) => e.eventType === "paste").length;
   const pasteChars = events
     .filter((e) => e.eventType === "paste")
