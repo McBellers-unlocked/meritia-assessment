@@ -129,7 +129,7 @@ export async function GET(
     },
   });
 
-  const origin = process.env.NEXTAUTH_URL || `https://${request.headers.get("host") ?? "meritia.example"}`;
+  const origin = process.env.NEXTAUTH_URL || `https://${request.headers.get("host") ?? "uniqassess.example"}`;
   const enriched = candidates.map((c) => ({
     ...c,
     assessmentUrl: `${origin}/assess/${assessment.scenarioSlug}?token=${c.token}`,

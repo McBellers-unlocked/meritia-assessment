@@ -2,7 +2,7 @@
  * AI-assisted scenario generator.
  *
  * Given a parsed job description, generate `memo_ai`-shaped task drafts
- * (brief + exhibit + deliverable) via Claude Opus 4.7 tool use. The brief
+ * (brief + exhibit + deliverable) via Claude tool use (BUILDER_MODEL). The brief
  * and the exhibit are produced *together* in a single tool call so they
  * stay internally consistent — generating them separately tends to produce
  * exhibits that don't match what the brief asks the candidate to analyse.
@@ -18,6 +18,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { getAnthropicKey } from "@/lib/secrets";
+import { BUILDER_MODEL } from "./model-config";
 
 export interface GeneratedTaskDraft {
   title: string;
@@ -46,14 +47,12 @@ export interface GenerateTaskInput {
   focusCriteria: string[];
 }
 
-// Sonnet 4.6 instead of Opus 4.7. Amplify Hosting's SSR runtime
-// timeout (~30s) is fixed by AWS and not customer-configurable; Opus
-// 4.7 with a long industry-matched exhibit ran past it consistently
-// (504s at the gateway). Sonnet 4.6 produces strong structured output
-// for this task in 15–25s — comfortably inside the cap. Switch back
-// to Opus 4.7 if/when generation moves to a host with a longer SSR
-// timeout (Vercel Pro, a dedicated Lambda, etc.).
-const MODEL = "claude-sonnet-4-6";
+// Pinned to the central BUILDER_MODEL. This SSR generator is a dormant
+// mirror of the worker Lambda (lambda/task-generator/): task generation
+// moved to the Lambda to escape Amplify Hosting's fixed ~30s SSR timeout,
+// so this module is no longer in the runtime flow. It is kept in sync with
+// the Lambda (same system prompt + tool) and pins the same builder model.
+const MODEL = BUILDER_MODEL;
 // Hard cap on output. The prompt steers exhibits to ~600–900 chars
 // and briefs to ≤200 words; 4000 tokens is well above that and shaves
 // the worst-case time floor against runaway generations.
@@ -290,11 +289,10 @@ export async function generateOneTask(
       system: SYSTEM_PROMPT,
       tools: [PROPOSE_TASK_TOOL],
       tool_choice: { type: "auto" },
-      // Sonnet 4.6 defaults effort to "high" — that's slow for our
-      // single-shot structured output. "low" with no thinking keeps
-      // the call inside Amplify's ~30s SSR timeout while still
-      // producing strong industry-matched exhibits. The system
-      // prompt does the heavy lifting here.
+      // Dormant SSR path, tuned for the old Amplify ~30s SSR timeout:
+      // no thinking + effort "low" for a fast single-shot. The live
+      // generation runs in the worker Lambda with adaptive thinking +
+      // high effort; the system prompt does the heavy lifting here.
       thinking: { type: "disabled" },
       output_config: { effort: "low" },
       messages: [buildUserMessage(input)],
