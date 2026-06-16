@@ -6,12 +6,13 @@ import { getAnthropicKey } from "@/lib/secrets";
 import { loadCandidate, verifySessionCookie } from "@/lib/recruit/candidate-auth";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { isChatTask, isMemoAiTask } from "@/lib/recruit/types";
+import { RUNTIME_MODEL as MODEL, RUNTIME_MAX_TOKENS as MAX_TOKENS } from "@/lib/recruit/model-config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const MODEL = process.env.RECRUIT_CLAUDE_MODEL || "claude-sonnet-4-20250514";
-const MAX_TOKENS = Number(process.env.RECRUIT_MAX_TOKENS || "1500");
+// MODEL / MAX_TOKENS are the candidate-runtime tier from the central
+// model-config (RECRUIT_CLAUDE_MODEL / RECRUIT_MAX_TOKENS env overrides).
 
 /**
  * Wrap the admin-authored persona prompt with scenario context and a

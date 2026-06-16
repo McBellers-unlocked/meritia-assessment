@@ -6,13 +6,14 @@
  * as a `focusCriterion` so each generated task tests one specific
  * competency the JD names.
  *
- * Model is Opus 4.7 — short call, judgement-heavy, paraphrase quality
+ * Model is the central BUILDER_MODEL (Opus 4.8) — short call, judgement-heavy, paraphrase quality
  * matters. The Amplify SSR timeout doesn't apply to this kind of
  * lightweight extraction (typical 3–8s).
  */
 import Anthropic from "@anthropic-ai/sdk";
 
 import { getAnthropicKey } from "@/lib/secrets";
+import { BUILDER_MODEL as MODEL } from "./model-config";
 
 export interface ExtractCriteriaInput {
   jdText: string;
@@ -24,7 +25,7 @@ export interface ExtractedCriteria {
   desirable: string[];
 }
 
-const MODEL = "claude-opus-4-7";
+// MODEL is the central BUILDER tier (see ./model-config).
 const MAX_TOKENS = 1500;
 // SDK timeout that fires before Amplify's ~30s Lambda timeout, so a
 // rare slow extraction returns a clean error rather than an empty 500.

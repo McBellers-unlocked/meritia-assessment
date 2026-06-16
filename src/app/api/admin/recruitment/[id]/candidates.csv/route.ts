@@ -33,7 +33,7 @@ export async function GET(
     },
   });
 
-  const origin = process.env.NEXTAUTH_URL || `https://${request.headers.get("host") ?? "meritia.example"}`;
+  const origin = process.env.NEXTAUTH_URL || `https://${request.headers.get("host") ?? "uniqassess.example"}`;
   const escape = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`;
   const header = ["anonymous_id", "name", "email", "token", "assessment_url", "status"].join(",");
   const lines = candidates.map((c) =>

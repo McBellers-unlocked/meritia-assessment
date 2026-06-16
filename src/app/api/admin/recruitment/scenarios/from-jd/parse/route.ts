@@ -3,12 +3,13 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { requireScenarioBuilder } from "@/lib/admin-auth";
 import { getAnthropicKey } from "@/lib/secrets";
+import { BUILDER_MODEL } from "@/lib/recruit/model-config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB — JDs are tiny; this just keeps abuse out
-const MAX_TEXT_LENGTH = 60_000; // ~12-15K tokens — well within Opus 4.7 input budget
+const MAX_TEXT_LENGTH = 60_000; // ~12-15K tokens — well within the builder model's input budget
 
 const PDF_MIME = "application/pdf";
 const DOCX_MIME =
@@ -137,7 +138,7 @@ async function extractJobTitle(jdText: string): Promise<string | null> {
   const client = new Anthropic({ apiKey });
 
   const response = await client.messages.create({
-    model: "claude-opus-4-7",
+    model: BUILDER_MODEL,
     max_tokens: 100,
     thinking: { type: "disabled" },
     system:

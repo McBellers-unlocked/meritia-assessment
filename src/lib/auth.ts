@@ -4,7 +4,7 @@ import { prisma } from "./prisma";
 
 // UNIQAssess has a single authenticated role (ADMIN). We still use Cognito for
 // sign-in so a production deployment can use an existing user pool, but we
-// strip the Callater-style role ladder (student/examiner/etc.). Every user
+// strip the legacy role ladder (student/examiner/etc.). Every user
 // who can sign in becomes an admin — so the operator must keep the user pool
 // tight (invite-only).
 const cognitoClientId = process.env.COGNITO_CLIENT_ID;

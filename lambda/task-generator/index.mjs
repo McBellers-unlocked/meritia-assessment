@@ -9,7 +9,7 @@
  * Why this is a separate Lambda and not part of the Next.js SSR app:
  * Amplify Hosting's SSR runtime caps Lambda execution at ~30s and is
  * not customer-configurable. Multi-criteria task generation with
- * Opus 4.7 + adaptive thinking can run 30–60s. Running the call here
+ * Opus 4.8 + adaptive thinking can run 30–60s. Running the call here
  * (timeout 5 min) escapes that ceiling without compromising on quality.
  *
  * Environment variables required:
@@ -32,8 +32,8 @@ import {
   PROPOSE_RUBRIC_TOOL,
   buildRubricUserMessageContent,
 } from "./prompt.mjs";
+import { BUILDER_MODEL as MODEL } from "./model-config.mjs";
 
-const MODEL = "claude-opus-4-7";
 // Includes adaptive-thinking tokens + the tool call (which carries the
 // rendered exhibit HTML, brief, etc.). Adaptive thinking on a complex
 // JD can easily burn 10K, leaving too little room for a richly

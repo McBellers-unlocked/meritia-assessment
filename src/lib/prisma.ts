@@ -1,7 +1,7 @@
 /**
  * Prisma client entry point.
  *
- * Direct connection to Postgres via `DATABASE_URL`. The Callater original
+ * Direct connection to Postgres via `DATABASE_URL`. An earlier internal build
  * carried a Lambda-proxy transport for Amplify SSR (which can't reach a
  * VPC-only RDS directly); it was dropped during the UNIQAssess carve-out to
  * keep the dependency surface smaller. Re-introduce if UNIQAssess ends up on

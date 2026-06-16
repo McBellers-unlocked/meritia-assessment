@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 // UNIQAssess uses a professional navy palette. The hex values are the same
-// generic navy used throughout the candidate UI — they are not a Callater
+// generic navy used throughout the candidate UI — they are not a vendor
 // brand mark. Two legacy palettes (crimson, teal) are kept for now in case
 // the admin UI grows toward them; prune in a follow-up once unused.
 const config: Config = {
