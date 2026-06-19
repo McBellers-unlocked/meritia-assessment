@@ -354,25 +354,27 @@ export default function AssessmentView({
   const trailForActive = interactions.filter((i) => i.taskNumber === activeTask);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
+    <div className="min-h-screen text-uq font-sans flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 flex-shrink-0">
+      <header className="bg-uq-glass-strong backdrop-blur-xl border-b border-uq shadow-[0_1px_0_0_var(--uq-inset-hi)_inset] flex-shrink-0">
         <div className="px-4 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/logos/uniqassess-logo.png"
-              alt="UNIQAssess"
-              width={140}
-              height={38}
-              className="h-7 w-auto flex-shrink-0"
-            />
-            <span className="text-slate-300 hidden sm:inline">|</span>
+            <span className="bg-white rounded-md px-2 py-1 inline-flex items-center ring-1 ring-uq shadow-uq-glow-soft flex-shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/logos/uniqassess-logo.png"
+                alt="UNIQAssess"
+                width={140}
+                height={38}
+                className="h-7 w-auto"
+              />
+            </span>
+            <span className="text-uq-3 hidden sm:inline">|</span>
             <div className="text-sm min-w-0">
-              <div className="font-semibold text-[#1B2A4A] truncate">
+              <div className="font-semibold tracking-[-0.005em] text-uq truncate">
                 {initial.scenario.positionTitle}
               </div>
-              <div className="text-xs text-slate-500 truncate">
+              <div className="font-mono text-[11px] tracking-[0.04em] text-uq-2 truncate">
                 {initial.scenario.organisation} · {initial.candidate.anonymousId}
               </div>
             </div>
@@ -388,7 +390,7 @@ export default function AssessmentView({
             <button
               onClick={() => setConfirmOpen(true)}
               disabled={submitting}
-              className="px-4 py-1.5 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+              className="px-4 py-1.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium tracking-[-0.005em] shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed"
             >
               {submitting ? "Submitting…" : "Submit assessment"}
             </button>
@@ -411,7 +413,7 @@ export default function AssessmentView({
           }`}
         >
           {/* View tabs */}
-          <div className="bg-white border-b border-slate-200 flex-shrink-0 flex items-stretch px-2 gap-0.5">
+          <div className="bg-uq-elev1 border-b border-uq flex-shrink-0 flex items-stretch px-2 gap-0.5">
             <ViewTab
               active={activeView === "exhibit"}
               onClick={() => setActiveView("exhibit")}
@@ -429,19 +431,19 @@ export default function AssessmentView({
 
           {/* Active tab content */}
           {activeView === "exhibit" ? (
-            <section className="bg-white flex flex-col min-h-0 overflow-hidden flex-1">
-              <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-3">
+            <section className="bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1">
+              <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
                     Exhibit · Task {activeTask}
                   </div>
-                  <div className="text-sm font-semibold text-[#1B2A4A] truncate">
+                  <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
                     {activeTaskCfg.exhibitTitle}
                   </div>
                 </div>
                 <button
                   onClick={() => setExhibitFullscreen(true)}
-                  className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white flex-shrink-0"
+                  className="px-3 py-1.5 rounded-md border border-uq text-uq-2 text-xs font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq flex-shrink-0 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                   title="Open exhibit full screen"
                 >
                   ⤢ Expand
@@ -455,22 +457,22 @@ export default function AssessmentView({
               />
             </section>
           ) : (
-            <section className="bg-white flex flex-col min-h-0 overflow-hidden flex-1">
+            <section className="bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1">
               {/* Memo header — title + Peek at exhibit so candidates can
                   quickly check source data without leaving the editor. */}
-              <div className="px-4 py-2 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-2">
+              <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
                     Your deliverable · Task {activeTask}
                   </div>
-                  <div className="text-sm font-semibold text-[#1B2A4A] truncate">
+                  <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
                     {activeTaskCfg.deliverableLabel}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setExhibitFullscreen(true)}
-                  className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white flex-shrink-0 text-slate-700 inline-flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-md border border-uq text-uq-2 text-xs font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq flex-shrink-0 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                   title="Open the exhibit full screen — close it to return to the memo"
                   aria-label="Peek at exhibit"
                 >
@@ -484,16 +486,16 @@ export default function AssessmentView({
 
               {/* Brief — collapsible, default open so candidates can re-anchor
                   on the task framing as they're writing. */}
-              <div className="border-b border-slate-200 bg-slate-50/60 flex-shrink-0">
+              <div className="border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0">
                 <button
                   onClick={() => setBriefOpen((v) => !v)}
-                  className="w-full text-left px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center justify-between"
+                  className="w-full text-left px-4 py-2 text-xs font-medium text-uq-2 hover:bg-uq-elev2 hover:text-uq transition-colors flex items-center justify-between focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                 >
                   <span>Brief — Task {activeTask}: {activeTaskCfg.title}</span>
-                  <span className="text-slate-400">{briefOpen ? "−" : "+"}</span>
+                  <span className="font-mono text-uq-3">{briefOpen ? "−" : "+"}</span>
                 </button>
                 {briefOpen && (
-                  <div className="px-4 pb-3 text-sm text-slate-700 leading-relaxed max-h-56 overflow-y-auto">
+                  <div className="px-4 pb-3 text-sm text-uq-2 leading-relaxed max-h-56 overflow-y-auto">
                     <MarkdownView>{activeTaskCfg.briefMarkdown}</MarkdownView>
                   </div>
                 )}
@@ -507,9 +509,9 @@ export default function AssessmentView({
                 onPasteCapture={(charCount) => logActivity("paste", { target: "memo", charCount })}
               />
 
-              <div className="px-4 py-2 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 flex items-center justify-between flex-shrink-0">
-                <span>{wordCounts[activeTask]} words</span>
-                <span>
+              <div className="px-4 py-2 border-t border-uq-faint bg-uq-glass-subtle text-xs text-uq-3 flex items-center justify-between flex-shrink-0">
+                <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
+                <span className="font-mono tabular-nums">
                   {memoSaving[activeTask]
                     ? "Saving…"
                     : savedAt[activeTask]
@@ -528,7 +530,7 @@ export default function AssessmentView({
           <button
             type="button"
             onClick={toggleIdsc}
-            className="absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-white transition-colors border-l border-slate-300 z-10 bg-[#1B2A4A] hover:bg-[#142338]"
+            className="absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-uq-2 transition-colors border-l border-uq z-10 bg-uq-glass-strong backdrop-blur-xl hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             aria-label="Expand IDSC Knowledge System (Ctrl/Cmd+J)"
             aria-expanded={false}
             title="IDSC Knowledge System — Ctrl/Cmd+J"
@@ -544,23 +546,23 @@ export default function AssessmentView({
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.26-.97L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              <span className="text-[9px] uppercase tracking-wider opacity-80 font-semibold">Open</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-uq-3">Open</span>
             </div>
             <div className="flex-1 flex items-center justify-center px-1">
               <span
-                className="text-xs font-semibold tracking-wider whitespace-nowrap"
+                className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-2 whitespace-nowrap"
                 style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
               >
                 IDSC INVESTIGATION
               </span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <span className="text-[10px] tabular-nums opacity-80 font-semibold">
+              <span className="font-mono text-[10px] tabular-nums text-uq-2">
                 {trailForActive.length}
               </span>
               {hasUnreadAI && (
                 <span
-                  className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse"
+                  className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow"
                   aria-label="New AI reply"
                   title="New reply"
                 />
@@ -569,22 +571,22 @@ export default function AssessmentView({
           </button>
         ) : (
           <aside
-            className="absolute right-0 top-0 bottom-0 bg-white border-l border-slate-300 flex flex-col z-10 w-full lg:w-[420px] shadow-lg lg:shadow-none"
+            className="absolute right-0 top-0 bottom-0 bg-uq-glass-strong backdrop-blur-xl border-l border-uq flex flex-col z-10 w-full lg:w-[420px] shadow-uq-glass lg:shadow-uq-glass"
             aria-label="IDSC investigation chat"
           >
-            <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between gap-3">
+            <div className="px-4 py-2.5 border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
                   Investigation · Task {activeTask}
                 </div>
-                <div className="text-sm font-semibold text-[#1B2A4A] truncate">
+                <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
                   IDSC Knowledge System
                 </div>
               </div>
               <button
                 type="button"
                 onClick={toggleIdsc}
-                className="text-slate-500 hover:text-slate-900 w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center flex-shrink-0"
+                className="text-uq-3 hover:text-uq w-8 h-8 rounded-md hover:bg-uq-elev2 flex items-center justify-center flex-shrink-0 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                 aria-label="Collapse IDSC sidebar (Ctrl/Cmd+J)"
                 title="Collapse — Ctrl/Cmd+J"
               >
@@ -596,20 +598,20 @@ export default function AssessmentView({
 
             <div ref={chatScroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
               {trailForActive.length === 0 && (
-                <div className="text-xs text-slate-500 italic">
+                <div className="text-xs text-uq-3 italic">
                   Ask the system anything. Be specific — request source documents, underlying data,
                   or detail on a particular item.
                 </div>
               )}
               {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}
-              {sending && <div className="text-xs text-slate-500 italic">IDSC system is replying…</div>}
+              {sending && <div className="text-xs text-uq-3 italic">IDSC system is replying…</div>}
             </div>
 
             {chatError && (
-              <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-red-800 text-xs">{chatError}</div>
+              <div className="px-4 py-2 border-t border-uq-danger-line bg-uq-danger-soft text-uq-danger-text text-xs">{chatError}</div>
             )}
 
-            <div className="border-t border-slate-200 p-3 flex-shrink-0">
+            <div className="border-t border-uq-faint p-3 flex-shrink-0">
               <textarea
                 ref={chatInputRef}
                 value={chatInputs[activeTask] || ""}
@@ -625,7 +627,7 @@ export default function AssessmentView({
                   }
                 }}
                 placeholder="Ask the IDSC Knowledge System… (Ctrl/Cmd ⏎ to send)"
-                className="w-full h-20 text-sm border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-[#4B92DB] focus:border-[#4B92DB] resize-none"
+                className="w-full h-20 text-sm rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1 resize-none"
                 maxLength={CHAT_MAX_CHARS}
                 disabled={sending}
               />
@@ -634,10 +636,10 @@ export default function AssessmentView({
                 const nearLimit = len >= CHAT_MAX_CHARS * 0.9;
                 const atLimit = len >= CHAT_MAX_CHARS;
                 const counterClass = atLimit
-                  ? "text-red-600 font-semibold tabular-nums"
+                  ? "font-mono text-uq-danger-text font-medium tabular-nums"
                   : nearLimit
-                  ? "text-amber-600 font-semibold tabular-nums"
-                  : "text-slate-500 tabular-nums";
+                  ? "font-mono text-uq-warn-text font-medium tabular-nums"
+                  : "font-mono text-uq-3 tabular-nums";
                 return (
                   <div className="mt-1.5 flex items-center justify-between text-xs">
                     <span className={counterClass}>
@@ -647,7 +649,7 @@ export default function AssessmentView({
                     <button
                       onClick={() => void sendMessage()}
                       disabled={!(chatInputs[activeTask] || "").trim() || sending}
-                      className="px-3 py-1.5 rounded-md bg-[#4B92DB] text-white text-xs font-semibold hover:bg-[#357fc8] disabled:bg-slate-300"
+                      className="px-3 py-1.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-xs font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed"
                     >
                       {sending ? "Sending…" : "Send"}
                     </button>
@@ -662,23 +664,23 @@ export default function AssessmentView({
       {/* Fullscreen exhibit modal */}
       {exhibitFullscreen && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/70 flex flex-col p-3"
+          className="fixed inset-0 z-50 bg-[#05080F]/80 backdrop-blur-sm flex flex-col p-3"
           onClick={() => setExhibitFullscreen(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-2xl flex flex-col h-full w-full max-w-6xl mx-auto"
+            className="bg-uq-elev3 rounded-2xl border border-uq-strong shadow-uq-pop animate-uq-rise flex flex-col h-full w-full max-w-6xl mx-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="px-5 py-3 border-b border-uq-faint bg-uq-glass-subtle flex items-center justify-between">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
                   Exhibit · Task {activeTask}
                 </div>
-                <div className="text-base font-semibold text-[#1B2A4A]">{activeTaskCfg.exhibitTitle}</div>
+                <div className="text-base font-semibold tracking-[-0.005em] text-uq">{activeTaskCfg.exhibitTitle}</div>
               </div>
               <button
                 onClick={() => setExhibitFullscreen(false)}
-                className="text-slate-500 hover:text-slate-900 text-2xl w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center"
+                className="text-uq-3 hover:text-uq text-2xl w-9 h-9 rounded-full hover:bg-uq-elev2 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                 aria-label="Close"
               >
                 ×
@@ -687,7 +689,7 @@ export default function AssessmentView({
             <iframe
               srcDoc={activeTaskCfg.exhibitHtml}
               sandbox=""
-              className="flex-1 w-full border-0 rounded-b-lg bg-white"
+              className="flex-1 w-full border-0 rounded-b-2xl bg-white"
               title={activeTaskCfg.exhibitTitle}
             />
           </div>
@@ -714,12 +716,12 @@ export default function AssessmentView({
         const hasCritical = flags.some((f) => f.kind === "empty-memo" || f.kind === "no-ai");
         return (
           <div
-            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-[#05080F]/80 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setConfirmOpen(false)}
           >
-            <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-[#1B2A4A]">Submit assessment?</h3>
-              <p className="text-sm text-slate-600 mt-2">
+            <div className="rounded-2xl border border-uq-strong bg-uq-elev3 shadow-uq-pop animate-uq-rise max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold tracking-[-0.005em] text-uq">Submit assessment?</h3>
+              <p className="text-sm text-uq-2 mt-2 leading-relaxed">
                 This assessment has <strong>two tasks</strong>. You will not be able to return
                 to this assessment or modify your responses after submission.
               </p>
@@ -727,18 +729,18 @@ export default function AssessmentView({
                 {([1, 2] as const).map((t) => (
                   <div
                     key={t}
-                    className={`border rounded-md p-3 ${
+                    className={`rounded-xl p-3 ${
                       wordCounts[t] === 0 || interactionCounts[t] === 0
-                        ? "bg-red-50 border-red-200"
-                        : "bg-slate-50 border-slate-200"
+                        ? "border border-uq-danger-line bg-uq-danger-soft"
+                        : "border border-uq bg-uq-glass-subtle"
                     }`}
                   >
-                    <div className="text-xs text-slate-500">Task {t}</div>
-                    <div className="font-semibold">
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3">Task {t}</div>
+                    <div className="font-semibold font-mono text-uq">
                       {wordCounts[t]} words
-                      <span className="text-xs font-normal text-slate-500 ml-1">memo</span>
+                      <span className="text-xs font-normal text-uq-3 ml-1">memo</span>
                     </div>
-                    <div className="text-xs text-slate-600 mt-1">
+                    <div className="font-mono text-xs text-uq-2 tabular-nums mt-1">
                       {interactionCounts[t]} AI {interactionCounts[t] === 1 ? "question" : "questions"}
                     </div>
                   </div>
@@ -746,10 +748,10 @@ export default function AssessmentView({
               </div>
               {flags.length > 0 && (
                 <div
-                  className={`mt-3 text-xs rounded-md p-3 border ${
+                  className={`mt-3 text-xs rounded-xl p-3 border ${
                     hasCritical
-                      ? "text-red-800 bg-red-50 border-red-200"
-                      : "text-amber-800 bg-amber-50 border-amber-200"
+                      ? "text-uq-danger-text bg-uq-danger-soft border-uq-danger-line"
+                      : "text-uq-warn-text bg-uq-warn-soft border-uq-warn-line"
                   }`}
                 >
                   <div className="font-semibold mb-1">
@@ -764,11 +766,11 @@ export default function AssessmentView({
                             setActiveTask(f.task);
                             setConfirmOpen(false);
                           }}
-                          className="w-full text-left flex items-start gap-2 px-2 py-1 rounded hover:bg-white/60 transition group"
+                          className="w-full text-left flex items-start gap-2 px-2 py-1 rounded-md hover:bg-uq-elev2 transition-colors group focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                         >
                           <span className="opacity-60 mt-0.5 leading-tight">•</span>
                           <span className="flex-1">{f.label}</span>
-                          <span className="font-semibold underline opacity-80 group-hover:opacity-100 whitespace-nowrap">
+                          <span className="font-medium underline text-uq-accent opacity-90 group-hover:opacity-100 whitespace-nowrap">
                             Take me to Task {f.task} →
                           </span>
                         </button>
@@ -780,17 +782,17 @@ export default function AssessmentView({
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmOpen(false)}
-                  className="px-4 py-2 rounded-md border border-slate-300 text-sm hover:bg-slate-50"
+                  className="px-4 py-2 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => void submit()}
                   disabled={submitting}
-                  className={`px-4 py-2 rounded-md text-white text-sm font-semibold disabled:bg-slate-300 ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
                     hasCritical
-                      ? "bg-red-700 hover:bg-red-800"
-                      : "bg-[#1B2A4A] hover:bg-[#142338]"
+                      ? "border border-uq-danger-line bg-uq-danger-soft text-uq-danger-text hover:border-uq-danger"
+                      : "bg-uq-accent text-[color:var(--uq-text-on-accent)] shadow-uq-glow-soft hover:bg-uq-accent-hover hover:shadow-uq-glow"
                   }`}
                 >
                   {submitting ? "Submitting…" : hasCritical ? "Submit anyway" : "Submit"}
@@ -819,10 +821,10 @@ function ChatBubble({ entry }: { entry: Interaction }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[90%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+        className={`max-w-[90%] px-3 py-2 text-sm leading-relaxed ${
           isUser
-            ? "bg-[#1B2A4A] text-white whitespace-pre-wrap"
-            : "bg-slate-100 text-slate-900 border border-slate-200"
+            ? "rounded-2xl rounded-br-md bg-uq-accent text-[color:var(--uq-text-on-accent)] whitespace-pre-wrap"
+            : "rounded-2xl rounded-bl-md bg-uq-elev2 border border-uq text-uq"
         }`}
       >
         {isUser ? entry.content : <MarkdownView>{entry.content}</MarkdownView>}
@@ -842,16 +844,16 @@ export function MarkdownView({ children }: { children: string }) {
           h1: (p) => <h1 className="text-base font-bold mt-3 mb-1.5">{p.children}</h1>,
           h2: (p) => <h2 className="text-sm font-bold mt-3 mb-1.5">{p.children}</h2>,
           h3: (p) => <h3 className="text-sm font-semibold mt-2.5 mb-1">{p.children}</h3>,
-          h4: (p) => <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mt-2 mb-1">{p.children}</h4>,
+          h4: (p) => <h4 className="text-xs font-semibold uppercase tracking-wider text-uq-2 mt-2 mb-1">{p.children}</h4>,
           p: (p) => <p className="mb-2 last:mb-0 leading-relaxed">{p.children}</p>,
           ul: (p) => <ul className="list-disc pl-5 mb-2 space-y-0.5 last:mb-0">{p.children}</ul>,
           ol: (p) => <ol className="list-decimal pl-5 mb-2 space-y-0.5 last:mb-0">{p.children}</ol>,
           li: (p) => <li className="leading-relaxed">{p.children}</li>,
           strong: (p) => <strong className="font-semibold">{p.children}</strong>,
           em: (p) => <em className="italic">{p.children}</em>,
-          hr: () => <hr className="my-3 border-slate-200" />,
+          hr: () => <hr className="my-3 border-uq" />,
           blockquote: (p) => (
-            <blockquote className="border-l-4 border-slate-300 pl-3 italic my-2 text-slate-600">
+            <blockquote className="border-l-4 border-uq-accent pl-3 italic my-2 text-uq-2">
               {p.children}
             </blockquote>
           ),
@@ -862,13 +864,13 @@ export function MarkdownView({ children }: { children: string }) {
                 {children}
               </code>
             ) : (
-              <code className="bg-slate-200/70 px-1 py-0.5 rounded text-[0.85em] font-mono" {...rest}>
+              <code className="bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1 py-0.5 rounded text-[0.85em] font-mono" {...rest}>
                 {children}
               </code>
             );
           },
           pre: (p) => (
-            <pre className="bg-slate-900 text-slate-100 text-xs rounded p-2.5 overflow-x-auto my-2 font-mono">
+            <pre className="bg-[#060A12] border border-uq text-[#D7E0EE] text-xs rounded p-2.5 overflow-x-auto my-2 font-mono">
               {p.children}
             </pre>
           ),
@@ -877,15 +879,15 @@ export function MarkdownView({ children }: { children: string }) {
               <table className="min-w-full border-collapse text-xs">{p.children}</table>
             </div>
           ),
-          thead: (p) => <thead className="bg-slate-100">{p.children}</thead>,
+          thead: (p) => <thead className="bg-uq-glass-subtle">{p.children}</thead>,
           th: (p) => (
-            <th className="border border-slate-300 px-2 py-1 text-left font-semibold">
+            <th className="border border-uq px-2 py-1 text-left font-semibold">
               {p.children}
             </th>
           ),
-          td: (p) => <td className="border border-slate-300 px-2 py-1 align-top">{p.children}</td>,
+          td: (p) => <td className="border border-uq px-2 py-1 align-top">{p.children}</td>,
           a: (p) => (
-            <a className="text-[#4B92DB] underline hover:no-underline" target="_blank" rel="noreferrer" {...(p as any)}>
+            <a className="text-uq-accent underline hover:no-underline" target="_blank" rel="noreferrer" {...(p as any)}>
               {p.children}
             </a>
           ),
@@ -907,10 +909,10 @@ function TaskTabs({
 }) {
   return (
     <div className="inline-flex items-center gap-2">
-      <span className="hidden xl:inline text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+      <span className="hidden xl:inline font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">
         {tasks.length} tasks
       </span>
-      <div className="inline-flex border border-slate-300 rounded-md overflow-hidden shadow-sm">
+      <div className="inline-flex border border-uq rounded-md overflow-hidden bg-uq-elev1 shadow-uq-glass">
         {tasks.map((t) => {
           const isActive = active === t.number;
           const shortTitle = t.title.split("&")[0].trim();
@@ -920,10 +922,10 @@ function TaskTabs({
               key={t.number}
               onClick={() => onSwitch(t.number)}
               className={[
-                "px-3 py-1.5 text-xs border-r border-slate-300 last:border-r-0 transition flex items-center gap-1.5",
+                "px-3 py-1.5 text-xs border-r border-uq last:border-r-0 transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
                 isActive
-                  ? "bg-[#1B2A4A] text-white"
-                  : "bg-white text-[#1B2A4A] hover:bg-slate-50",
+                  ? "bg-uq-accent-soft text-uq border-b-2 border-b-uq-accent"
+                  : "bg-transparent text-uq-2 hover:bg-uq-elev2 hover:text-uq",
               ].join(" ")}
               title={`Task ${t.number} of ${tasks.length}: ${t.title}`}
             >
@@ -935,10 +937,10 @@ function TaskTabs({
               <span className="hidden md:inline opacity-80 truncate max-w-[140px] font-medium">
                 {shortTitle}
               </span>
-              <span className="text-[10px] opacity-70 tabular-nums">{wordCounts[t.number]}w</span>
+              <span className="font-mono text-[10px] opacity-70 tabular-nums">{wordCounts[t.number]}w</span>
               {!isActive && empty && (
                 <span
-                  className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"
+                  className="w-1.5 h-1.5 rounded-full bg-uq-danger flex-shrink-0"
                   title="No memo content yet"
                 />
               )}
@@ -965,24 +967,24 @@ function ViewTab({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "relative px-4 pt-2.5 pb-2 -mb-px text-left flex flex-col gap-0.5 transition border-b-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4B92DB] focus-visible:ring-offset-1 rounded-t",
+        "relative px-4 pt-2.5 pb-2 -mb-px text-left flex flex-col gap-0.5 transition border-b-2 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md rounded-t",
         active
-          ? "border-[#1B2A4A] text-[#1B2A4A] bg-white"
-          : "border-transparent text-slate-500 hover:text-[#1B2A4A] hover:bg-slate-50",
+          ? "border-uq-accent text-uq bg-uq-elev1"
+          : "border-transparent text-uq-3 hover:text-uq hover:bg-uq-elev2",
       ].join(" ")}
     >
       <span className="text-sm font-semibold inline-flex items-center gap-1.5">
         {label}
         {warn && (
           <span
-            className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"
+            className="w-1.5 h-1.5 rounded-full bg-uq-danger flex-shrink-0"
             aria-label="empty"
             title="Empty"
           />
         )}
       </span>
       {sublabel && (
-        <span className="text-[11px] text-slate-500 truncate max-w-[260px]">{sublabel}</span>
+        <span className="font-mono text-[11px] tabular-nums text-uq-3 truncate max-w-[260px]">{sublabel}</span>
       )}
     </button>
   );
@@ -1062,12 +1064,12 @@ function MemoEditor({
 function MemoToolbar({ editor }: { editor: Editor | null }) {
   if (!editor) {
     return (
-      <div className="border-b border-slate-200 px-2 py-1.5 bg-slate-50/80 text-xs flex-shrink-0 h-9" />
+      <div className="border-b border-uq-faint px-2 py-1.5 bg-uq-glass-subtle text-xs flex-shrink-0 h-9" />
     );
   }
   const isActive = (name: string, attrs?: Record<string, unknown>) => editor.isActive(name, attrs);
   return (
-    <div className="border-b border-slate-200 px-2 py-1.5 flex items-center gap-0.5 bg-slate-50/80 text-xs flex-shrink-0 flex-wrap">
+    <div className="border-b border-uq-faint px-2 py-1.5 flex items-center gap-0.5 bg-uq-glass-subtle text-xs flex-shrink-0 flex-wrap">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={isActive("bold")}
@@ -1170,10 +1172,10 @@ function ToolbarButton({
       onClick={onClick}
       title={title}
       type="button"
-      className={`px-2 py-1 rounded transition text-xs min-w-[26px] ${
+      className={`px-2 py-1 rounded-md transition-colors text-xs min-w-[26px] ${
         active
-          ? "bg-[#1B2A4A] text-white"
-          : "text-slate-700 hover:bg-slate-200"
+          ? "bg-uq-accent-soft text-uq border border-uq-accent"
+          : "text-uq-2 hover:bg-uq-elev2 hover:text-uq"
       }`}
     >
       {children}
@@ -1182,17 +1184,17 @@ function ToolbarButton({
 }
 
 function ToolbarDivider() {
-  return <div className="w-px h-4 bg-slate-300 mx-0.5" />;
+  return <div className="w-px h-4 bg-uq-border mx-0.5" />;
 }
 
 function TimerPill({ timer }: { timer: TimerInfo }) {
   const cls = timer.critical
-    ? "bg-red-50 text-red-700 border-red-200"
+    ? "bg-uq-danger-soft text-uq-danger-text border-uq-danger-line animate-uq-pulse-glow"
     : timer.warning
-    ? "bg-amber-50 text-amber-800 border-amber-200"
-    : "bg-slate-50 text-slate-700 border-slate-200";
+    ? "bg-uq-warn-soft text-uq-warn-text border-uq-warn-line"
+    : "bg-uq-elev2 text-uq-2 border-uq";
   return (
-    <div className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-mono border ${cls}`}>
+    <div className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-mono tabular-nums border ${cls}`}>
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>

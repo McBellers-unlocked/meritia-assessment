@@ -183,13 +183,13 @@ function NotificationRail({
       {emailsVisible && (
         <button
           onClick={onOpenInbox}
-          className="relative w-11 h-11 rounded-full bg-white border border-slate-300 shadow hover:bg-slate-50 flex items-center justify-center"
+          className="relative w-11 h-11 rounded-full bg-uq-glass backdrop-blur-xl border border-uq shadow-uq-glass hover:border-uq-accent hover:bg-uq-accent-soft text-uq-2 hover:text-uq transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           title="Inbox"
           aria-label={`Inbox${unreadEmails ? `, ${unreadEmails} unread` : ""}`}
         >
           <EmailIcon />
           {unreadEmails > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-uq-accent text-[color:var(--uq-text-on-accent)] font-mono text-[10px] font-semibold flex items-center justify-center">
               {unreadEmails}
             </span>
           )}
@@ -198,15 +198,15 @@ function NotificationRail({
       {hasChat && (
         <button
           onClick={onOpenChat}
-          className={`relative w-11 h-11 rounded-full border shadow flex items-center justify-center ${
-            chatActive ? "bg-purple-600 border-purple-700 text-white" : "bg-white border-slate-300 hover:bg-slate-50 text-slate-700"
+          className={`relative w-11 h-11 rounded-full border shadow-uq-glass backdrop-blur-xl transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+            chatActive ? "bg-uq-persona-soft border-uq-persona text-uq-persona" : "bg-uq-glass border-uq text-uq-2 hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq"
           }`}
           title="Chat"
           aria-label="Open chat"
         >
           <ChatIcon />
           {!chatActive && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-uq-persona animate-uq-pulse-glow" />
           )}
         </button>
       )}
@@ -252,17 +252,17 @@ function InboxDrawer({
   const selected = emails.find((e) => e.id === selectedEmailId) ?? emails[0] ?? null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[560px] max-w-full bg-white shadow-2xl border-l border-slate-200 z-40 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+    <div className="fixed inset-y-0 right-0 w-[560px] max-w-full bg-uq-glass-strong backdrop-blur-xl shadow-uq-pop border-l border-uq z-40 flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-uq-faint bg-uq-glass-subtle">
         <div>
-          <div className="text-sm font-semibold text-[#1B2A4A]">Inbox</div>
-          <div className="text-xs text-slate-500">{emails.length} message{emails.length === 1 ? "" : "s"}</div>
+          <div className="text-sm font-semibold text-uq">Inbox</div>
+          <div className="font-mono text-xs text-uq-3">{emails.length} message{emails.length === 1 ? "" : "s"}</div>
         </div>
-        <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-800" aria-label="Close inbox">✕</button>
+        <button onClick={onClose} className="text-sm text-uq-3 hover:text-uq transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] rounded px-1" aria-label="Close inbox">✕</button>
       </div>
 
       <div className="flex flex-1 min-h-0">
-        <ul className="w-48 border-r border-slate-200 overflow-y-auto">
+        <ul className="w-48 border-r border-uq-faint overflow-y-auto">
           {emails.map((e) => {
             const isSelected = selected?.id === e.id;
             const unread = e.response === null;
@@ -270,13 +270,13 @@ function InboxDrawer({
               <li key={e.id}>
                 <button
                   onClick={() => onSelect(e.id)}
-                  className={`w-full text-left px-3 py-2 text-xs border-b border-slate-100 ${
-                    isSelected ? "bg-emerald-50" : "hover:bg-slate-50"
+                  className={`w-full text-left px-3 py-2 text-xs border-b border-uq-faint transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+                    isSelected ? "bg-uq-accent-soft border-l-2 border-l-uq-accent" : "hover:bg-uq-elev2"
                   }`}
                 >
-                  <div className={`truncate ${unread ? "font-semibold text-[#1B2A4A]" : "text-slate-600"}`}>{e.senderName}</div>
-                  <div className={`truncate ${unread ? "text-slate-700" : "text-slate-500"}`}>{e.subject}</div>
-                  <div className="mt-1 text-[10px] text-slate-400">
+                  <div className={`truncate ${unread ? "font-semibold text-uq" : "text-uq-2"}`}>{e.senderName}</div>
+                  <div className={`truncate ${unread ? "text-uq-2" : "text-uq-3"}`}>{e.subject}</div>
+                  <div className="mt-1 font-mono text-[10px] text-uq-3">
                     {unread ? "Unread" : `✓ ${e.response?.action}`}
                   </div>
                 </button>
@@ -294,7 +294,7 @@ function InboxDrawer({
               onResponded={onResponded}
             />
           ) : (
-            <div className="p-6 text-sm text-slate-500">Select a message to read.</div>
+            <div className="p-6 text-sm text-uq-3">Select a message to read.</div>
           )}
         </div>
       </div>
@@ -349,58 +349,58 @@ function EmailReader({
   return (
     <div className="p-4 space-y-4">
       <div>
-        <div className="text-xs text-slate-500">{new Date(email.deliveredAt).toLocaleString()}</div>
-        <div className="text-lg font-semibold text-[#1B2A4A] mt-1">{email.subject}</div>
-        <div className="text-sm text-slate-600 mt-1">
-          From <span className="font-medium">{email.senderName}</span> &lt;{email.senderEmail}&gt;
+        <div className="font-mono text-xs text-uq-3">{new Date(email.deliveredAt).toLocaleString()}</div>
+        <div className="text-lg font-semibold tracking-[-0.005em] text-uq mt-1">{email.subject}</div>
+        <div className="text-sm text-uq-2 mt-1">
+          From <span className="font-medium text-uq">{email.senderName}</span> &lt;{email.senderEmail}&gt;
         </div>
       </div>
 
       <div
-        className="prose prose-sm max-w-none border border-slate-200 rounded-md p-3 bg-slate-50"
+        className="prose prose-sm max-w-none border border-uq rounded-md p-3 bg-white text-slate-900"
         dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
       />
 
       {alreadyResponded && (
-        <div className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 rounded px-3 py-2">
+        <div className="text-xs bg-uq-success-soft border border-uq-success-line text-uq-success-text rounded-md px-3 py-2">
           You {email.response!.action === "replied" ? "replied" : email.response!.action === "ignored" ? "chose not to respond" : "flagged this"} at {new Date(email.response!.respondedAt).toLocaleTimeString()}.
           {email.response!.action === "replied" && " Your reply is editable below."}
         </div>
       )}
 
       <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1">Your reply</label>
+        <label className="block text-xs font-medium text-uq-2 mb-1">Your reply</label>
         <textarea
           value={replyBody}
           onChange={(e) => setReplyBody(e.target.value)}
           placeholder="Type your reply here, or use Ignore / Flag if you don't want to respond."
           maxLength={10_000}
-          className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm h-40"
+          className="w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 h-40 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
-        <div className="text-[10px] text-slate-400 mt-1 text-right">{replyBody.length} / 10,000</div>
+        <div className="font-mono text-[10px] text-uq-3 mt-1 text-right tabular-nums">{replyBody.length} / 10,000</div>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">{error}</div>}
+      {error && <div className="bg-uq-danger-soft border border-uq-danger-line text-uq-danger-text text-sm rounded-md px-3 py-2">{error}</div>}
 
       <div className="flex items-center justify-end gap-2">
         <button
           onClick={() => submit("flagged")}
           disabled={submitting}
-          className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="px-3 py-1.5 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           Flag
         </button>
         <button
           onClick={() => submit("ignored")}
           disabled={submitting}
-          className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="px-3 py-1.5 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           Ignore
         </button>
         <button
           onClick={() => submit("replied")}
           disabled={submitting || !replyBody.trim()}
-          className="px-4 py-1.5 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+          className="px-4 py-1.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           {submitting ? "Sending…" : alreadyResponded && email.response?.action === "replied" ? "Update reply" : "Send reply"}
         </button>
@@ -530,29 +530,29 @@ function ChatPopup({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-96 max-w-full bg-white rounded-xl shadow-2xl border border-purple-300 flex flex-col overflow-hidden" style={{ height: "520px" }}>
-      <div className="bg-purple-700 text-white px-4 py-3 flex items-center justify-between">
+    <div className="fixed bottom-4 right-4 z-50 w-96 max-w-full bg-uq-glass-strong backdrop-blur-xl rounded-2xl shadow-uq-pop border border-uq-persona animate-uq-rise flex flex-col overflow-hidden" style={{ height: "520px" }}>
+      <div className="bg-uq-persona-soft border-b border-uq text-uq px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-purple-500 flex items-center justify-center text-sm font-bold flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-uq-persona text-[color:var(--uq-text-on-accent)] flex items-center justify-center text-sm font-bold flex-shrink-0">
             {chat.personaName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{chat.personaName}</div>
-            <div className="text-xs text-purple-200 truncate">{chat.personaRole}</div>
+            <div className="text-sm font-semibold truncate text-uq">{chat.personaName}</div>
+            <div className="font-mono text-[11px] text-uq-2 truncate">{chat.personaRole}</div>
           </div>
         </div>
-        <button onClick={onMinimise} className="text-purple-200 hover:text-white text-xs" aria-label="Minimise">
+        <button onClick={onMinimise} className="text-uq-3 hover:text-uq text-xs transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] rounded px-1" aria-label="Minimise">
           — minimise
         </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 bg-slate-50 space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 bg-uq-bg2 space-y-2">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.actor === "candidate" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+            <div className={`max-w-[80%] px-3 py-2 text-sm whitespace-pre-wrap ${
               m.actor === "candidate"
-                ? "bg-[#1B2A4A] text-white rounded-br-sm"
-                : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
+                ? "rounded-2xl rounded-br-md bg-uq-persona text-[color:var(--uq-text-on-accent)]"
+                : "rounded-2xl rounded-bl-md bg-uq-elev2 border border-uq text-uq"
             }`}>
               {m.content}
             </div>
@@ -560,16 +560,16 @@ function ChatPopup({
         ))}
         {sending && (
           <div className="flex justify-start">
-            <div className="max-w-[80%] px-3 py-2 rounded-lg text-xs bg-slate-100 text-slate-500 italic">typing…</div>
+            <div className="max-w-[80%] px-3 py-2 rounded-2xl rounded-bl-md text-xs bg-uq-elev2 text-uq-3 italic">typing…</div>
           </div>
         )}
       </div>
 
-      {error && <div className="px-3 py-1 text-xs text-red-700 bg-red-50 border-t border-red-200">{error}</div>}
+      {error && <div className="px-3 py-1 text-xs text-uq-danger-text bg-uq-danger-soft border-t border-uq-danger-line">{error}</div>}
 
-      <div className="border-t border-slate-200 p-2">
+      <div className="border-t border-uq-faint p-2">
         {reachedCap ? (
-          <div className="text-xs text-slate-500 text-center py-2">
+          <div className="text-xs text-uq-3 text-center py-2">
             This conversation has ended.
           </div>
         ) : (
@@ -580,20 +580,20 @@ function ChatPopup({
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
               placeholder="Type a reply… (Shift+Enter for newline)"
               maxLength={4000}
-              className="flex-1 border border-slate-300 rounded-md px-2 py-1.5 text-sm resize-none"
+              className="flex-1 rounded-md border border-uq bg-uq-glass-subtle px-2 py-1.5 text-sm text-uq placeholder:text-uq-3 resize-none transition-shadow duration-150 focus:outline-none focus:border-[color:var(--uq-persona)] focus:shadow-[0_0_22px_-6px_rgba(183,148,246,0.4)] focus:bg-uq-elev1"
               rows={2}
               disabled={sending}
             />
             <button
               onClick={send}
               disabled={sending || !input.trim()}
-              className="px-3 py-2 rounded-md bg-purple-700 text-white text-sm font-semibold hover:bg-purple-800 disabled:bg-slate-300"
+              className="px-3 py-2 rounded-md bg-uq-persona text-[color:var(--uq-text-on-accent)] text-sm font-medium transition-all duration-150 hover:brightness-110 active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               Send
             </button>
           </div>
         )}
-        <div className="text-[10px] text-slate-400 mt-1 text-right">
+        <div className="font-mono text-[10px] text-uq-3 mt-1 text-right tabular-nums">
           {candidateTurns} / {chat.maxTurns} turns
         </div>
       </div>
@@ -605,9 +605,9 @@ function MinimisedChatPill({ personaName, onOpen }: { personaName: string; onOpe
   return (
     <button
       onClick={onOpen}
-      className="fixed bottom-4 right-4 z-50 bg-purple-700 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hover:bg-purple-800 flex items-center gap-2"
+      className="fixed bottom-4 right-4 z-50 bg-uq-persona-soft backdrop-blur-xl border border-uq-persona text-uq px-4 py-2 rounded-full shadow-uq-glass text-sm font-medium hover:bg-uq-elev2 transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
     >
-      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+      <span className="w-2 h-2 rounded-full bg-uq-persona animate-uq-pulse-glow" />
       Chat with {personaName}
     </button>
   );

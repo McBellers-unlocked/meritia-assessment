@@ -17,7 +17,10 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Render the already-loaded Geist Sans (next/font/local) instead of falling
+     back to Arial. Applies to every surface; the dark theme overrides the
+     family again under .uq-dark only where needed. */
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer utilities {
@@ -68,4 +71,201 @@ body {
   float: left;
   pointer-events: none;
   height: 0;
+}
+
+/* ============================================================
+   OBSERVATORY DARK — scoped Premium Dark / AI-native theme.
+   Everything below is gated under .uq-dark (applied by the
+   (admin) + /assess route-group layouts and the admin Nav),
+   so the public landing/login and the light marker prose above
+   are provably untouched.
+   ============================================================ */
+.uq-dark {
+  /* ---- Backgrounds: the void + an elevation ladder (never pure black) ---- */
+  --uq-bg:            #0A0E16;
+  --uq-bg-2:          #0E141F;
+  --uq-elev-1:        #121A28;
+  --uq-elev-2:        #16202F;
+  --uq-elev-3:        #1B2738;
+
+  /* ---- Glass: translucent fills layered over the void ---- */
+  --uq-glass:         rgba(22, 32, 47, 0.72);
+  --uq-glass-strong:  rgba(27, 39, 56, 0.86);
+  --uq-glass-subtle:  rgba(18, 26, 40, 0.55);
+  --uq-inset-hi:      rgba(180, 210, 255, 0.06);
+
+  /* ---- Borders / hairlines ---- */
+  --uq-border:        rgba(148, 178, 224, 0.14);
+  --uq-border-strong: rgba(148, 178, 224, 0.24);
+  --uq-border-faint:  rgba(148, 178, 224, 0.08);
+
+  /* ---- Text ---- */
+  --uq-text:          #E8EDF6;
+  --uq-text-2:        #A9B6CC;
+  --uq-text-3:        #6E7C95;
+  --uq-text-on-accent:#06121F;
+
+  /* ---- Accent (Azure) + glow ---- */
+  --uq-accent:        #4DA3FF;
+  --uq-accent-hover:  #6FB6FF;
+  --uq-accent-press:  #3A8CE6;
+  --uq-accent-soft:   rgba(77, 163, 255, 0.14);
+  --uq-accent-line:   rgba(77, 163, 255, 0.45);
+  --uq-cyan:          #5FE3D8;
+
+  /* ---- Glow / depth shadows ---- */
+  --uq-glow:          0 0 0 1px rgba(77,163,255,0.35), 0 0 18px -2px rgba(77,163,255,0.45);
+  --uq-glow-soft:     0 0 22px -6px rgba(77,163,255,0.40);
+  --uq-glow-cyan:     0 0 22px -6px rgba(95,227,216,0.35);
+  --uq-focus-ring:    0 0 0 2px var(--uq-bg), 0 0 0 4px var(--uq-accent), 0 0 16px -2px rgba(77,163,255,0.55);
+
+  /* ---- Semantic (tuned for dark — soft fill / tinted line / bright text) ---- */
+  --uq-success:       #34D399;
+  --uq-success-soft:  rgba(52, 211, 153, 0.13);
+  --uq-success-line:  rgba(52, 211, 153, 0.40);
+  --uq-success-text:  #6EE7B7;
+
+  --uq-warn:          #F5B544;
+  --uq-warn-soft:     rgba(245, 181, 68, 0.13);
+  --uq-warn-line:     rgba(245, 181, 68, 0.40);
+  --uq-warn-text:     #FBD38D;
+
+  --uq-danger:        #FB6F84;
+  --uq-danger-soft:   rgba(251, 111, 132, 0.13);
+  --uq-danger-line:   rgba(251, 111, 132, 0.40);
+  --uq-danger-text:   #FCA5B4;
+
+  /* persona-chat secondary identity (was purple) */
+  --uq-persona:       #B794F6;
+  --uq-persona-soft:  rgba(183, 148, 246, 0.14);
+
+  --uq-selection:     rgba(77, 163, 255, 0.30);
+
+  color: var(--uq-text);
+  position: relative;
+  isolation: isolate;
+}
+/* The void base lives on the fixed glow-grid layer below (not as a
+   background-color here) so elements that carry .uq-dark purely for token
+   resolution — e.g. the glass Nav header — keep their own translucent
+   background instead of being painted solid. */
+
+/* ---- Signature ambient glow-grid: a single fixed, GPU-cheap layer behind
+   all in-scope content (aurora wash + faint coordinate lattice). Static (no
+   perpetual animation) so it never pins the compositor during a long exam.
+   Gated to .uq-root (the route-group layout wrappers) so it is painted exactly
+   once per page — the Nav header carries .uq-dark for tokens but not .uq-root,
+   so it does not add a second backdrop. */
+.uq-dark.uq-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 78% -8%, rgba(77,163,255,0.16), transparent 60%),
+    radial-gradient(48rem 36rem at 8% 108%, rgba(95,227,216,0.10), transparent 55%),
+    linear-gradient(to right, rgba(148,178,224,0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148,178,224,0.045) 1px, transparent 1px),
+    var(--uq-bg);
+  background-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px, 100% 100%;
+  background-position: center;
+}
+/* Top vignette so the glass header reads cleanly against the grid. */
+.uq-dark.uq-root::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(5,8,15,0.55) 0%, transparent 22%);
+}
+
+/* ---- Custom scrollbars (scoped) ---- */
+.uq-dark *::-webkit-scrollbar { width: 10px; height: 10px; }
+.uq-dark *::-webkit-scrollbar-track { background: transparent; }
+.uq-dark *::-webkit-scrollbar-thumb {
+  background: rgba(148,178,224,0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.uq-dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(77,163,255,0.40);
+  background-clip: content-box;
+}
+.uq-dark { scrollbar-color: rgba(148,178,224,0.25) transparent; scrollbar-width: thin; }
+
+/* ---- Selection (scoped) ---- */
+.uq-dark ::selection { background: var(--uq-selection); color: var(--uq-text); }
+
+/* ---- DARK prose variant — the writing surface (.memo-editor) the candidate
+   writes in, and the rendered prose markers read (.memo-rendered) and AI
+   markdown (.markdown-rendered / .markdown-view). Legibility-first: warm-white
+   ink (not pure #fff to avoid halation), 15px / 1.7 for long-session comfort.
+   Only applies under a .uq-dark ancestor — the light rules above stay intact. */
+.uq-dark .memo-editor,
+.uq-dark .memo-rendered,
+.uq-dark .markdown-rendered,
+.uq-dark .markdown-view {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.7;
+  color: var(--uq-text);
+}
+.uq-dark .memo-editor { caret-color: var(--uq-accent); }
+.uq-dark .memo-editor:focus { outline: none; }
+.uq-dark .memo-editor h1, .uq-dark .memo-rendered h1, .uq-dark .markdown-rendered h1, .uq-dark .markdown-view h1,
+.uq-dark .memo-editor h2, .uq-dark .memo-rendered h2, .uq-dark .markdown-rendered h2, .uq-dark .markdown-view h2,
+.uq-dark .memo-editor h3, .uq-dark .memo-rendered h3, .uq-dark .markdown-rendered h3, .uq-dark .markdown-view h3 {
+  color: #F2F6FC;
+  font-weight: 600;
+}
+.uq-dark .memo-editor h4, .uq-dark .memo-rendered h4, .uq-dark .markdown-rendered h4, .uq-dark .markdown-view h4 {
+  color: var(--uq-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 500;
+}
+.uq-dark .memo-editor strong, .uq-dark .memo-rendered strong, .uq-dark .markdown-rendered strong, .uq-dark .markdown-view strong { color: #FFFFFF; font-weight: 600; }
+.uq-dark .memo-editor em, .uq-dark .memo-rendered em, .uq-dark .markdown-rendered em, .uq-dark .markdown-view em { font-style: italic; }
+.uq-dark .memo-editor s, .uq-dark .memo-rendered s, .uq-dark .markdown-rendered s, .uq-dark .markdown-view s,
+.uq-dark .memo-editor del, .uq-dark .memo-rendered del, .uq-dark .markdown-rendered del, .uq-dark .markdown-view del { color: var(--uq-text-3); }
+.uq-dark .memo-editor blockquote, .uq-dark .memo-rendered blockquote, .uq-dark .markdown-rendered blockquote, .uq-dark .markdown-view blockquote {
+  border-left: 3px solid var(--uq-accent-line);
+  color: var(--uq-text-2);
+  background: var(--uq-accent-soft);
+  border-radius: 0 6px 6px 0;
+  padding: 0.35rem 0.85rem;
+}
+.uq-dark .memo-editor hr, .uq-dark .memo-rendered hr, .uq-dark .markdown-rendered hr, .uq-dark .markdown-view hr { border-top: 1px solid var(--uq-border); }
+.uq-dark .memo-editor a, .uq-dark .memo-rendered a, .uq-dark .markdown-rendered a, .uq-dark .markdown-view a { color: var(--uq-accent); text-decoration: underline; text-underline-offset: 2px; }
+.uq-dark .memo-editor code, .uq-dark .memo-rendered code, .uq-dark .markdown-rendered code, .uq-dark .markdown-view code {
+  background: var(--uq-glass-subtle);
+  border: 1px solid var(--uq-border-faint);
+  color: var(--uq-cyan);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+.uq-dark .memo-editor pre, .uq-dark .memo-rendered pre, .uq-dark .markdown-rendered pre, .uq-dark .markdown-view pre {
+  background: #060A12;
+  border: 1px solid var(--uq-border);
+  color: #D7E0EE;
+}
+.uq-dark .memo-editor pre code, .uq-dark .memo-rendered pre code, .uq-dark .markdown-rendered pre code, .uq-dark .markdown-view pre code { background: transparent; border: 0; color: inherit; }
+.uq-dark .memo-rendered th, .uq-dark .memo-rendered td,
+.uq-dark .markdown-rendered th, .uq-dark .markdown-rendered td,
+.uq-dark .markdown-view th, .uq-dark .markdown-view td { border: 1px solid var(--uq-border); }
+.uq-dark .memo-rendered thead th, .uq-dark .markdown-rendered thead th, .uq-dark .markdown-view thead th { background: var(--uq-glass-subtle); color: var(--uq-text); font-weight: 600; }
+.uq-dark .memo-editor p.is-editor-empty:first-child::before { color: var(--uq-text-3); }
+
+/* ---- Reduced-motion: kill animations, keep resting states intact ---- */
+@media (prefers-reduced-motion: reduce) {
+  .uq-dark *,
+  .uq-dark *::before,
+  .uq-dark *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -82,72 +82,72 @@ export default function EmailTaskEditor({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
+      <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="text-xs text-slate-500">
-            Task {task.number} · <span className="font-mono">email_inbox</span>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
+            Task {task.number} · <span className="text-uq-cyan">email_inbox</span>
           </div>
-          <button onClick={remove} className="text-xs text-red-600 hover:text-red-700">Delete task</button>
+          <button onClick={remove} className="text-xs font-medium text-[color:var(--uq-danger-text)] hover:underline focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded">Delete task</button>
         </div>
 
         <label className="block text-sm">
-          <span className="text-slate-600">Title</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Title</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
 
         <label className="block text-sm">
-          <span className="text-slate-600">Brief (Markdown)</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Brief (Markdown)</span>
           <textarea
             value={briefMarkdown}
             onChange={(e) => setBriefMarkdown(e.target.value)}
             placeholder="You've just started in your new role. Emails will arrive as the day unfolds. Decide how to handle each one."
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono h-28"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono h-28 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
 
         <label className="block text-sm">
-          <span className="text-slate-600">Total marks</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Total marks</span>
           <input
             type="number"
             min={0}
             max={1000}
             value={totalMarks}
             onChange={(e) => setTotalMarks(e.target.value)}
-            className="mt-1 block w-40 border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-40 rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">{error}</div>}
+        {error && <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
 
         <div className="flex items-center justify-end gap-3">
-          {savedAt && <span className="text-xs text-slate-500">Saved {savedAt.toLocaleTimeString()}</span>}
+          {savedAt && <span className="text-xs text-uq-3">Saved {savedAt.toLocaleTimeString()}</span>}
           <button
             onClick={saveTaskHeader}
             disabled={saving}
-            className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+            className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             {saving ? "Saving…" : "Save task"}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 p-4">
+      <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-[#1B2A4A]">Scripted emails ({task.emails.length})</h3>
+          <h3 className="text-base font-semibold text-uq">Scripted emails ({task.emails.length})</h3>
           <button
             onClick={() => { setCreatingEmail(true); setEditingEmailId(null); }}
-            className="text-xs text-[#4B92DB] hover:underline"
+            className="text-xs font-medium text-uq-accent hover:text-uq-accent-hover hover:underline transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded"
           >
             + Add email
           </button>
         </div>
 
         {task.emails.length === 0 && !creatingEmail && (
-          <div className="text-xs text-slate-500 py-6 text-center">
+          <div className="text-xs text-uq-3 py-6 text-center">
             No emails scripted yet.
           </div>
         )}
@@ -156,21 +156,21 @@ export default function EmailTaskEditor({
           <EmailTimeline emails={task.emails} totalMinutes={scenario.defaultTotalMinutes} />
         )}
 
-        <ul className="divide-y divide-slate-100 mt-2">
+        <ul className="divide-y divide-[color:var(--uq-border-faint)] mt-2">
           {task.emails.map((e) => (
             <li key={e.id}>
               <button
                 onClick={() => { setEditingEmailId(e.id); setCreatingEmail(false); }}
-                className={`w-full text-left py-2 px-2 rounded flex items-center gap-3 ${
-                  editingEmailId === e.id ? "bg-emerald-50" : "hover:bg-slate-50"
+                className={`w-full text-left py-2 px-2 rounded flex items-center gap-3 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+                  editingEmailId === e.id ? "bg-uq-accent-soft" : "hover:bg-uq-elev2"
                 }`}
               >
-                <span className="font-mono text-xs text-slate-500 w-14 flex-shrink-0">{formatOffset(e.triggerOffsetSeconds)}</span>
+                <span className="font-mono text-xs text-uq-3 w-14 flex-shrink-0">{formatOffset(e.triggerOffsetSeconds)}</span>
                 <span className="flex-1 min-w-0">
-                  <div className="text-sm text-[#1B2A4A] truncate">{e.subject || "(no subject)"}</div>
-                  <div className="text-xs text-slate-500 truncate">from {e.senderName} &lt;{e.senderEmail}&gt;</div>
+                  <div className="text-sm text-uq truncate">{e.subject || "(no subject)"}</div>
+                  <div className="text-xs text-uq-3 truncate">from {e.senderName} &lt;{e.senderEmail}&gt;</div>
                 </span>
-                <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                <span className="text-xs font-mono px-2 py-0.5 rounded border border-uq bg-uq-elev2 text-uq-2">
                   {e.expectedAction}
                 </span>
               </button>
@@ -179,7 +179,7 @@ export default function EmailTaskEditor({
         </ul>
 
         {(editingEmail || creatingEmail) && (
-          <div className="mt-4 pt-4 border-t border-slate-200">
+          <div className="mt-4 pt-4 border-t border-uq-faint">
             <EmailForm
               scenarioId={scenario.id}
               taskId={task.id}
@@ -213,20 +213,20 @@ function formatOffset(seconds: number): string {
 function EmailTimeline({ emails, totalMinutes }: { emails: EditorEmail[]; totalMinutes: number }) {
   const total = totalMinutes * 60;
   return (
-    <div className="relative h-6 bg-slate-100 rounded mb-2" title={`Timeline (${totalMinutes} min)`}>
+    <div className="relative h-6 bg-uq-elev2 border border-uq-faint rounded mb-2" title={`Timeline (${totalMinutes} min)`}>
       {emails.map((e) => {
         const pct = Math.min(100, (e.triggerOffsetSeconds / total) * 100);
         return (
           <div
             key={e.id}
-            className="absolute top-0 bottom-0 w-1 bg-emerald-500 rounded"
+            className="absolute top-0 bottom-0 w-1 bg-uq-accent rounded"
             style={{ left: `${pct}%` }}
             title={`${formatOffset(e.triggerOffsetSeconds)} — ${e.subject}`}
           />
         );
       })}
-      <div className="absolute -bottom-4 left-0 text-[10px] text-slate-500">0:00</div>
-      <div className="absolute -bottom-4 right-0 text-[10px] text-slate-500">{totalMinutes}:00</div>
+      <div className="absolute -bottom-4 left-0 font-mono text-[10px] text-uq-3">0:00</div>
+      <div className="absolute -bottom-4 right-0 font-mono text-[10px] text-uq-3">{totalMinutes}:00</div>
     </div>
   );
 }
@@ -301,24 +301,24 @@ function EmailForm({
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-semibold text-[#1B2A4A]">
+      <div className="text-base font-semibold text-uq">
         {email ? "Edit email" : "New email"}
       </div>
       <div className="grid sm:grid-cols-3 gap-3">
         <label className="block text-sm sm:col-span-1">
-          <span className="text-slate-600">Trigger (min:sec after start)</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Trigger (min:sec after start)</span>
           <div className="mt-1 flex items-center gap-1">
-            <input type="number" min={0} value={triggerMin} onChange={(e) => setTriggerMin(e.target.value)} className="w-20 border border-slate-300 rounded-md px-3 py-2 text-sm" />
-            <span className="text-slate-500">:</span>
-            <input type="number" min={0} max={59} value={triggerSec} onChange={(e) => setTriggerSec(e.target.value)} className="w-20 border border-slate-300 rounded-md px-3 py-2 text-sm" />
+            <input type="number" min={0} value={triggerMin} onChange={(e) => setTriggerMin(e.target.value)} className="w-20 rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1" />
+            <span className="text-uq-3">:</span>
+            <input type="number" min={0} max={59} value={triggerSec} onChange={(e) => setTriggerSec(e.target.value)} className="w-20 rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1" />
           </div>
         </label>
         <label className="block text-sm sm:col-span-2">
-          <span className="text-slate-600">Expected action (for markers)</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Expected action (for markers)</span>
           <select
             value={expectedAction}
             onChange={(e) => setExpectedAction(e.target.value as EditorEmail["expectedAction"])}
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1 [&>option]:bg-uq-elev2 [&>option]:text-uq"
           >
             <option value="reply">Reply</option>
             <option value="ignore">Ignore / do not respond</option>
@@ -327,64 +327,64 @@ function EmailForm({
           </select>
         </label>
         <label className="block text-sm">
-          <span className="text-slate-600">Sender name</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Sender name</span>
           <input
             value={senderName}
             onChange={(e) => setSenderName(e.target.value)}
             placeholder="Priya Sharma"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <label className="block text-sm sm:col-span-2">
-          <span className="text-slate-600">Sender email</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Sender email</span>
           <input
             value={senderEmail}
             onChange={(e) => setSenderEmail(e.target.value)}
             placeholder="priya.sharma@idsc.int"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
       </div>
       <label className="block text-sm">
-        <span className="text-slate-600">Subject</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Subject</span>
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
       </label>
       <label className="block text-sm">
-        <span className="text-slate-600">Body (HTML)</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Body (HTML)</span>
         <textarea
           value={bodyHtml}
           onChange={(e) => setBodyHtml(e.target.value)}
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono h-40"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono h-40 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
       </label>
       <label className="block text-sm">
-        <span className="text-slate-600">Marker notes (optional)</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Marker notes (optional)</span>
         <textarea
           value={markerNotes}
           onChange={(e) => setMarkerNotes(e.target.value)}
           placeholder="What a strong response looks like, common traps, etc."
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm h-20"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm h-20 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
       </label>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">{error}</div>}
+      {error && <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
 
       <div className="flex items-center justify-between">
         <div>
           {email && (
-            <button onClick={remove} className="text-sm text-red-600 hover:text-red-700">Delete email</button>
+            <button onClick={remove} className="text-sm font-medium text-[color:var(--uq-danger-text)] hover:underline focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded">Delete email</button>
           )}
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onCancel} className="text-sm text-slate-600 hover:text-slate-900">Cancel</button>
+          <button onClick={onCancel} className="text-sm font-medium text-uq-2 hover:text-uq transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded">Cancel</button>
           <button
             onClick={save}
             disabled={saving || !senderName || !senderEmail || !subject || !bodyHtml}
-            className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+            className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             {saving ? "Saving…" : email ? "Save" : "Add email"}
           </button>

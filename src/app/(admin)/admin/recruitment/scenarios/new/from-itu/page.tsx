@@ -144,26 +144,26 @@ export default function FromItuPickerPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="max-w-5xl mx-auto px-6 py-8 animate-uq-rise">
       <div className="text-xs">
         <Link
           href="/admin/recruitment/scenarios"
-          className="text-[#4B92DB] hover:underline"
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
         >
           ← Scenarios
         </Link>
       </div>
 
-      <h1 className="text-2xl font-semibold text-[#1B2A4A] mt-2">
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">
         Build assessment from an ITU open posting
       </h1>
-      <p className="text-sm text-slate-600 mt-1 mb-6">
+      <p className="text-sm text-uq-2 mt-1 mb-6">
         Pick a currently open role from the{" "}
         <a
           href="https://jobs.itu.int/go/View-all-categories/8942455/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[#4B92DB] hover:underline"
+          className="text-uq-accent hover:text-uq-accent-hover hover:underline focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
         >
           ITU careers board
         </a>
@@ -181,18 +181,18 @@ export default function FromItuPickerPage() {
       />
 
       {listError && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2 mb-4">
+        <div className="rounded-md px-3 py-2 text-sm mb-4 border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">
           {listError}
         </div>
       )}
 
-      <div className="text-xs text-slate-500 mb-3">
+      <div className="text-xs text-uq-3 mb-3">
         {loading && items.length === 0 ? (
           "Loading ITU open postings…"
         ) : total !== null ? (
           <>
-            Showing <span className="font-mono">{items.length}</span> of{" "}
-            <span className="font-mono">{total}</span> open positions
+            Showing <span className="font-mono tabular-nums text-uq-2">{items.length}</span> of{" "}
+            <span className="font-mono tabular-nums text-uq-2">{total}</span> open positions
             {q && " (filtered)"}
           </>
         ) : null}
@@ -219,7 +219,7 @@ export default function FromItuPickerPage() {
           );
         })}
         {!loading && items.length === 0 && !listError && (
-          <div className="bg-white rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center text-sm text-uq-3">
             No matching open postings.
           </div>
         )}
@@ -230,7 +230,7 @@ export default function FromItuPickerPage() {
           <button
             onClick={() => void loadPage(offset, false)}
             disabled={loading}
-            className="px-4 py-2 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            className="px-4 py-2 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft hover:text-uq disabled:opacity-40 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             {loading ? "Loading…" : "Load more"}
           </button>
@@ -254,7 +254,7 @@ function FilterBar({
   loading: boolean;
 }) {
   return (
-    <section className="bg-white rounded-lg border border-slate-200 p-3 mb-4">
+    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-3 mb-4">
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={qInput}
@@ -266,18 +266,18 @@ function FilterBar({
             }
           }}
           placeholder="Search by title or keyword (e.g. engineer, security)"
-          className="flex-1 min-w-[220px] border border-slate-300 rounded-md px-3 py-2 text-sm"
+          className="flex-1 min-w-[220px] rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
         <button
           onClick={onApplySearch}
-          className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338]"
+          className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           Search
         </button>
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="px-3 py-2 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+          className="px-3 py-2 rounded-md border border-uq text-uq-2 text-sm font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq disabled:opacity-40 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           title="Re-fetch from ITU"
         >
           {loading ? "…" : "↻"}
@@ -311,14 +311,14 @@ function JobCard({
     .join(" · ");
 
   return (
-    <article className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+    <article className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
-        className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-start gap-3"
+        className="w-full px-4 py-3 text-left hover:bg-uq-elev2 flex items-start gap-3 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
       >
         <span
-          className={`mt-1 text-slate-400 transition-transform inline-block ${
+          className={`mt-1 text-uq-3 transition-transform inline-block ${
             expanded ? "rotate-90" : ""
           }`}
           aria-hidden
@@ -326,25 +326,25 @@ function JobCard({
           ▶
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block font-semibold text-[#1B2A4A]">
+          <span className="block font-semibold text-uq">
             {job.title}
           </span>
-          <span className="block text-xs text-slate-500 mt-0.5">
+          <span className="block text-xs text-uq-3 mt-0.5">
             {meta || "—"}
           </span>
         </span>
       </button>
 
       {expanded && (
-        <div className="border-t border-slate-200 px-4 py-4 bg-slate-50/50">
+        <div className="border-t border-uq-faint px-4 py-4 bg-uq-glass-subtle">
           {detailLoading && (
-            <div className="text-sm text-slate-600 inline-flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse" />
+            <div className="text-sm text-uq-2 inline-flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow" />
               Fetching full description from ITU…
             </div>
           )}
           {detailError && !detailLoading && (
-            <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">
+            <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">
               {detailError}
             </div>
           )}
@@ -376,24 +376,24 @@ function DetailBody({
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-slate-600">
-        <span className="font-mono">
+      <div className="text-xs text-uq-2">
+        <span className="font-mono tabular-nums">
           {description.length.toLocaleString()}
         </span>{" "}
         characters · scraped from ITU careers board
       </div>
 
       {empty ? (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-md px-3 py-2">
+        <div className="rounded-md px-3 py-2 text-xs border border-[color:var(--uq-warn-line)] bg-[color:var(--uq-warn-soft)] text-[color:var(--uq-warn-text)]">
           The description couldn&apos;t be fetched. Try the link to view the
           posting on ITU directly, or pick another role.
         </div>
       ) : (
         <details>
-          <summary className="cursor-pointer text-xs text-[#4B92DB] hover:underline">
+          <summary className="cursor-pointer text-xs text-uq-accent hover:text-uq-accent-hover hover:underline">
             Description preview
           </summary>
-          <pre className="mt-2 max-h-72 overflow-y-auto bg-white border border-slate-200 rounded p-3 text-xs whitespace-pre-wrap font-mono text-slate-700">
+          <pre className="mt-2 max-h-72 overflow-y-auto bg-uq-elev1 border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
             {description.slice(0, 4000)}
             {description.length > 4000 && "\n\n…[truncated for preview]"}
           </pre>
@@ -401,7 +401,7 @@ function DetailBody({
       )}
 
       {tooShort && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-md px-3 py-2">
+        <div className="rounded-md px-3 py-2 text-xs border border-[color:var(--uq-warn-line)] bg-[color:var(--uq-warn-soft)] text-[color:var(--uq-warn-text)]">
           Description is short — criteria extraction may produce thin results.
         </div>
       )}
@@ -412,7 +412,7 @@ function DetailBody({
             href={detail.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-2 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-white"
+            className="px-3 py-2 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             ↗ View on ITU Careers
           </a>
@@ -420,7 +420,7 @@ function DetailBody({
         <button
           onClick={onBuild}
           disabled={empty || handingOff}
-          className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+          className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           {handingOff ? "Opening…" : "✨ Build assessment from this job"}
         </button>

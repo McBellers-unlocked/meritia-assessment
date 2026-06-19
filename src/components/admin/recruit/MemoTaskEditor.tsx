@@ -94,79 +94,79 @@ export default function MemoTaskEditor({
   const longPromptWarning = approxTokens > 8000;
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
+    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-xs text-slate-500">
-          Task {task.number} · <span className="font-mono">memo_ai</span>
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
+          Task {task.number} · <span className="text-uq-cyan">memo_ai</span>
         </div>
-        <button onClick={remove} className="text-xs text-red-600 hover:text-red-700">Delete task</button>
+        <button onClick={remove} className="text-xs font-medium text-[color:var(--uq-danger-text)] hover:underline focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded">Delete task</button>
       </div>
 
       <label className="block text-sm">
-        <span className="text-slate-600">Title</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Title</span>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
       </label>
 
       <label className="block text-sm">
-        <span className="text-slate-600">Brief (Markdown)</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Brief (Markdown)</span>
         <textarea
           value={briefMarkdown}
           onChange={(e) => setBriefMarkdown(e.target.value)}
           placeholder={"**From:** Chief of MS Division\n**To:** You\n**Subject:** ...\n\nI need your review of..."}
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono h-40"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono h-40 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
-        <span className="text-xs text-slate-500 mt-1 block">
+        <span className="text-xs text-uq-3 mt-1 block">
           Shown to the candidate at the top of the task panel. Supports Markdown.
         </span>
       </label>
 
       <div className="grid sm:grid-cols-2 gap-4">
         <label className="block text-sm">
-          <span className="text-slate-600">Total marks</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Total marks</span>
           <input
             type="number"
             min={0}
             max={1000}
             value={totalMarks}
             onChange={(e) => setTotalMarks(e.target.value)}
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-600">Exhibit</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Exhibit</span>
           <select
             value={exhibitId}
             onChange={(e) => setExhibitId(e.target.value)}
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1 [&>option]:bg-uq-elev2 [&>option]:text-uq"
           >
             <option value="">— Select exhibit —</option>
             {scenario.exhibits.map((ex) => (
               <option key={ex.id} value={ex.id}>{ex.title}</option>
             ))}
           </select>
-          <span className="text-xs text-slate-500 mt-1 block">
-            Add exhibits on the <span className="font-medium">Exhibits</span> tab first.
+          <span className="text-xs text-uq-3 mt-1 block">
+            Add exhibits on the <span className="font-medium text-uq-2">Exhibits</span> tab first.
           </span>
         </label>
       </div>
 
       <label className="block text-sm">
-        <span className="text-slate-600">AI system prompt</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">AI system prompt</span>
         <textarea
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           placeholder="You are the [Organisation] Analysis System... Think of yourself as a smart analyst sitting next to the candidate..."
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono h-72"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono h-72 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
         <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-uq-3">
             Defines how the AI investigation assistant behaves during this task. Cached server-side for cost/latency.
           </span>
-          <span className={`text-xs font-mono ${longPromptWarning ? "text-amber-700" : "text-slate-500"}`}>
+          <span className={`text-xs font-mono ${longPromptWarning ? "text-[color:var(--uq-warn-text)]" : "text-uq-3"}`}>
             ≈{approxTokens.toLocaleString()} tokens
           </span>
         </div>
@@ -174,33 +174,33 @@ export default function MemoTaskEditor({
 
       <div className="grid sm:grid-cols-2 gap-4">
         <label className="block text-sm">
-          <span className="text-slate-600">Deliverable label</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Deliverable label</span>
           <input
             value={deliverableLabel}
             onChange={(e) => setDeliverableLabel(e.target.value)}
             placeholder="Memo to the Chief of MS Division"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-600">Deliverable placeholder</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Deliverable placeholder</span>
           <textarea
             value={deliverablePlaceholder}
             onChange={(e) => setDeliverablePlaceholder(e.target.value)}
             placeholder="Draft your memo to the Chief... Identify issues and recommend actions."
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm h-24"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm h-24 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">{error}</div>}
+      {error && <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
 
       <div className="flex items-center justify-end gap-3 pt-2">
-        {savedAt && <span className="text-xs text-slate-500">Saved {savedAt.toLocaleTimeString()}</span>}
+        {savedAt && <span className="text-xs text-uq-3">Saved {savedAt.toLocaleTimeString()}</span>}
         <button
           onClick={save}
           disabled={saving}
-          className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+          className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           {saving ? "Saving…" : "Save task"}
         </button>
