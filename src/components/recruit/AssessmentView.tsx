@@ -110,7 +110,7 @@ export default function AssessmentView({
   // Knowledge System sits in a permanent right-edge sidebar — open by default
   // so it's discoverable, collapsible to a 48px rail when they want more
   // room for writing. Tab + collapse state persist in localStorage (v3).
-  const [activeView, setActiveView] = useState<"exhibit" | "memo">("exhibit");
+  const [activeView, setActiveView] = useState<"exhibit" | "memo" | "split">("exhibit");
   const [idscCollapsed, setIdscCollapsed] = useState(false);
   const [hasUnreadAI, setHasUnreadAI] = useState(false);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -181,7 +181,7 @@ export default function AssessmentView({
       const raw = localStorage.getItem("fam-layout-v3");
       if (raw) {
         const p = JSON.parse(raw);
-        if (p.activeView === "exhibit" || p.activeView === "memo") setActiveView(p.activeView);
+        if (p.activeView === "exhibit" || p.activeView === "memo" || p.activeView === "split") setActiveView(p.activeView);
         if (typeof p.idscCollapsed === "boolean") setIdscCollapsed(p.idscCollapsed);
         return;
       }
@@ -412,13 +412,21 @@ export default function AssessmentView({
             idscCollapsed ? "pr-12" : "pr-0 lg:pr-[420px]"
           }`}
         >
-          {/* View tabs */}
+          {/* View tabs: Exhibit · Split · Memo. Split renders the source
+              exhibit and the memo editor side-by-side so candidates can read
+              while they write (the #1 navigation need on an analytical task). */}
           <div className="bg-uq-elev1 border-b border-uq flex-shrink-0 flex items-stretch px-2 gap-0.5">
             <ViewTab
               active={activeView === "exhibit"}
               onClick={() => setActiveView("exhibit")}
               label="Exhibit"
               sublabel={activeTaskCfg.exhibitTitle}
+            />
+            <ViewTab
+              active={activeView === "split"}
+              onClick={() => setActiveView("split")}
+              label="Split"
+              sublabel="Exhibit + memo"
             />
             <ViewTab
               active={activeView === "memo"}
@@ -429,98 +437,116 @@ export default function AssessmentView({
             />
           </div>
 
-          {/* Active tab content */}
-          {activeView === "exhibit" ? (
-            <section className="bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1">
-              <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                    Exhibit · Task {activeTask}
+          {/* Brief — shared across every view (Exhibit / Split / Memo) so the
+              task framing is always one click away, not hidden inside the memo. */}
+          <div className="border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0">
+            <button
+              onClick={() => setBriefOpen((v) => !v)}
+              className="w-full text-left px-4 py-2 text-xs font-medium text-uq-2 hover:bg-uq-elev2 hover:text-uq transition-colors flex items-center justify-between focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+              aria-expanded={briefOpen}
+            >
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-accent flex-shrink-0">Brief</span>
+                <span className="truncate">Task {activeTask}: {activeTaskCfg.title}</span>
+              </span>
+              <span className="font-mono text-uq-3 flex-shrink-0 ml-2">{briefOpen ? "− Hide" : "+ Show"}</span>
+            </button>
+            {briefOpen && (
+              <div className="px-4 pb-3 text-sm text-uq-2 leading-relaxed max-h-48 overflow-y-auto">
+                <MarkdownView>{activeTaskCfg.briefMarkdown}</MarkdownView>
+              </div>
+            )}
+          </div>
+
+          {/* Active content — one pane, or both side-by-side in Split (stacks
+              on narrow screens). Sections are keyed so the memo editor instance
+              survives toggling the exhibit on/off in Split. */}
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+            {(activeView === "exhibit" || activeView === "split") && (
+              <section
+                key="exhibit-pane"
+                className={`bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1 ${
+                  activeView === "split" ? "border-b lg:border-b-0 lg:border-r border-uq" : ""
+                }`}
+              >
+                <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
+                      Exhibit · Task {activeTask}
+                    </div>
+                    <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
+                      {activeTaskCfg.exhibitTitle}
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                    {activeTaskCfg.exhibitTitle}
-                  </div>
+                  <button
+                    onClick={() => setExhibitFullscreen(true)}
+                    className="px-3 py-1.5 rounded-md border border-uq-strong text-uq-2 text-xs font-medium transition-colors hover:border-uq-accent hover:bg-uq-elev2 hover:text-uq flex-shrink-0 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                    title="Open exhibit full screen"
+                  >
+                    ⤢ Expand
+                  </button>
                 </div>
-                <button
-                  onClick={() => setExhibitFullscreen(true)}
-                  className="px-3 py-1.5 rounded-md border border-uq text-uq-2 text-xs font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq flex-shrink-0 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                  title="Open exhibit full screen"
-                >
-                  ⤢ Expand
-                </button>
-              </div>
-              <iframe
-                srcDoc={activeTaskCfg.exhibitHtml}
-                sandbox=""
-                className="flex-1 w-full border-0 bg-white"
-                title={activeTaskCfg.exhibitTitle}
-              />
-            </section>
-          ) : (
-            <section className="bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1">
-              {/* Memo header — title + Peek at exhibit so candidates can
-                  quickly check source data without leaving the editor. */}
-              <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                    Your deliverable · Task {activeTask}
+                <iframe
+                  srcDoc={activeTaskCfg.exhibitHtml}
+                  sandbox=""
+                  className="flex-1 w-full border-0 bg-white"
+                  title={activeTaskCfg.exhibitTitle}
+                />
+              </section>
+            )}
+            {(activeView === "memo" || activeView === "split") && (
+              <section
+                key="memo-pane"
+                className="bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1"
+              >
+                {/* Memo header — title + (single-view only) Peek at exhibit. */}
+                <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
+                      Your deliverable · Task {activeTask}
+                    </div>
+                    <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
+                      {activeTaskCfg.deliverableLabel}
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                    {activeTaskCfg.deliverableLabel}
-                  </div>
+                  {activeView !== "split" && (
+                    <button
+                      type="button"
+                      onClick={() => setExhibitFullscreen(true)}
+                      className="px-3 py-1.5 rounded-md border border-uq-strong text-uq-2 text-xs font-medium transition-colors hover:border-uq-accent hover:bg-uq-elev2 hover:text-uq flex-shrink-0 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                      title="Open the exhibit full screen — close it to return to the memo"
+                      aria-label="Peek at exhibit"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Peek at exhibit
+                    </button>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setExhibitFullscreen(true)}
-                  className="px-3 py-1.5 rounded-md border border-uq text-uq-2 text-xs font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq flex-shrink-0 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                  title="Open the exhibit full screen — close it to return to the memo"
-                  aria-label="Peek at exhibit"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Peek at exhibit
-                </button>
-              </div>
 
-              {/* Brief — collapsible, default open so candidates can re-anchor
-                  on the task framing as they're writing. */}
-              <div className="border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0">
-                <button
-                  onClick={() => setBriefOpen((v) => !v)}
-                  className="w-full text-left px-4 py-2 text-xs font-medium text-uq-2 hover:bg-uq-elev2 hover:text-uq transition-colors flex items-center justify-between focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                >
-                  <span>Brief — Task {activeTask}: {activeTaskCfg.title}</span>
-                  <span className="font-mono text-uq-3">{briefOpen ? "−" : "+"}</span>
-                </button>
-                {briefOpen && (
-                  <div className="px-4 pb-3 text-sm text-uq-2 leading-relaxed max-h-56 overflow-y-auto">
-                    <MarkdownView>{activeTaskCfg.briefMarkdown}</MarkdownView>
-                  </div>
-                )}
-              </div>
+                <MemoEditor
+                  key={activeTask}
+                  initialContent={memos[activeTask] || ""}
+                  placeholder={activeTaskCfg.deliverablePlaceholder}
+                  onChange={(html) => setMemos((prev) => ({ ...prev, [activeTask]: html }))}
+                  onPasteCapture={(charCount) => logActivity("paste", { target: "memo", charCount })}
+                />
 
-              <MemoEditor
-                key={activeTask}
-                initialContent={memos[activeTask] || ""}
-                placeholder={activeTaskCfg.deliverablePlaceholder}
-                onChange={(html) => setMemos((prev) => ({ ...prev, [activeTask]: html }))}
-                onPasteCapture={(charCount) => logActivity("paste", { target: "memo", charCount })}
-              />
-
-              <div className="px-4 py-2 border-t border-uq-faint bg-uq-glass-subtle text-xs text-uq-3 flex items-center justify-between flex-shrink-0">
-                <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
-                <span className="font-mono tabular-nums">
-                  {memoSaving[activeTask]
-                    ? "Saving…"
-                    : savedAt[activeTask]
-                    ? `Saved ${new Date(savedAt[activeTask]!).toLocaleTimeString()}`
-                    : "Not yet saved"}
-                </span>
-              </div>
-            </section>
-          )}
+                <div className="px-4 py-2 border-t border-uq-faint bg-uq-glass-subtle text-xs text-uq-3 flex items-center justify-between flex-shrink-0">
+                  <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
+                  <span className="font-mono tabular-nums">
+                    {memoSaving[activeTask]
+                      ? "Saving…"
+                      : savedAt[activeTask]
+                      ? `Saved ${new Date(savedAt[activeTask]!).toLocaleTimeString()}`
+                      : "Not yet saved"}
+                  </span>
+                </div>
+              </section>
+            )}
+          </div>
         </main>
 
         {/* IDSC Knowledge System — always anchored to the right edge.
@@ -531,9 +557,9 @@ export default function AssessmentView({
             type="button"
             onClick={toggleIdsc}
             className="absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-uq-2 transition-colors border-l border-uq z-10 bg-uq-glass-strong backdrop-blur-xl hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-            aria-label="Expand IDSC Knowledge System (Ctrl/Cmd+J)"
+            aria-label="Expand IDSC AI assistant (Ctrl/Cmd+J)"
             aria-expanded={false}
-            title="IDSC Knowledge System — Ctrl/Cmd+J"
+            title="IDSC AI assistant — Ctrl/Cmd+J"
           >
             <div className="flex flex-col items-center gap-1.5">
               <svg
@@ -546,14 +572,14 @@ export default function AssessmentView({
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.26-.97L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-uq-3">Open</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-uq-accent">Ask AI</span>
             </div>
             <div className="flex-1 flex items-center justify-center px-1">
               <span
                 className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-2 whitespace-nowrap"
                 style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
               >
-                IDSC INVESTIGATION
+                IDSC · AI ASSISTANT
               </span>
             </div>
             <div className="flex flex-col items-center gap-1">
@@ -572,12 +598,12 @@ export default function AssessmentView({
         ) : (
           <aside
             className="absolute right-0 top-0 bottom-0 bg-uq-glass-strong backdrop-blur-xl border-l border-uq flex flex-col z-10 w-full lg:w-[420px] shadow-uq-glass lg:shadow-uq-glass"
-            aria-label="IDSC investigation chat"
+            aria-label="IDSC AI assistant chat"
           >
             <div className="px-4 py-2.5 border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                  Investigation · Task {activeTask}
+                  AI Assistant · Task {activeTask}
                 </div>
                 <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
                   IDSC Knowledge System
@@ -599,8 +625,8 @@ export default function AssessmentView({
             <div ref={chatScroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
               {trailForActive.length === 0 && (
                 <div className="text-xs text-uq-3 italic">
-                  Ask the system anything. Be specific — request source documents, underlying data,
-                  or detail on a particular item.
+                  Ask the IDSC AI anything. Be specific — request source documents, underlying data,
+                  or detail on a particular item. Your questions form part of the assessment.
                 </div>
               )}
               {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}

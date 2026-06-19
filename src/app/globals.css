@@ -81,28 +81,30 @@ body {
    are provably untouched.
    ============================================================ */
 .uq-dark {
-  /* ---- Backgrounds: the void + an elevation ladder (never pure black) ---- */
-  --uq-bg:            #0A0E16;
-  --uq-bg-2:          #0E141F;
-  --uq-elev-1:        #121A28;
-  --uq-elev-2:        #16202F;
-  --uq-elev-3:        #1B2738;
+  /* ---- Backgrounds: softer mid-slate ladder (lifted a step from near-black
+     for comfort; every token below is WCAG-AA-verified against these). ---- */
+  --uq-bg:            #11161F;
+  --uq-bg-2:          #161C27;
+  --uq-elev-1:        #1A2230;
+  --uq-elev-2:        #212B3A;
+  --uq-elev-3:        #283342;
 
   /* ---- Glass: translucent fills layered over the void ---- */
-  --uq-glass:         rgba(22, 32, 47, 0.72);
-  --uq-glass-strong:  rgba(27, 39, 56, 0.86);
-  --uq-glass-subtle:  rgba(18, 26, 40, 0.55);
+  --uq-glass:         rgba(30, 40, 56, 0.72);
+  --uq-glass-strong:  rgba(36, 47, 64, 0.86);
+  --uq-glass-subtle:  rgba(24, 32, 46, 0.60);
   --uq-inset-hi:      rgba(180, 210, 255, 0.06);
 
-  /* ---- Borders / hairlines ---- */
-  --uq-border:        rgba(148, 178, 224, 0.14);
-  --uq-border-strong: rgba(148, 178, 224, 0.24);
-  --uq-border-faint:  rgba(148, 178, 224, 0.08);
+  /* ---- Borders / hairlines (border-strong clears the 3:1 UI minimum on
+     outline-only controls, incl. on elev3 modals) ---- */
+  --uq-border:        rgba(148, 178, 224, 0.16);
+  --uq-border-strong: rgba(148, 178, 224, 0.60);
+  --uq-border-faint:  rgba(148, 178, 224, 0.10);
 
-  /* ---- Text ---- */
+  /* ---- Text (text-3 #93A1BB clears AA 4.5:1 on every surface it's used on) ---- */
   --uq-text:          #E8EDF6;
-  --uq-text-2:        #A9B6CC;
-  --uq-text-3:        #6E7C95;
+  --uq-text-2:        #AEBACE;
+  --uq-text-3:        #93A1BB;
   --uq-text-on-accent:#06121F;
 
   /* ---- Accent (Azure) + glow ---- */

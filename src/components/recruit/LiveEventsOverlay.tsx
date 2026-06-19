@@ -175,11 +175,12 @@ function NotificationRail({
   onOpenChat: () => void;
   emailsVisible: boolean;
 }) {
-  // Positioned above the existing chat-drawer rail (which lives at right-0).
-  // The existing UI occupies ~48px; we offset by 56px to leave room but stay
-  // on the same edge for a cohesive look.
+  // Positioned to the left of the candidate's IDSC sidebar collapsed rail,
+  // which lives at right-0 and occupies 48px (w-12). We offset to right-16
+  // (64px) so this rail clears that sidebar rail entirely and never overlaps
+  // its toggle/badges, while staying above it (z-30).
   return (
-    <div className="fixed top-1/2 -translate-y-1/2 right-2 z-30 flex flex-col gap-2">
+    <div className="fixed top-1/2 -translate-y-1/2 right-16 z-30 flex flex-col gap-2">
       {emailsVisible && (
         <button
           onClick={onOpenInbox}
@@ -231,8 +232,75 @@ function ChatIcon() {
 }
 
 // -------------------------------------------------------------------------
-// Inbox drawer.
+// Inbox drawer — two-pane Outlook/Gmail-style mail window.
 // -------------------------------------------------------------------------
+
+/** Initials for a sender-avatar circle, e.g. "Jane Doe" -> "JD". */
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+/**
+ * Strip HTML tags from scenario-authored body to derive a one-line snippet.
+ * Pure/cosmetic — never mutates the stored bodyHtml; the reading pane still
+ * renders the original markup verbatim.
+ */
+function snippetOf(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Short received-time for list rows, e.g. "14:32" or "Jun 18". */
+function shortTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+/** Map a stored response action to a list-pane state chip + semantic tokens. */
+function responseChip(action: string): { label: string; cls: string } {
+  if (action === "replied") {
+    return {
+      label: "✓ Replied",
+      cls: "bg-[color:var(--uq-success-soft)] border-[color:var(--uq-success-line)] text-[color:var(--uq-success-text)]",
+    };
+  }
+  if (action === "flagged") {
+    return {
+      label: "⚑ Flagged",
+      cls: "bg-[color:var(--uq-warn-soft)] border-[color:var(--uq-warn-line)] text-[color:var(--uq-warn-text)]",
+    };
+  }
+  // ignored / anything else
+  return {
+    label: "⊘ Ignored",
+    cls: "bg-uq-elev2 border-uq text-uq-3",
+  };
+}
+
+function MailGlyph() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
 
 function InboxDrawer({
   token,
@@ -250,34 +318,68 @@ function InboxDrawer({
   onResponded: () => void;
 }) {
   const selected = emails.find((e) => e.id === selectedEmailId) ?? emails[0] ?? null;
+  const unreadCount = emails.filter((e) => e.response === null).length;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[560px] max-w-full bg-uq-glass-strong backdrop-blur-xl shadow-uq-pop border-l border-uq z-40 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-uq-faint bg-uq-glass-subtle">
-        <div>
-          <div className="text-sm font-semibold text-uq">Inbox</div>
-          <div className="font-mono text-xs text-uq-3">{emails.length} message{emails.length === 1 ? "" : "s"}</div>
+    <div className="fixed inset-y-0 right-0 w-[880px] max-w-full bg-uq-glass-strong backdrop-blur-xl shadow-uq-pop border-l border-uq z-40 flex flex-col">
+      {/* Mail title bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-uq-faint bg-uq-glass-strong">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-uq-accent-soft border border-uq-accent text-uq-accent flex items-center justify-center flex-shrink-0">
+            <MailGlyph />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-uq">Mail</span>
+              {unreadCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-uq-accent text-[color:var(--uq-text-on-accent)] font-mono text-[10px] font-semibold flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <div className="font-mono text-[11px] text-uq-3 truncate">Inbox — Candidate mailbox</div>
+          </div>
         </div>
         <button onClick={onClose} className="text-sm text-uq-3 hover:text-uq transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] rounded px-1" aria-label="Close inbox">✕</button>
       </div>
 
+      {/* Two-pane body: list (left) + reading pane (right) */}
       <div className="flex flex-1 min-h-0">
-        <ul className="w-48 border-r border-uq-faint overflow-y-auto">
+        <ul className="w-[300px] flex-shrink-0 border-r border-uq-faint overflow-y-auto bg-uq-glass-subtle">
           {emails.map((e) => {
             const isSelected = selected?.id === e.id;
             const unread = e.response === null;
+            const chip = e.response ? responseChip(e.response.action) : null;
             return (
               <li key={e.id}>
                 <button
                   onClick={() => onSelect(e.id)}
-                  className={`w-full text-left px-3 py-2 text-xs border-b border-uq-faint transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
-                    isSelected ? "bg-uq-accent-soft border-l-2 border-l-uq-accent" : "hover:bg-uq-elev2"
+                  className={`w-full text-left px-3 py-3 border-b border-uq-faint transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+                    isSelected
+                      ? "bg-uq-accent-soft border-l-2 border-l-uq-accent"
+                      : "border-l-2 border-l-transparent hover:bg-uq-elev2"
                   }`}
                 >
-                  <div className={`truncate ${unread ? "font-semibold text-uq" : "text-uq-2"}`}>{e.senderName}</div>
-                  <div className={`truncate ${unread ? "text-uq-2" : "text-uq-3"}`}>{e.subject}</div>
-                  <div className="mt-1 font-mono text-[10px] text-uq-3">
-                    {unread ? "Unread" : `✓ ${e.response?.action}`}
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-uq-elev3 border border-uq text-uq-2 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                      {initialsOf(e.senderName)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className={`truncate text-sm flex items-center gap-1.5 ${unread ? "font-semibold text-uq" : "text-uq-2"}`}>
+                          {unread && <span className="w-1.5 h-1.5 rounded-full bg-uq-accent flex-shrink-0" />}
+                          <span className="truncate">{e.senderName}</span>
+                        </div>
+                        <span className="font-mono text-[10px] text-uq-3 flex-shrink-0">{shortTime(e.deliveredAt)}</span>
+                      </div>
+                      <div className={`truncate text-xs mt-0.5 ${unread ? "font-medium text-uq" : "text-uq-2"}`}>{e.subject}</div>
+                      <div className="truncate text-[11px] text-uq-3 mt-0.5">{snippetOf(e.bodyHtml)}</div>
+                      {chip && (
+                        <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded-full border font-mono text-[9px] ${chip.cls}`}>
+                          {chip.label}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               </li>
@@ -285,7 +387,7 @@ function InboxDrawer({
           })}
         </ul>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-w-0 overflow-y-auto">
           {selected ? (
             <EmailReader
               key={selected.id}
@@ -314,10 +416,17 @@ function EmailReader({
   const [replyBody, setReplyBody] = useState(email.response?.replyBody ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Local UI state only: whether the inline compose card is open and which
+  // command opened it (cosmetic prefill only — submit logic is unchanged).
+  const [composeMode, setComposeMode] = useState<"reply" | "reply-all" | "forward" | null>(null);
 
   useEffect(() => {
     setReplyBody(email.response?.replyBody ?? "");
     setError(null);
+    // If this email was already replied to, open the compose card on the
+    // existing draft so the reply stays directly editable (as it was before
+    // the command-bar redesign); otherwise keep the reader uncluttered.
+    setComposeMode(email.response?.action === "replied" ? "reply" : null);
   }, [email.id, email.response]);
 
   const submit = async (action: "replied" | "ignored" | "flagged") => {
@@ -346,64 +455,105 @@ function EmailReader({
 
   const alreadyResponded = !!email.response;
 
+  // Cosmetic To/Subject prefill per compose mode — no API or schema change.
+  const composeTo =
+    composeMode === "forward"
+      ? ""
+      : composeMode === "reply-all"
+      ? `${email.senderName} <${email.senderEmail}>, others`
+      : `${email.senderName} <${email.senderEmail}>`;
+  const composeSubject =
+    composeMode === "forward" ? `Fwd: ${email.subject}` : `Re: ${email.subject}`;
+
+  const ghostBtn =
+    "px-2.5 py-1.5 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq-2 text-xs font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft hover:text-uq disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]";
+
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <div className="font-mono text-xs text-uq-3">{new Date(email.deliveredAt).toLocaleString()}</div>
-        <div className="text-lg font-semibold tracking-[-0.005em] text-uq mt-1">{email.subject}</div>
-        <div className="text-sm text-uq-2 mt-1">
-          From <span className="font-medium text-uq">{email.senderName}</span> &lt;{email.senderEmail}&gt;
-        </div>
+    <div className="flex flex-col min-h-full">
+      {/* Command bar */}
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-uq-faint bg-uq-glass-subtle sticky top-0 z-10">
+        <button onClick={() => setComposeMode("reply")} disabled={submitting} className={ghostBtn}>Reply</button>
+        <button onClick={() => setComposeMode("reply-all")} disabled={submitting} className={ghostBtn}>Reply all</button>
+        <button onClick={() => setComposeMode("forward")} disabled={submitting} className={ghostBtn}>Forward</button>
+        <span className="mx-1 h-5 w-px bg-uq-faint" aria-hidden="true" />
+        <button onClick={() => submit("flagged")} disabled={submitting} className={ghostBtn}>Flag</button>
+        <button onClick={() => submit("ignored")} disabled={submitting} className={ghostBtn}>Ignore</button>
       </div>
 
-      <div
-        className="prose prose-sm max-w-none border border-uq rounded-md p-3 bg-white text-slate-900"
-        dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
-      />
-
-      {alreadyResponded && (
-        <div className="text-xs bg-uq-success-soft border border-uq-success-line text-uq-success-text rounded-md px-3 py-2">
-          You {email.response!.action === "replied" ? "replied" : email.response!.action === "ignored" ? "chose not to respond" : "flagged this"} at {new Date(email.response!.respondedAt).toLocaleTimeString()}.
-          {email.response!.action === "replied" && " Your reply is editable below."}
+      <div className="p-5 space-y-4">
+        {/* Reading-pane header */}
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-uq-elev3 border border-uq text-uq flex items-center justify-center text-sm font-semibold flex-shrink-0">
+            {initialsOf(email.senderName)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-lg font-semibold tracking-[-0.005em] text-uq">{email.subject}</div>
+            <div className="text-sm text-uq-2 mt-1">
+              From <span className="font-medium text-uq">{email.senderName}</span> &lt;{email.senderEmail}&gt;
+            </div>
+            <div className="flex items-center justify-between gap-2 mt-0.5">
+              <span className="text-xs text-uq-3">To: <span className="text-uq-2">You</span></span>
+              <span className="font-mono text-xs text-uq-3">{new Date(email.deliveredAt).toLocaleString()}</span>
+            </div>
+          </div>
         </div>
-      )}
 
-      <div>
-        <label className="block text-xs font-medium text-uq-2 mb-1">Your reply</label>
-        <textarea
-          value={replyBody}
-          onChange={(e) => setReplyBody(e.target.value)}
-          placeholder="Type your reply here, or use Ignore / Flag if you don't want to respond."
-          maxLength={10_000}
-          className="w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 h-40 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
+        {/* Body — light reading card (scenario-authored HTML, stays light) */}
+        <div
+          className="prose prose-sm max-w-none rounded-lg p-5 border border-uq bg-white text-slate-900"
+          dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
         />
-        <div className="font-mono text-[10px] text-uq-3 mt-1 text-right tabular-nums">{replyBody.length} / 10,000</div>
-      </div>
 
-      {error && <div className="bg-uq-danger-soft border border-uq-danger-line text-uq-danger-text text-sm rounded-md px-3 py-2">{error}</div>}
+        {alreadyResponded && (
+          <div className="text-xs bg-[color:var(--uq-success-soft)] border border-[color:var(--uq-success-line)] text-[color:var(--uq-success-text)] rounded-md px-3 py-2">
+            You {email.response!.action === "replied" ? "replied" : email.response!.action === "ignored" ? "chose not to respond" : "flagged this"} at {new Date(email.response!.respondedAt).toLocaleTimeString()}.
+            {email.response!.action === "replied" && " Reply with the command bar above to edit your reply."}
+          </div>
+        )}
 
-      <div className="flex items-center justify-end gap-2">
-        <button
-          onClick={() => submit("flagged")}
-          disabled={submitting}
-          className="px-3 py-1.5 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-        >
-          Flag
-        </button>
-        <button
-          onClick={() => submit("ignored")}
-          disabled={submitting}
-          className="px-3 py-1.5 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-        >
-          Ignore
-        </button>
-        <button
-          onClick={() => submit("replied")}
-          disabled={submitting || !replyBody.trim()}
-          className="px-4 py-1.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-        >
-          {submitting ? "Sending…" : alreadyResponded && email.response?.action === "replied" ? "Update reply" : "Send reply"}
-        </button>
+        {error && <div className="bg-[color:var(--uq-danger-soft)] border border-[color:var(--uq-danger-line)] text-[color:var(--uq-danger-text)] text-sm rounded-md px-3 py-2">{error}</div>}
+
+        {/* Inline compose card — revealed by Reply / Reply all / Forward */}
+        {composeMode && (
+          <div className="rounded-lg border border-uq-strong bg-uq-elev1 shadow-uq-glass overflow-hidden">
+            <div className="px-3 py-2 border-b border-uq-faint bg-uq-glass-subtle">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-uq-3 w-14 flex-shrink-0">To</span>
+                <span className="text-uq-2 truncate">{composeTo || "—"}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs mt-1">
+                <span className="text-uq-3 w-14 flex-shrink-0">Subject</span>
+                <span className="text-uq-2 truncate">{composeSubject}</span>
+              </div>
+            </div>
+            <div className="p-3">
+              <textarea
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+                placeholder="Type your reply here, or use Ignore / Flag if you don't want to respond."
+                maxLength={10_000}
+                className="w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 h-40 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
+              />
+              <div className="font-mono text-[10px] text-uq-3 mt-1 text-right tabular-nums">{replyBody.length} / 10,000</div>
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <button
+                  onClick={() => setComposeMode(null)}
+                  disabled={submitting}
+                  className="px-3 py-1.5 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq-2 text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft hover:text-uq disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => submit("replied")}
+                  disabled={submitting || !replyBody.trim()}
+                  className="px-4 py-1.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                >
+                  {submitting ? "Sending…" : alreadyResponded && email.response?.action === "replied" ? "Update reply" : "Send reply"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
