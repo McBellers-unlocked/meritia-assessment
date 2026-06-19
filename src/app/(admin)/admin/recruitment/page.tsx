@@ -151,88 +151,88 @@ export default function AdminRecruitmentList() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
+    <div className="max-w-5xl mx-auto px-6 py-8 animate-uq-rise">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-[#1B2A4A]">Recruitment assessments</h1>
-          <p className="text-sm text-slate-600 mt-1">Manage candidate cohorts, generate access tokens, and run blind marking.</p>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq">Recruitment assessments</h1>
+          <p className="text-sm leading-relaxed text-uq-2 mt-1">Manage candidate cohorts, generate access tokens, and run blind marking.</p>
         </div>
       </div>
 
       {/* Create */}
-      <section className="bg-white rounded-lg border border-slate-200 p-5 mb-6">
-        <h2 className="text-base font-semibold text-[#1B2A4A] mb-3">Create new assessment</h2>
+      <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5 mb-6">
+        <h2 className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Create new assessment</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block text-sm">
-            <span className="text-slate-600">Title</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Title</span>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:bg-uq-elev1 focus:shadow-[var(--uq-glow-soft)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]" />
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">Scenario</span>
-            <select value={scenarioKey} onChange={(e) => setScenarioKey(e.target.value)} className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm bg-white">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Scenario</span>
+            <select value={scenarioKey} onChange={(e) => setScenarioKey(e.target.value)} className="mt-1 block w-full rounded-md border border-uq bg-uq-elev1 px-3 py-2 text-sm text-uq appearance-none focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] [&>option]:bg-uq-elev2 [&>option]:text-uq">
               {scenarioOptions.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
-            <span className="text-xs text-slate-500 mt-1 block">
-              Need a new scenario? <Link href="/admin/recruitment/scenarios" className="text-[#4B92DB] hover:underline">Open the scenario builder</Link>.
+            <span className="text-xs text-uq-3 mt-1 block">
+              Need a new scenario? <Link href="/admin/recruitment/scenarios" className="text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md">Open the scenario builder</Link>.
             </span>
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">Open date</span>
-            <input type="datetime-local" value={openDate} onChange={(e) => setOpenDate(e.target.value)} className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Open date</span>
+            <input type="datetime-local" value={openDate} onChange={(e) => setOpenDate(e.target.value)} className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:bg-uq-elev1 focus:shadow-[var(--uq-glow-soft)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]" />
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">Close date</span>
-            <input type="datetime-local" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Close date</span>
+            <input type="datetime-local" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:bg-uq-elev1 focus:shadow-[var(--uq-glow-soft)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]" />
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">Total minutes per candidate</span>
-            <input type="number" value={totalMinutes} onChange={(e) => setTotalMinutes(e.target.value)} className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Total minutes per candidate</span>
+            <input type="number" value={totalMinutes} onChange={(e) => setTotalMinutes(e.target.value)} className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:bg-uq-elev1 focus:shadow-[var(--uq-glow-soft)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]" />
           </label>
           <div className="flex items-end">
             <button
               onClick={create}
               disabled={creating || !title || !openDate || !closeDate}
-              className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+              className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium tracking-[-0.005em] shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               {creating ? "Creating…" : "Create assessment"}
             </button>
           </div>
         </div>
-        {error && <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>}
+        {error && <div className="mt-3 text-sm rounded-md px-3 py-2 border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
       </section>
 
       {/* List */}
-      <section className="bg-white rounded-lg border border-slate-200">
-        <div className="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-[#1B2A4A]">Existing assessments</div>
-        {rows === null && <div className="p-5 text-sm text-slate-500">Loading…</div>}
-        {rows && rows.length === 0 && <div className="p-5 text-sm text-slate-500">None yet.</div>}
+      <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
+        <div className="px-5 py-3 border-b border-uq-faint bg-uq-glass-subtle text-sm font-semibold text-uq">Existing assessments</div>
+        {rows === null && <div className="p-5 text-sm text-uq-3"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-3 animate-pulse">Loading…</span></div>}
+        {rows && rows.length === 0 && <div className="p-5 text-sm text-uq-3">None yet.</div>}
         {rows && rows.length > 0 && (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-2 text-left">Title</th>
-                <th className="px-4 py-2 text-left">Window</th>
-                <th className="px-4 py-2 text-right">Invited</th>
-                <th className="px-4 py-2 text-right">Started</th>
-                <th className="px-4 py-2 text-right">Submitted</th>
+            <thead className="bg-uq-glass-subtle text-uq-3">
+              <tr className="border-b border-uq-faint">
+                <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Title</th>
+                <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Window</th>
+                <th className="px-4 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Invited</th>
+                <th className="px-4 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Started</th>
+                <th className="px-4 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Submitted</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((a) => (
-                <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50">
+                <tr key={a.id} className="border-t border-uq-faint transition-colors hover:bg-uq-elev2">
                   <td className="px-4 py-2">
-                    <div className="font-medium text-[#1B2A4A]">{a.title}</div>
-                    <div className="text-xs text-slate-500">{a.scenarioSlug} · {a.totalMinutes} min</div>
+                    <div className="font-medium text-uq">{a.title}</div>
+                    <div className="text-xs text-uq-3">{a.scenarioSlug} · {a.totalMinutes} min</div>
                   </td>
-                  <td className="px-4 py-2 text-xs text-slate-600">
+                  <td className="px-4 py-2 text-xs text-uq-3">
                     {new Date(a.openDate).toLocaleDateString()} → {new Date(a.closeDate).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono">{a.counts.invited}</td>
-                  <td className="px-4 py-2 text-right font-mono">{a.counts.started}</td>
-                  <td className="px-4 py-2 text-right font-mono">{a.counts.submitted}</td>
+                  <td className="px-4 py-2 text-right font-mono tabular-nums text-uq">{a.counts.invited}</td>
+                  <td className="px-4 py-2 text-right font-mono tabular-nums text-uq">{a.counts.started}</td>
+                  <td className="px-4 py-2 text-right font-mono tabular-nums text-uq">{a.counts.submitted}</td>
                   <td className="px-4 py-2 text-right">
-                    <Link href={`/admin/recruitment/${a.id}`} className="text-[#4B92DB] hover:underline text-sm">Open →</Link>
+                    <Link href={`/admin/recruitment/${a.id}`} className="font-mono text-xs uppercase tracking-[0.12em] text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md">Open →</Link>
                   </td>
                 </tr>
               ))}

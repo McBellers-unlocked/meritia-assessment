@@ -6,7 +6,7 @@ import AssessmentView from "@/components/recruit/AssessmentView";
 
 export default function AssessRouterPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-sm text-slate-500">Loading…</div>}>
+    <Suspense fallback={<div className="p-8 text-sm text-uq-3">Loading…</div>}>
       <AssessRouter />
     </Suspense>
   );
@@ -59,16 +59,16 @@ function AssessRouter() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center p-6">
-        <div className="max-w-md bg-white rounded-lg border border-red-200 p-6">
-          <div className="text-red-700 font-semibold mb-2">Cannot start assessment</div>
-          <div className="text-sm text-slate-700">{error}</div>
-          <div className="text-xs text-slate-500 mt-4">Token: <code className="bg-slate-100 px-1 rounded">{token || "(missing)"}</code></div>
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md rounded-2xl border border-uq-danger-line bg-uq-elev3 shadow-uq-pop p-6">
+          <div className="text-uq-danger-text font-semibold mb-2">Cannot start assessment</div>
+          <div className="text-sm text-uq-2">{error}</div>
+          <div className="text-xs text-uq-3 mt-4">Token: <code className="font-mono bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1 rounded">{token || "(missing)"}</code></div>
         </div>
       </div>
     );
   }
-  if (!stateData) return <div className="min-h-screen flex items-center justify-center text-sm text-slate-500">Loading assessment…</div>;
+  if (!stateData) return <div className="min-h-screen flex items-center justify-center text-sm text-uq-3 font-mono uppercase tracking-[0.18em]">Loading assessment…</div>;
 
   // Pre-start: landing
   if (stateData.stage === "invited") {
@@ -108,56 +108,58 @@ function Landing({
   starting: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-[#f5f7fb] text-[#1B2A4A]">
-      <header className="bg-white border-b border-slate-200">
+    <div className="min-h-screen text-uq">
+      <header className="bg-uq-glass-strong backdrop-blur-xl border-b border-uq shadow-[0_1px_0_0_var(--uq-inset-hi)_inset]">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/logos/uniqassess-logo.png"
-            alt="UNIQAssess"
-            width={220}
-            height={60}
-            className="h-10 w-auto"
-          />
-          <span className="text-xs text-slate-400 font-mono">{anonymousId}</span>
+          <span className="bg-white rounded-md px-2 py-1 inline-flex items-center ring-1 ring-uq shadow-uq-glow-soft">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logos/uniqassess-logo.png"
+              alt="UNIQAssess"
+              width={220}
+              height={60}
+              className="h-10 w-auto"
+            />
+          </span>
+          <span className="font-mono text-xs text-uq-2">{anonymousId}</span>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-10">
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-7">
-          <div className="text-xs uppercase tracking-wider text-[#4B92DB] font-semibold">Technical Assessment</div>
-          <h1 className="text-2xl font-semibold mt-1 mb-1">{scenario.positionTitle}</h1>
-          <div className="text-sm text-slate-600">{scenario.organisation}</div>
-          <div className="text-xs text-slate-500 italic mt-1">
+        <div className="rounded-2xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-7">
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Technical Assessment</div>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-1 mb-1">{scenario.positionTitle}</h1>
+          <div className="text-sm text-uq-2">{scenario.organisation}</div>
+          <div className="text-xs text-uq-3 italic mt-1">
             IDSC is a fictionalised entity modelled on a real UN-system centre. All names, figures, and internal details are invented for this assessment — cross-referencing the real-world organisation will not help.
           </div>
 
           <div className="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
-            <div className="bg-[#f5f8fb] border border-slate-200 rounded-md p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Duration</div>
-              <div className="text-lg font-semibold">{assessment.totalMinutes} minutes</div>
-              <div className="text-xs text-slate-500 mt-0.5">Single continuous timer</div>
+            <div className="bg-uq-glass-subtle border border-uq rounded-xl p-3">
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Duration</div>
+              <div className="text-lg font-semibold text-uq">{assessment.totalMinutes} minutes</div>
+              <div className="text-xs text-uq-3 mt-0.5">Single continuous timer</div>
             </div>
-            <div className="bg-[#f5f8fb] border border-slate-200 rounded-md p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Tasks</div>
-              <div className="text-lg font-semibold">{scenario.taskCount}</div>
-              <div className="text-xs text-slate-500 mt-0.5">Switch freely</div>
+            <div className="bg-uq-glass-subtle border border-uq rounded-xl p-3">
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Tasks</div>
+              <div className="text-lg font-semibold text-uq">{scenario.taskCount}</div>
+              <div className="text-xs text-uq-3 mt-0.5">Switch freely</div>
             </div>
-            <div className="bg-[#f5f8fb] border border-slate-200 rounded-md p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Closes</div>
-              <div className="text-lg font-semibold">
+            <div className="bg-uq-glass-subtle border border-uq rounded-xl p-3">
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Closes</div>
+              <div className="text-lg font-semibold text-uq">
                 {new Date(assessment.closeDate).toLocaleDateString("en-GB", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric",
                 })}
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">Window deadline</div>
+              <div className="text-xs text-uq-3 mt-0.5">Window deadline</div>
             </div>
           </div>
 
-          <div className="mt-7 prose prose-sm max-w-none text-slate-700">
-            <h2 className="text-base font-semibold text-[#1B2A4A]">What to expect</h2>
+          <div className="mt-7 prose prose-sm max-w-none text-uq-2">
+            <h2 className="text-base font-semibold text-uq">What to expect</h2>
             <p>
               This assessment has two tasks. You have <strong>{assessment.totalMinutes} minutes total</strong>.
               You may switch between tasks at any time and divide the time as you see fit — time management is
@@ -175,7 +177,7 @@ function Landing({
               reviewed alongside your written response.
             </p>
 
-            <h2 className="text-base font-semibold text-[#1B2A4A] mt-5">Important</h2>
+            <h2 className="text-base font-semibold text-uq mt-5">Important</h2>
             <ul className="text-sm list-disc pl-5">
               <li>Once you click <strong>Begin</strong> the {assessment.totalMinutes}-minute timer starts and cannot be paused.</li>
               <li>You may close your browser and return — your work and timer continue server-side.</li>
@@ -186,11 +188,11 @@ function Landing({
             </ul>
           </div>
 
-          <details className="mt-6 border border-slate-200 rounded-md bg-slate-50/60">
-            <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-[#1B2A4A] select-none">
+          <details className="mt-6 border border-uq rounded-xl bg-uq-glass-subtle">
+            <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-uq select-none">
               Privacy and data use
             </summary>
-            <div className="px-4 pb-4 pt-1 text-sm text-slate-700 space-y-2">
+            <div className="px-4 pb-4 pt-1 text-sm text-uq-2 space-y-2">
               <p>
                 <strong>What we collect:</strong> your name and email (from the recruitment panel), your written
                 responses, every message you exchange with the in-app AI assistant, and activity events during the
@@ -214,17 +216,17 @@ function Landing({
               <p>
                 <strong>Your rights:</strong> to request access to, correction of, or deletion of your personal data,
                 email{" "}
-                <a href="mailto:personnel@unicc.org" className="text-[#4B92DB] underline">personnel@unicc.org</a>.
+                <a href="mailto:personnel@unicc.org" className="text-uq-accent underline">personnel@unicc.org</a>.
               </p>
             </div>
           </details>
 
-          <label className="flex items-start gap-2 mt-6 text-sm text-slate-700">
+          <label className="flex items-start gap-2 mt-6 text-sm text-uq-2">
             <input
               type="checkbox"
               checked={acknowledge}
               onChange={(e) => setAcknowledge(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#1B2A4A] focus:ring-[#4B92DB]"
+              className="mt-0.5 h-4 w-4 rounded border-uq bg-uq-glass-subtle accent-[color:var(--uq-accent)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             />
             <span>I confirm this is my own work, that I will use only the in-app IDSC Knowledge System (no external AI tools), that I understand my activity during the assessment is logged, and that I will complete the assessment in a single sitting where possible.</span>
           </label>
@@ -233,14 +235,14 @@ function Landing({
             <button
               onClick={onBegin}
               disabled={!acknowledge || starting}
-              className="px-6 py-2.5 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+              className="px-6 py-2.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               {starting ? "Starting…" : `Begin assessment (${assessment.totalMinutes} min)`}
             </button>
           </div>
         </div>
 
-        <div className="text-xs text-slate-400 text-center mt-6">
+        <div className="text-xs text-uq-3 text-center mt-6">
           Powered by UNIQAssess · Your responses and AI interactions are recorded for assessment purposes.
         </div>
       </main>
@@ -250,20 +252,20 @@ function Landing({
 
 function Submitted({ submittedAt, anonymousId }: { submittedAt?: string | null; anonymousId?: string }) {
   return (
-    <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center p-6">
-      <div className="max-w-xl bg-white rounded-lg border border-slate-200 shadow-sm p-8 text-center">
-        <div className="text-[#4B92DB] text-xs uppercase tracking-wider font-semibold">Assessment complete</div>
-        <h1 className="text-2xl font-semibold text-[#1B2A4A] mt-2">Thank you</h1>
-        <p className="text-sm text-slate-600 mt-3">
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="max-w-xl rounded-2xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center">
+        <div className="font-mono text-uq-accent text-[10px] uppercase tracking-[0.18em]">Assessment complete</div>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">Thank you</h1>
+        <p className="text-sm text-uq-2 mt-3">
           Your assessment has been submitted. The selection panel will be in touch in due course.
         </p>
         {submittedAt && (
-          <div className="mt-5 text-xs text-slate-400">
+          <div className="mt-5 text-xs text-uq-3 font-mono">
             Submitted at {new Date(submittedAt).toLocaleString()}
           </div>
         )}
         {anonymousId && (
-          <div className="text-xs text-slate-400 mt-1 font-mono">Reference: {anonymousId}</div>
+          <div className="font-mono text-xs text-uq-3 mt-1">Reference: {anonymousId}</div>
         )}
       </div>
     </div>

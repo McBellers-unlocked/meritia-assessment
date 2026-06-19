@@ -485,19 +485,19 @@ export default function GenerateFromJdPage() {
     title.trim() && slug.trim() && organisation.trim() && positionTitle.trim();
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-6 py-8 animate-uq-rise">
       <div className="text-xs">
         <Link
           href="/admin/recruitment/scenarios"
-          className="text-[#4B92DB] hover:underline"
+          className="font-mono text-[11px] uppercase tracking-[0.14em] text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
         >
           ← Scenarios
         </Link>
       </div>
-      <h1 className="text-2xl font-semibold text-[#1B2A4A] mt-2">
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">
         Generate from job description
       </h1>
-      <p className="text-sm text-slate-600 mt-1 mb-6">
+      <p className="text-sm text-uq-2 mt-1 mb-6">
         Upload a JD; pick the essential or desirable criteria you want to
         test; Claude generates one task per criterion, each with a brief, an
         industry-matched exhibit, and a deliverable.
@@ -674,27 +674,27 @@ function Stepper({ step }: { step: Step }) {
   ];
   const activeIdx = items.findIndex((i) => i.key === step);
   return (
-    <ol className="flex items-center gap-2 mb-6 text-xs text-slate-600 flex-wrap">
+    <ol className="flex items-center gap-2 mb-6 text-xs text-uq-3 flex-wrap">
       {items.map((it, i) => (
         <li key={it.key} className="flex items-center gap-2">
           <span
-            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${
+            className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-semibold ${
               i < activeIdx
-                ? "bg-[#1B2A4A] text-white"
+                ? "bg-uq-elev2 text-uq border border-uq-strong"
                 : i === activeIdx
-                ? "bg-[#4B92DB] text-white"
-                : "bg-slate-200 text-slate-500"
+                ? "bg-uq-accent text-[color:var(--uq-text-on-accent)]"
+                : "bg-uq-elev2 text-uq-3 border border-uq-faint"
             }`}
           >
             {i + 1}
           </span>
           <span
-            className={i === activeIdx ? "font-semibold text-[#1B2A4A]" : ""}
+            className={i === activeIdx ? "font-semibold text-uq" : "text-uq-3"}
           >
             {it.label}
           </span>
           {i < items.length - 1 && (
-            <span className="text-slate-300 mx-1">━</span>
+            <span className="text-uq-3 mx-1">━</span>
           )}
         </li>
       ))}
@@ -712,22 +712,22 @@ function UploadStep({
   onFileSelected: (file: File) => void;
 }) {
   return (
-    <section className="bg-white rounded-lg border border-slate-200 p-6">
-      <h2 className="text-base font-semibold text-[#1B2A4A]">
+    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-6">
+      <h2 className="text-base font-semibold text-uq">
         Upload the job description
       </h2>
-      <p className="text-sm text-slate-600 mt-1">
+      <p className="text-sm text-uq-2 mt-1">
         PDF or DOCX, up to 10MB. The text is extracted server-side and used
         to identify the role&apos;s essential and desirable criteria. The
         original file isn&apos;t stored — only the parsed text is saved with
         the scenario.
       </p>
 
-      <label className="mt-5 block border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#4B92DB] hover:bg-slate-50 transition">
-        <div className="text-sm font-medium text-[#1B2A4A]">
+      <label className="mt-5 block border-2 border-dashed border-uq-strong rounded-lg p-8 text-center cursor-pointer hover:border-uq-accent hover:bg-uq-elev2 transition">
+        <div className="text-sm font-medium text-uq">
           {parsing ? "Parsing…" : "Choose a PDF or DOCX file"}
         </div>
-        <div className="text-xs text-slate-500 mt-1">
+        <div className="text-xs text-uq-3 mt-1">
           or drop one here (click to browse)
         </div>
         <input
@@ -744,7 +744,7 @@ function UploadStep({
       </label>
 
       {parseError && (
-        <div className="mt-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">
+        <div className="mt-3 rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">
           {parseError}
         </div>
       )}
@@ -803,12 +803,12 @@ function CriteriaStep({
       : `Continue (${generatedTaskCount} task${generatedTaskCount === 1 ? "" : "s"} · ${selectedCount} criteri${selectedCount === 1 ? "on" : "a"})`;
 
   return (
-    <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-6 space-y-5">
       <div>
-        <h2 className="text-base font-semibold text-[#1B2A4A]">
+        <h2 className="text-base font-semibold text-uq">
           Pick the criteria to test
         </h2>
-        <p className="text-sm text-slate-600 mt-1">
+        <p className="text-sm text-uq-2 mt-1">
           Tick the essential or desirable criteria this assessment should
           probe. memo_ai assessments are always {MEMO_AI_TASK_COUNT} tasks —
           your ticked criteria are distributed across them, with each task
@@ -818,28 +818,28 @@ function CriteriaStep({
       </div>
 
       {extracting && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center">
-          <div className="inline-flex items-center gap-2 text-sm text-slate-700">
-            <span className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse" />
+        <div className="rounded-md border border-uq-faint bg-uq-glass-subtle px-4 py-6 text-center">
+          <div className="inline-flex items-center gap-2 text-sm text-uq-2">
+            <span className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow" />
             Extracting essential and desirable criteria from the JD…
           </div>
         </div>
       )}
 
       {!extracting && error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="rounded-md border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] px-4 py-3 text-sm text-[color:var(--uq-danger-text)]">
           <div className="font-medium">Extraction failed</div>
           <div className="mt-1 text-xs">{error}</div>
           <div className="mt-3 flex gap-2">
             <button
               onClick={onRetry}
-              className="text-xs px-2.5 py-1 rounded border border-red-300 hover:bg-white text-red-700"
+              className="px-3 py-1.5 rounded-md border border-[color:var(--uq-danger-line)] text-xs font-medium text-[color:var(--uq-danger-text)] transition-colors hover:bg-[color:var(--uq-danger-soft)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               Retry
             </button>
             <button
               onClick={onSwitchToManual}
-              className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white text-slate-700"
+              className="px-3 py-1.5 rounded-md border border-uq text-uq-2 text-xs font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               Type criteria manually
             </button>
@@ -870,12 +870,12 @@ function CriteriaStep({
             onEdit={(oldText, newText) => onEdit("desirable", oldText, newText)}
           />
 
-          <div className="text-xs text-slate-500 italic">
+          <div className="text-xs text-uq-3 italic">
             Don&apos;t see what you wanted to test?{" "}
             <button
               type="button"
               onClick={onSwitchToManual}
-              className="text-[#4B92DB] hover:underline"
+              className="text-uq-accent hover:text-uq-accent-hover hover:underline focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
             >
               Type custom criteria instead
             </button>
@@ -895,30 +895,30 @@ function CriteriaStep({
         />
       )}
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <div className="text-xs text-slate-600">
+      <div className="flex items-center justify-between pt-2 border-t border-uq-faint">
+        <div className="text-xs text-uq-2">
           <span
-            className={`font-mono ${
-              atCap ? "text-amber-700 font-semibold" : ""
+            className={`font-mono tabular-nums ${
+              atCap ? "text-[color:var(--uq-warn-text)] font-semibold" : "text-uq"
             }`}
           >
             {selected.size} of {MAX_SELECTED_CRITERIA}
           </span>{" "}
           selected
           {selected.size > 0 && (
-            <span className="ml-2 text-slate-500">
+            <span className="ml-2 text-uq-3">
               · {Math.ceil(selected.size / MEMO_AI_TASK_COUNT)} criteri
               {Math.ceil(selected.size / MEMO_AI_TASK_COUNT) === 1 ? "on" : "a"}{" "}
               per task
             </span>
           )}
           {showWarn && !atCap && (
-            <span className="ml-2 text-amber-700">
+            <span className="ml-2 text-[color:var(--uq-warn-text)]">
               · packing many criteria into a single task can dilute focus
             </span>
           )}
           {atCap && (
-            <span className="ml-2 text-amber-700">
+            <span className="ml-2 text-[color:var(--uq-warn-text)]">
               · cap reached — untick to free a slot
             </span>
           )}
@@ -926,14 +926,14 @@ function CriteriaStep({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="text-sm text-slate-600 hover:text-slate-900"
+            className="text-sm text-uq-2 hover:text-uq transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
           >
             ← Back
           </button>
           <button
             onClick={onContinue}
             disabled={selectedCount === 0 || extracting}
-            className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+            className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             {continueLabel}
           </button>
@@ -965,10 +965,10 @@ function CriterionList({
   if (items.length === 0) {
     return (
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
           {label}
         </div>
-        <div className="text-xs text-slate-500 mt-1 italic">
+        <div className="text-xs text-uq-3 mt-1 italic">
           None identified in this JD.
         </div>
       </div>
@@ -976,10 +976,10 @@ function CriterionList({
   }
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
         {label}
       </div>
-      <div className="text-xs text-slate-500 mt-0.5 mb-2">{sublabel}</div>
+      <div className="text-xs text-uq-3 mt-0.5 mb-2">{sublabel}</div>
       <ul className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
         {items.map((text) => (
           <CriterionRow
@@ -1047,13 +1047,13 @@ function CriterionRow({
 
   return (
     <li className="group">
-      <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer">
+      <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-uq-elev2 cursor-pointer">
         <input
           type="checkbox"
           checked={checked}
           disabled={checkboxDisabled}
           onChange={onToggle}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#1B2A4A] focus:ring-[#4B92DB] flex-shrink-0 disabled:opacity-40"
+          className="mt-0.5 h-4 w-4 rounded accent-[color:var(--uq-accent)] flex-shrink-0 disabled:opacity-40"
         />
         {editing ? (
           <div className="flex-1 flex flex-col gap-1.5">
@@ -1072,15 +1072,15 @@ function CriterionRow({
                 }
               }}
               rows={Math.max(2, Math.min(6, Math.ceil(draft.length / 80)))}
-              className="text-sm border border-[#4B92DB] rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#4B92DB]"
+              className="w-full rounded-md border border-uq-accent bg-uq-glass-subtle px-2 py-1 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
             />
-            <div className="text-[10px] text-slate-500">
+            <div className="text-[10px] text-uq-3">
               Press Enter to save, Esc to cancel.
             </div>
           </div>
         ) : (
           <span
-            className="flex-1 text-sm text-slate-700 leading-relaxed"
+            className="flex-1 text-sm text-uq-2 leading-relaxed"
             onClick={(e) => {
               // Click on text (but not the checkbox) → enter edit mode.
               // We stopPropagation so the surrounding label doesn't
@@ -1094,7 +1094,7 @@ function CriterionRow({
             }}
           >
             {text}
-            <span className="ml-1.5 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition">
+            <span className="ml-1.5 text-[10px] text-uq-3 opacity-0 group-hover:opacity-100 transition">
               (click to edit)
             </span>
           </span>
@@ -1122,10 +1122,10 @@ function ManualCriteriaEditor({
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
           Type criteria manually
         </div>
-        <div className="text-xs text-slate-500 mt-0.5">
+        <div className="text-xs text-uq-3 mt-0.5">
           One criterion per line. Each one becomes a tickable option below.
         </div>
         <textarea
@@ -1135,12 +1135,12 @@ function ManualCriteriaEditor({
           placeholder={
             "Demonstrated experience triaging multi-stage SIEM alerts under operational pressure\nFamiliarity with NIST CSF and ISO 27001 control frameworks\nWritten communication clear enough for a CISO audience"
           }
-          className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono"
+          className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
         />
       </div>
       {items.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
             Tick which to test
           </div>
           <ul className="mt-2 space-y-1.5 max-h-72 overflow-y-auto pr-1">
@@ -1148,15 +1148,15 @@ function ManualCriteriaEditor({
               const checked = selected.has(line);
               return (
                 <li key={line}>
-                  <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer">
+                  <label className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-uq-elev2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={checked}
                       disabled={!checked && atCap}
                       onChange={() => onToggle(line)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#1B2A4A] focus:ring-[#4B92DB] flex-shrink-0 disabled:opacity-40"
+                      className="mt-0.5 h-4 w-4 rounded accent-[color:var(--uq-accent)] flex-shrink-0 disabled:opacity-40"
                     />
-                    <span className="flex-1 text-sm text-slate-700 leading-relaxed">
+                    <span className="flex-1 text-sm text-uq-2 leading-relaxed">
                       {line}
                     </span>
                   </label>
@@ -1217,12 +1217,12 @@ function ConfigureStep({
     ? `Source job description (${postingMatch[1]})`
     : "Parsed JD";
   return (
-    <section className="bg-white rounded-lg border border-slate-200 p-6 space-y-5">
+    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-6 space-y-5">
       <div>
-        <div className="text-xs uppercase tracking-wider text-[#4B92DB] font-semibold">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
           {sourceLabel}
         </div>
-        <div className="text-sm text-slate-600">
+        <div className="text-sm text-uq-2">
           <span className="font-mono">{filename}</span> ·{" "}
           {jdText.length.toLocaleString()} characters (~
           {tokenEstimate.toLocaleString()} tokens)
@@ -1233,7 +1233,7 @@ function ConfigureStep({
                 href={sourceLink.replace(/^http:\/\//i, "https://")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#4B92DB] hover:underline"
+                className="text-uq-accent hover:text-uq-accent-hover hover:underline focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
               >
                 ↗ original posting
               </a>
@@ -1241,82 +1241,82 @@ function ConfigureStep({
           )}
         </div>
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-[#4B92DB] hover:underline">
+          <summary className="cursor-pointer text-xs text-uq-accent hover:text-uq-accent-hover hover:underline">
             Preview text
           </summary>
-          <pre className="mt-2 max-h-64 overflow-y-auto bg-slate-50 border border-slate-200 rounded p-3 text-xs whitespace-pre-wrap font-mono text-slate-700">
+          <pre className="mt-2 max-h-64 overflow-y-auto bg-uq-glass-subtle border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
             {jdText.slice(0, 4000)}
             {jdText.length > 4000 && "\n\n…[truncated for preview]"}
           </pre>
         </details>
       </div>
 
-      <hr className="border-slate-200" />
+      <hr className="border-uq-faint" />
 
       <div className="grid sm:grid-cols-2 gap-4">
         <label className="block text-sm sm:col-span-2">
-          <span className="text-slate-600">Scenario title</span>
+          <span className="text-uq-2">Scenario title</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Cybersecurity Officer (P3) — Technical Assessment"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <label className="block text-sm sm:col-span-2">
-          <span className="text-slate-600">URL slug</span>
+          <span className="text-uq-2">URL slug</span>
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value.toLowerCase())}
             placeholder="cyber-officer-p3-2026"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-mono"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
-          <span className="text-xs text-slate-500 mt-1 block">
+          <span className="text-xs text-uq-3 mt-1 block">
             Candidate URL will be{" "}
-            <code className="bg-slate-100 px-1 rounded">
+            <code className="font-mono bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">
               /assess/{slug || "..."}
             </code>
           </span>
         </label>
         <label className="block text-sm">
-          <span className="text-slate-600">Organisation</span>
+          <span className="text-uq-2">Organisation</span>
           <input
             value={organisation}
             onChange={(e) => setOrganisation(e.target.value)}
             placeholder="International Digital Services Centre (IDSC), Geneva"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-600">Position title</span>
+          <span className="text-uq-2">Position title</span>
           <input
             value={positionTitle}
             onChange={(e) => setPositionTitle(e.target.value)}
             placeholder="Cybersecurity Officer (P3)"
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <label className="block text-sm">
-          <span className="text-slate-600">Default total minutes</span>
+          <span className="text-uq-2">Default total minutes</span>
           <input
             type="number"
             value={defaultTotalMinutes}
             onChange={(e) => setDefaultTotalMinutes(e.target.value)}
             min={5}
             max={480}
-            className="mt-1 block w-full border border-slate-300 rounded-md px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
         <div className="block text-sm">
-          <span className="text-slate-600">Tasks to generate</span>
-          <div className="mt-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-md text-slate-700">
-            <span className="font-mono">{generatedTaskCount}</span> task
+          <span className="text-uq-2">Tasks to generate</span>
+          <div className="mt-1 px-3 py-2 text-sm bg-uq-glass-subtle border border-uq-faint rounded-md text-uq-2">
+            <span className="font-mono tabular-nums text-uq">{generatedTaskCount}</span> task
             {generatedTaskCount === 1 ? "" : "s"} ·{" "}
             {selectedCount === 1
               ? "1 criterion split across both"
               : `${selectedCount} criteria distributed across them`}
           </div>
-          <span className="text-xs text-slate-500 mt-1 block">
+          <span className="text-xs text-uq-3 mt-1 block">
             Add other task kinds (email inbox, chat) afterwards in the
             standard editor.
           </span>
@@ -1326,14 +1326,14 @@ function ConfigureStep({
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={onBack}
-          className="text-sm text-slate-600 hover:text-slate-900"
+          className="text-sm text-uq-2 hover:text-uq transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
         >
           ← Back
         </button>
         <button
           onClick={onSubmit}
           disabled={!canSubmit}
-          className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+          className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           Generate tasks
         </button>
@@ -1372,10 +1372,10 @@ function ReviewStep({
   return (
     <section className="space-y-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-base font-semibold text-[#1B2A4A]">
+        <h2 className="text-base font-semibold text-uq">
           Generated tasks
         </h2>
-        <div className="text-xs text-slate-500">
+        <div className="font-mono text-xs text-uq-3 tabular-nums">
           {statuses.filter((s) => s === "ready").length} of {statuses.length}{" "}
           ready
         </div>
@@ -1395,7 +1395,7 @@ function ReviewStep({
       ))}
 
       {saveError && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">
+        <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">
           {saveError}
         </div>
       )}
@@ -1404,14 +1404,14 @@ function ReviewStep({
         <button
           onClick={onBack}
           disabled={anyGenerating || saving}
-          className="text-sm text-slate-600 hover:text-slate-900 disabled:opacity-40"
+          className="text-sm text-uq-2 hover:text-uq transition-colors disabled:opacity-40 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md"
         >
           ← Back
         </button>
         <button
           onClick={onSave}
           disabled={!allReady || saving}
-          className="px-4 py-2 rounded-md bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#142338] disabled:bg-slate-300"
+          className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
           {saving ? "Saving…" : "Save scenario and continue editing"}
         </button>
@@ -1438,35 +1438,35 @@ function TaskCard({
   onRegenerate: () => void;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
+      <div className="px-4 py-3 border-b border-uq-faint bg-uq-glass-subtle flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="font-mono text-xs bg-slate-200 text-slate-700 rounded px-2 py-0.5">
+          <span className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq-2 rounded px-2 py-0.5">
             Task {index + 1}
           </span>
           {status === "ready" && task && (
-            <span className="text-sm font-semibold text-[#1B2A4A] truncate">
+            <span className="text-sm font-semibold text-uq truncate">
               {task.title}
             </span>
           )}
           {status === "pending" && (
-            <span className="text-xs text-slate-500 italic">Queued…</span>
+            <span className="text-xs text-uq-3 italic">Queued…</span>
           )}
           {status === "generating" && (
-            <span className="text-xs text-[#4B92DB] italic flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#4B92DB] animate-pulse" />
+            <span className="text-xs text-uq-accent italic flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow" />
               Generating…
             </span>
           )}
           {status === "error" && (
-            <span className="text-xs text-red-700 italic">Failed</span>
+            <span className="text-xs text-[color:var(--uq-danger-text)] italic">Failed</span>
           )}
         </div>
         {status === "ready" && (
           <button
             onClick={onRegenerate}
             disabled={regenerating}
-            className="text-xs px-2.5 py-1 rounded border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-md border border-uq text-uq-2 text-xs font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             title="Discard this draft and generate a new one for the same criterion"
           >
             {regenerating ? "Regenerating…" : "↻ Regenerate"}
@@ -1476,7 +1476,7 @@ function TaskCard({
           <button
             onClick={onRegenerate}
             disabled={regenerating}
-            className="text-xs px-2.5 py-1 rounded border border-red-300 hover:bg-red-50 text-red-700 disabled:opacity-50"
+            className="px-3 py-1.5 rounded-md border border-[color:var(--uq-danger-line)] text-[color:var(--uq-danger-text)] text-xs font-medium transition-colors hover:bg-[color:var(--uq-danger-soft)] disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             {regenerating ? "Retrying…" : "Retry"}
           </button>
@@ -1484,13 +1484,13 @@ function TaskCard({
       </div>
 
       {focusCriteria.length > 0 && (
-        <div className="px-4 py-2 bg-[#f5f8fb] border-b border-slate-200 text-xs">
-          <div className="text-[10px] uppercase tracking-wider text-[#4B92DB] font-semibold">
+        <div className="px-4 py-2 bg-uq-accent-soft border-b border-uq-faint text-xs">
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
             Testing {focusCriteria.length === 1 ? "criterion" : `${focusCriteria.length} criteria together`}
           </div>
           <ul className="mt-1 space-y-0.5">
             {focusCriteria.map((c) => (
-              <li key={c} className="text-slate-700 leading-snug">
+              <li key={c} className="text-uq-2 leading-snug">
                 · {c}
               </li>
             ))}
@@ -1499,7 +1499,7 @@ function TaskCard({
       )}
 
       {error && (
-        <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-red-800 text-xs">
+        <div className="px-4 py-2 bg-[color:var(--uq-danger-soft)] border-b border-[color:var(--uq-danger-line)] text-[color:var(--uq-danger-text)] text-xs">
           {error}
         </div>
       )}
@@ -1508,20 +1508,20 @@ function TaskCard({
         <div className="p-4 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
                 Exhibit
               </div>
-              <div className="font-medium text-[#1B2A4A]">
+              <div className="font-medium text-uq">
                 {task.exhibitTitle}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
                 Deliverable
               </div>
-              <div className="font-medium text-[#1B2A4A]">
+              <div className="font-medium text-uq">
                 {task.deliverableLabel}{" "}
-                <span className="text-xs text-slate-500 font-normal">
+                <span className="text-xs text-uq-3 font-normal">
                   · {task.totalMarks} marks
                 </span>
               </div>
@@ -1529,19 +1529,20 @@ function TaskCard({
           </div>
 
           <details>
-            <summary className="cursor-pointer text-xs text-[#4B92DB] hover:underline">
+            <summary className="cursor-pointer text-xs text-uq-accent hover:text-uq-accent-hover hover:underline">
               Brief preview
             </summary>
-            <div className="mt-2 max-h-72 overflow-y-auto bg-slate-50 border border-slate-200 rounded p-3 text-xs whitespace-pre-wrap font-mono text-slate-700">
+            <div className="mt-2 max-h-72 overflow-y-auto bg-uq-glass-subtle border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
               {task.briefMarkdown}
             </div>
           </details>
 
           <details>
-            <summary className="cursor-pointer text-xs text-[#4B92DB] hover:underline">
+            <summary className="cursor-pointer text-xs text-uq-accent hover:text-uq-accent-hover hover:underline">
               Exhibit preview
             </summary>
-            <div className="mt-2 border border-slate-200 rounded overflow-hidden">
+            {/* Scenario-authored HTML (untrusted) — keep a light plate per HARD RULE #4 */}
+            <div className="mt-2 border border-uq rounded overflow-hidden">
               <iframe
                 srcDoc={task.exhibitHtml}
                 sandbox=""

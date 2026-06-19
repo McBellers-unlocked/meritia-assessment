@@ -56,21 +56,21 @@ export default function ScenarioEditorPage() {
   useEffect(() => { void reload(); }, [reload]);
 
   if (error) return <div className="max-w-4xl mx-auto p-8"><ErrorBox error={error} /></div>;
-  if (!scenario) return <div className="max-w-4xl mx-auto p-8 text-sm text-slate-500">Loading…</div>;
+  if (!scenario) return <div className="max-w-4xl mx-auto p-8 text-sm text-uq-3"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-3 animate-pulse">Loading…</span></div>;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="max-w-6xl mx-auto px-6 py-8 animate-uq-rise">
       <div className="text-xs">
-        <Link href="/admin/recruitment/scenarios" className="text-[#4B92DB] hover:underline">← Scenarios</Link>
+        <Link href="/admin/recruitment/scenarios" className="font-mono text-[11px] uppercase tracking-[0.14em] text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md">← Scenarios</Link>
       </div>
 
       <div className="flex items-center justify-between mt-2">
         <div>
-          <h1 className="text-2xl font-semibold text-[#1B2A4A]">{scenario.title || "Untitled scenario"}</h1>
-          <div className="text-xs text-slate-500 mt-1">
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq">{scenario.title || "Untitled scenario"}</h1>
+          <div className="text-xs text-uq-3 mt-1">
             <StatusBadge status={scenario.status} />
             <span className="ml-2">
-              <code className="bg-slate-100 px-1 rounded">{scenario.slug}</code> · {scenario.tasks.length} task{scenario.tasks.length === 1 ? "" : "s"} · {scenario.defaultTotalMinutes} min
+              <code className="font-mono text-xs bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">{scenario.slug}</code> · {scenario.tasks.length} task{scenario.tasks.length === 1 ? "" : "s"} · {scenario.defaultTotalMinutes} min
             </span>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function ScenarioEditorPage() {
         onJumpToPublish={() => setTab("publish")}
       />
 
-      <nav className="mt-6 border-b border-slate-200 flex gap-1">
+      <nav className="mt-6 border-b border-uq flex gap-1">
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>Overview</TabButton>
         <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")}>Tasks ({scenario.tasks.length})</TabButton>
         <TabButton active={tab === "exhibits"} onClick={() => setTab("exhibits")}>Exhibits ({scenario.exhibits.length})</TabButton>
@@ -137,19 +137,19 @@ function NextStepsBanner({
   if (isDraft) {
     return (
       <div
-        className={`${baseClass} bg-amber-50 border-amber-200 text-amber-900`}
+        className={`${baseClass} bg-[color:var(--uq-warn-soft)] border-[color:var(--uq-warn-line)] text-[color:var(--uq-warn-text)]`}
       >
         <span aria-hidden className="text-base leading-tight">📝</span>
         <div className="flex-1">
-          <div className="font-semibold">Next step: publish</div>
-          <div className="mt-0.5 text-amber-800">
+          <div className="font-semibold text-uq">Next step: publish</div>
+          <div className="mt-0.5 text-uq-2">
             This scenario is a draft. Candidates can&apos;t take it until
             it&apos;s published.{noTasks && " Add at least one task first."}
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               onClick={onJumpToPublish}
-              className="text-xs px-2.5 py-1 rounded bg-amber-200 text-amber-900 hover:bg-amber-300 font-semibold"
+              className="text-xs px-2.5 py-1 rounded-md border border-[color:var(--uq-warn-line)] bg-[color:var(--uq-warn-soft)] text-[color:var(--uq-warn-text)] hover:bg-uq-elev2 font-semibold transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               Open Publish tab →
             </button>
@@ -162,19 +162,19 @@ function NextStepsBanner({
   // Published but no assessment yet
   return (
     <div
-      className={`${baseClass} bg-[#f5f8fb] border-[#cfe1f5] text-[#1B2A4A]`}
+      className={`${baseClass} bg-uq-accent-soft border-uq-accent text-uq`}
     >
       <span aria-hidden className="text-base leading-tight">✅</span>
       <div className="flex-1">
-        <div className="font-semibold">Ready to use</div>
-        <div className="mt-0.5 text-slate-700">
+        <div className="font-semibold text-uq">Ready to use</div>
+        <div className="mt-0.5 text-uq-2">
           The scenario is published. To run candidates through it, create an
           assessment that uses it.
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
           <Link
             href="/admin/recruitment"
-            className="text-xs px-2.5 py-1 rounded bg-[#1B2A4A] text-white hover:bg-[#142338] font-semibold inline-flex items-center"
+            className="text-xs px-2.5 py-1 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px inline-flex items-center focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             Create an assessment →
           </Link>
@@ -188,8 +188,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-        active ? "border-[#1B2A4A] text-[#1B2A4A]" : "border-transparent text-slate-500 hover:text-slate-700"
+      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md ${
+        active ? "border-uq-accent text-uq" : "border-transparent text-uq-3 hover:text-uq hover:bg-uq-elev2"
       }`}
     >
       {children}
@@ -199,14 +199,14 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 function StatusBadge({ status }: { status: string }) {
   const cls =
-    status === "published" ? "bg-emerald-100 text-emerald-800" :
-    status === "archived" ? "bg-slate-100 text-slate-600" :
-    "bg-amber-100 text-amber-800";
-  return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{status}</span>;
+    status === "published" ? "bg-[color:var(--uq-success-soft)] border-[color:var(--uq-success-line)] text-[color:var(--uq-success-text)]" :
+    status === "archived" ? "border-uq bg-uq-elev2 text-uq-2" :
+    "bg-[color:var(--uq-warn-soft)] border-[color:var(--uq-warn-line)] text-[color:var(--uq-warn-text)]";
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${cls}`}>{status}</span>;
 }
 
 function ErrorBox({ error }: { error: string }) {
-  return <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">{error}</div>;
+  return <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>;
 }
 
 // ------------------------------------------------------------------
@@ -285,10 +285,10 @@ function TasksTab({
   return (
     <div className="grid grid-cols-12 gap-4">
       <aside className="col-span-4">
-        <div className="bg-white rounded-lg border border-slate-200 p-3">
-          <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Tasks</div>
+        <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-3">
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3 mb-2">Tasks</div>
           {scenario.tasks.length === 0 && (
-            <div className="text-xs text-slate-500 py-3 text-center">No tasks yet.</div>
+            <div className="text-xs text-uq-3 py-3 text-center">No tasks yet.</div>
           )}
           <ul className="space-y-1">
             {scenario.tasks.map((t, idx) => {
@@ -298,15 +298,15 @@ function TasksTab({
                 <li key={t.id} className="flex items-stretch gap-1">
                   <button
                     onClick={() => onSelect(t.id)}
-                    className={`flex-1 min-w-0 text-left px-2 py-2 rounded text-sm ${
-                      selectedTaskId === t.id ? "bg-emerald-100 text-emerald-900" : "hover:bg-slate-100 text-slate-700"
+                    className={`flex-1 min-w-0 text-left px-2 py-2 rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+                      selectedTaskId === t.id ? "bg-uq-accent-soft border border-uq-accent text-uq" : "border border-transparent hover:bg-uq-elev2 text-uq-2"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs bg-slate-100 text-slate-600 rounded px-1.5">{t.number}</span>
+                      <span className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq-2 rounded px-1.5">{t.number}</span>
                       <span className="flex-1 truncate">{t.title || "(untitled)"}</span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
+                    <div className="text-xs text-uq-3 mt-0.5">
                       {kindLabel(t.kind)}
                     </div>
                   </button>
@@ -317,7 +317,7 @@ function TasksTab({
                       disabled={!canMoveUp || reordering}
                       title={canMoveUp ? `Move "${t.title || "task"}" up` : "Already at the top"}
                       aria-label={`Move task ${t.number} up`}
-                      className="px-1.5 py-1 rounded text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed leading-none"
+                      className="px-1.5 py-1 rounded-md text-xs text-uq-3 hover:text-uq hover:bg-uq-elev2 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed leading-none transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                     >
                       ▲
                     </button>
@@ -327,7 +327,7 @@ function TasksTab({
                       disabled={!canMoveDown || reordering}
                       title={canMoveDown ? `Move "${t.title || "task"}" down` : "Already at the bottom"}
                       aria-label={`Move task ${t.number} down`}
-                      className="px-1.5 py-1 rounded text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed leading-none"
+                      className="px-1.5 py-1 rounded-md text-xs text-uq-3 hover:text-uq hover:bg-uq-elev2 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed leading-none transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                     >
                       ▼
                     </button>
@@ -337,14 +337,14 @@ function TasksTab({
             })}
           </ul>
 
-          <div className="pt-3 mt-3 border-t border-slate-100">
-            <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Add task</div>
+          <div className="pt-3 mt-3 border-t border-uq-faint">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3 mb-2">Add task</div>
             <div className="space-y-1">
               <AddButton label="Memo + AI investigation" onClick={() => addTask("memo_ai")} disabled={adding} />
               <AddButton label="Email inbox" onClick={() => addTask("email_inbox")} disabled={adding} />
               <AddButton label="Chat (urgent issue)" onClick={() => addTask("chat")} disabled={adding} />
             </div>
-            {error && <div className="mt-2 text-xs text-red-700">{error}</div>}
+            {error && <div className="mt-2 text-xs text-[color:var(--uq-danger-text)]">{error}</div>}
           </div>
         </div>
       </aside>
@@ -358,7 +358,7 @@ function TasksTab({
             onDeleted={() => { onSelect(null); void onChanged(); }}
           />
         ) : (
-          <div className="bg-white rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center text-sm text-uq-3">
             Select or add a task to edit.
           </div>
         )}
@@ -372,7 +372,7 @@ function AddButton({ label, onClick, disabled }: { label: string; onClick: () =>
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-slate-100 text-slate-700 disabled:opacity-50"
+      className="w-full text-left text-sm px-2 py-1.5 rounded-md text-uq-2 transition-colors hover:bg-uq-elev2 hover:text-uq disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
     >
       + {label}
     </button>
@@ -451,10 +451,10 @@ function PublishTab({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-4">
+    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5 space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-[#1B2A4A]">Status: <StatusBadge status={scenario.status} /></h2>
-        <p className="text-sm text-slate-600 mt-1">
+        <h2 className="text-base font-semibold text-uq">Status: <StatusBadge status={scenario.status} /></h2>
+        <p className="text-sm text-uq-2 mt-1">
           {scenario.status === "draft" && "Draft scenarios can't be used for candidate cohorts. Publish when every task is fully authored."}
           {scenario.status === "published" && "This scenario is available in the recruitment assessment creation form."}
           {scenario.status === "archived" && "Archived scenarios are hidden from the cohort picker but are preserved for historical data."}
@@ -462,7 +462,7 @@ function PublishTab({
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-md px-3 py-2">
+        <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">
           <div className="font-medium">{error}</div>
           {details && details.length > 0 && (
             <ul className="list-disc list-inside mt-2 text-xs">
@@ -477,7 +477,7 @@ function PublishTab({
           <button
             onClick={() => call("publish")}
             disabled={busy}
-            className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:bg-slate-300"
+            className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           >
             {busy ? "Validating…" : "Publish scenario"}
           </button>
@@ -487,21 +487,21 @@ function PublishTab({
             <button
               onClick={() => call("unpublish")}
               disabled={busy}
-              className="px-4 py-2 rounded-md bg-white border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-uq-strong bg-uq-glass-subtle text-uq text-sm font-medium transition-colors hover:border-uq-accent hover:bg-uq-accent-soft hover:text-uq disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               Unpublish (back to draft)
             </button>
             <button
               onClick={() => call("archive")}
               disabled={busy}
-              className="px-4 py-2 rounded-md bg-slate-600 text-white text-sm font-semibold hover:bg-slate-700 disabled:bg-slate-300"
+              className="px-4 py-2 rounded-lg border border-uq bg-uq-glass-subtle text-uq-2 text-sm font-medium transition-colors hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq disabled:opacity-50 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             >
               Archive
             </button>
           </>
         )}
         {scenario.status === "archived" && (
-          <div className="text-sm text-slate-500">To edit this scenario again, unarchive it via the scenarios list.</div>
+          <div className="text-sm text-uq-3">To edit this scenario again, unarchive it via the scenarios list.</div>
         )}
       </div>
     </div>
