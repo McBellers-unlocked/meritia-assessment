@@ -166,22 +166,24 @@ export default function MarkCandidatePage() {
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-6 pb-2 flex gap-2">
-          {taskNums.map((n) => (
-            <button
-              key={n}
-              onClick={() => setActiveTask(n)}
-              className={[
-                "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
-                activeTask === n
-                  ? "bg-uq-accent-soft text-uq border border-uq-accent"
-                  : "bg-uq-glass-subtle border border-uq text-uq-2 hover:border-uq-strong hover:bg-uq-elev2 hover:text-uq",
-              ].join(" ")}
-            >
-              Task {n}
-              {scores[n] && <span className="ml-2 font-mono tabular-nums text-uq-accent">{scores[n]}/{data.rubric?.tasks[n]?.max_marks ?? 50}</span>}
-            </button>
-          ))}
+        <div className="max-w-7xl mx-auto px-6 pb-2">
+          <div className="inline-flex gap-1 rounded-lg bg-uq-elev2 p-1">
+            {taskNums.map((n) => (
+              <button
+                key={n}
+                onClick={() => setActiveTask(n)}
+                className={[
+                  "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
+                  activeTask === n
+                    ? "bg-uq-elev1 text-uq shadow-uq-e1"
+                    : "text-uq-2 hover:text-uq",
+                ].join(" ")}
+              >
+                Task {n}
+                {scores[n] && <span className="ml-2 font-mono tabular-nums text-uq-accent">{scores[n]}/{data.rubric?.tasks[n]?.max_marks ?? 50}</span>}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -189,7 +191,7 @@ export default function MarkCandidatePage() {
       <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] grid-cols-1">
         {/* Candidate work */}
         <div className="overflow-y-auto px-6 py-4 space-y-4">
-          <section className="rounded-xl border border-uq bg-uq-elev1 backdrop-blur-xl shadow-uq-glass p-4">
+          <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
             <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Memo · Task {activeTask}</div>
             <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">{rubricTask?.title}</div>
             {responseForActive && responseForActive.content ? (
@@ -205,7 +207,7 @@ export default function MarkCandidatePage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-uq bg-uq-elev1 backdrop-blur-xl shadow-uq-glass p-4">
+          <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
             <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Investigation trail · Task {activeTask}</div>
             <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">
               {trailForActive.length} message{trailForActive.length === 1 ? "" : "s"}
@@ -231,9 +233,9 @@ export default function MarkCandidatePage() {
         </div>
 
         {/* Marking panel */}
-        <div className="border-l border-uq bg-uq-bg2 backdrop-blur-sm overflow-y-auto">
+        <div className="border-l border-uq bg-uq-bg2 overflow-y-auto">
           <div className="p-5 space-y-5">
-            <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4">
+            <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
               <h2 className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Score · Task {activeTask}</h2>
               <label className="block text-xs">
                 <span className="text-uq-2">Score (out of {rubricTask?.max_marks ?? 50})</span>
@@ -268,7 +270,7 @@ export default function MarkCandidatePage() {
             </section>
 
             {issuesForTask.length > 0 && (
-              <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4">
+              <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
                 <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Embedded issues identified</h2>
                 <p className="text-xs leading-relaxed text-uq-2 mt-1 mb-3">
                   Tick the issues this candidate identified. Used for cohort analytics — does not affect the score.
@@ -301,12 +303,12 @@ export default function MarkCandidatePage() {
             )}
 
             {rubricTask && (
-              <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4">
+              <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
                 <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Rubric reference</h2>
                 <div className="mt-3 space-y-3 text-xs">
                   {Object.entries(rubricTask.categories).map(([key, cat]) => (
                     <details key={key} className="border border-uq rounded-lg overflow-hidden">
-                      <summary className="cursor-pointer px-3 py-1.5 bg-uq-glass-subtle text-uq-2 font-medium flex items-center justify-between hover:text-uq hover:bg-uq-elev2 transition-colors">
+                      <summary className="cursor-pointer px-3 py-1.5 bg-uq-elev2 text-uq-2 font-medium flex items-center justify-between hover:text-uq hover:bg-uq-bg2 transition-colors">
                         <span>{key.replace(/_/g, " ")}</span>
                         <span className="font-mono tabular-nums text-uq-accent">{cat.max}m</span>
                       </summary>
@@ -373,23 +375,23 @@ function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; acti
     .reduce((sum, e) => sum + (typeof e.metadata?.hiddenMs === "number" ? (e.metadata.hiddenMs as number) : 0), 0);
 
   return (
-    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4">
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Activity · Task {activeTask}</div>
       <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Integrity signals</div>
 
       <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
-        <div className="bg-uq-glass-subtle border border-uq-faint rounded-lg px-3 py-2">
+        <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Pastes</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">
             {pasteCount}
             {pasteCount > 0 && <span className="text-xs font-normal text-uq-3"> · {pasteChars.toLocaleString()} chars</span>}
           </div>
         </div>
-        <div className="bg-uq-glass-subtle border border-uq-faint rounded-lg px-3 py-2">
+        <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Tab-aways</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">{hiddenCount}</div>
         </div>
-        <div className="bg-uq-glass-subtle border border-uq-faint rounded-lg px-3 py-2">
+        <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Time off-tab</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">{formatDuration(hiddenTotalMs)}</div>
         </div>

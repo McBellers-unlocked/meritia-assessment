@@ -63,7 +63,7 @@ export default function AssessmentDashboardPage() {
       </div>
       <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">{data.assessment.title}</h1>
       <div className="text-sm text-uq-3 mt-1">
-        Scenario <code className="font-mono text-xs bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">{data.assessment.scenarioId}</code>
+        Scenario <code className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">{data.assessment.scenarioId}</code>
         · {data.assessment.totalMinutes} min per candidate
         · Open {new Date(data.assessment.openDate).toLocaleString()}
         → Close {new Date(data.assessment.closeDate).toLocaleString()}
@@ -124,9 +124,9 @@ export default function AssessmentDashboardPage() {
 
       <section className="mt-8">
         <h2 className="text-base font-semibold tracking-[-0.005em] text-uq mb-2">All candidates</h2>
-        <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
+        <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-uq-glass-subtle text-uq-3">
+            <thead className="bg-uq-elev2 text-uq-3">
               <tr className="border-b border-uq-faint">
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Anon ID</th>
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Name</th>
@@ -166,7 +166,7 @@ function KPI({ label, value, accent, small }: { label: string; value: number | s
     accent === "green" ? "border-l-[color:var(--uq-success-line)]" :
     "border-l-uq-strong";
   return (
-    <div className={`rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass border-l-2 ${accentColour} p-3`}>
+    <div className={`rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass border-l-2 ${accentColour} p-3`}>
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">{label}</div>
       <div className={small ? "text-base font-semibold font-mono text-uq" : "text-2xl font-semibold font-mono tabular-nums text-uq"}>{value}</div>
     </div>

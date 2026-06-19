@@ -138,12 +138,12 @@ export default function CandidatesPage() {
       <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">Candidates · {data.assessment.title}</h1>
 
       {/* Add */}
-      <section className="mt-6 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5">
+      <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
         <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Add candidates</h2>
         <p className="text-sm leading-relaxed text-uq-2 mt-1">
           Paste from a spreadsheet. Each line should contain a name and an email.
-          Accepted formats: <code className="font-mono text-xs bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">Name, email</code>,
-          <code className="font-mono text-xs bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded ml-1">Name &lt;email&gt;</code>,
+          Accepted formats: <code className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">Name, email</code>,
+          <code className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded ml-1">Name &lt;email&gt;</code>,
           or tab-separated.
         </p>
         <textarea
@@ -170,7 +170,7 @@ export default function CandidatesPage() {
       </section>
 
       {/* Export */}
-      <section className="mt-6 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5">
+      <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
         <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Export</h2>
         <p className="text-sm leading-relaxed text-uq-2 mt-1 mb-3">CSV with name, email, token, and unique URL — ready for mail merge.</p>
         <a
@@ -182,12 +182,12 @@ export default function CandidatesPage() {
       </section>
 
       {/* List */}
-      <section className="mt-6 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
-        <div className="px-5 py-3 border-b border-uq-faint bg-uq-glass-subtle text-sm font-semibold text-uq">
+      <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
+        <div className="px-5 py-3 border-b border-uq-faint bg-uq-elev2 text-sm font-semibold text-uq">
           {data.candidates.length} candidate{data.candidates.length === 1 ? "" : "s"}
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-uq-glass-subtle text-uq-3">
+          <thead className="bg-uq-elev2 text-uq-3">
             <tr className="border-b border-uq-faint">
               <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Anon ID</th>
               <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Name</th>

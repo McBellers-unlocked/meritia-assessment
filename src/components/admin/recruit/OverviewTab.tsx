@@ -63,7 +63,7 @@ export default function OverviewTab({
   };
 
   return (
-    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5 space-y-4">
+    <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5 space-y-4">
       <label className="block text-sm">
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Title</span>
         <input
@@ -87,7 +87,7 @@ export default function OverviewTab({
           </span>
         ) : (
           <span className="text-xs text-uq-3 mt-1 block">
-            Candidate URL: <code className="font-mono bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1 rounded">/assess/{slug}</code>
+            Candidate URL: <code className="font-mono bg-uq-elev2 border border-uq-faint text-uq px-1 rounded">/assess/{slug}</code>
           </span>
         )}
       </label>

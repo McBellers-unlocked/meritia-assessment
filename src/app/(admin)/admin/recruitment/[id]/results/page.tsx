@@ -136,7 +136,7 @@ export default function ResultsPage() {
         <KPI label="Avg messages" value={data.analytics.averageMessages != null ? data.analytics.averageMessages.toFixed(1) : "—"} />
       </div>
 
-      <section className="mt-8 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5">
+      <section className="mt-8 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
         <div className="flex items-baseline justify-between">
           <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Score distribution</h2>
           <div className="text-xs text-uq-3">
@@ -160,7 +160,7 @@ export default function ResultsPage() {
       </section>
 
       {data.analytics.issueAnalytics.length > 0 && (
-        <section className="mt-6 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5">
+        <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
           <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Embedded issue identification</h2>
           <p className="text-xs text-uq-3 mt-1 mb-3">
             % of fully-marked candidates ({data.analytics.fullyMarkedCount}) who identified each embedded issue.
@@ -184,7 +184,7 @@ export default function ResultsPage() {
                     <td className="py-1.5 text-right font-mono tabular-nums text-uq-2">{iss.identifiedCount}</td>
                     <td className="py-1.5 pl-3">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-uq-glass-subtle border border-uq-faint rounded-full h-2 overflow-hidden">
+                        <div className="flex-1 bg-uq-elev2 border border-uq-faint rounded-full h-2 overflow-hidden">
                           <div className="bg-uq-accent h-2 shadow-uq-glow-soft" style={{ width: `${rate * 100}%` }} />
                         </div>
                         <span className="text-xs font-mono tabular-nums text-uq-2 w-12 text-right">{(rate * 100).toFixed(0)}%</span>
@@ -198,13 +198,13 @@ export default function ResultsPage() {
         </section>
       )}
 
-      <section className="mt-6 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
-        <div className="px-5 py-3 border-b border-uq-faint bg-uq-glass-subtle text-sm font-semibold text-uq">
+      <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
+        <div className="px-5 py-3 border-b border-uq-faint bg-uq-elev2 text-sm font-semibold text-uq">
           Ranking
           {revealed && <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.12em] text-uq-3">Top 5 highlighted</span>}
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-uq-glass-subtle text-uq-3">
+          <thead className="bg-uq-elev2 text-uq-3">
             <tr className="border-b border-uq-faint">
               <th className="px-3 py-2 text-left w-12 font-mono text-[11px] uppercase tracking-[0.14em]">Rank</th>
               <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Anon ID</th>
@@ -260,7 +260,7 @@ export default function ResultsPage() {
       {/* Reveal modal */}
       {confirmOpen && (
         <div
-          className="fixed inset-0 z-50 bg-[#05080F]/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-[#16181D]/40 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setConfirmOpen(false)}
         >
           <div className="rounded-2xl border border-uq-strong bg-uq-elev3 shadow-uq-pop p-6 max-w-md w-full animate-uq-rise" onClick={(e) => e.stopPropagation()}>
@@ -269,7 +269,7 @@ export default function ResultsPage() {
               This will reveal the real names against scores for everyone with admin access to this assessment.
               <strong className="text-uq font-semibold"> This action cannot be undone.</strong>
             </p>
-            <div className="mt-3 rounded-md p-3 text-xs bg-uq-glass-subtle border border-uq-faint text-uq-2">
+            <div className="mt-3 rounded-md p-3 text-xs bg-uq-elev2 border border-uq-faint text-uq-2">
               <span className="font-mono tabular-nums">{data.analytics.fullyMarkedCount}</span> of <span className="font-mono tabular-nums">{data.analytics.submittedCount}</span> submissions are fully marked.
               {data.analytics.fullyMarkedCount < data.analytics.submittedCount && (
                 <div className="text-[color:var(--uq-warn-text)] mt-1">
@@ -305,7 +305,7 @@ function KPI({ label, value, accent }: { label: string; value: number | string; 
     accent === "amber" ? "border-l-[color:var(--uq-warn-line)]" :
     "border-l-uq-strong";
   return (
-    <div className={`rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass border-l-2 ${accentColour} p-3`}>
+    <div className={`rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass border-l-2 ${accentColour} p-3`}>
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">{label}</div>
       <div className="text-2xl font-semibold font-mono tabular-nums text-uq">{value}</div>
     </div>

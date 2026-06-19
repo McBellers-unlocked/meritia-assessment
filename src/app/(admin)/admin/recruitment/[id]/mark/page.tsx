@@ -74,9 +74,9 @@ export default function MarkListPage() {
         </Link>
       </div>
 
-      <section className="mt-6 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
+      <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-uq-glass-subtle text-uq-3 font-mono text-[11px] uppercase tracking-[0.14em]">
+          <thead className="bg-uq-elev2 text-uq-3 font-mono text-[11px] uppercase tracking-[0.14em]">
             <tr>
               <th className="px-3 py-2 text-left">Anon ID</th>
               <th className="px-3 py-2 text-right">Time (min)</th>
@@ -135,7 +135,7 @@ function KPI({ label, value, accent }: { label: string; value: number; accent?: 
     accent === "green" ? "border-l-[color:var(--uq-success-line)]" :
     "border-l-uq-accent";
   return (
-    <div className={`rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass border-l-2 ${accentColour} p-3`}>
+    <div className={`rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass border-l-2 ${accentColour} p-3`}>
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">{label}</div>
       <div className="text-2xl font-semibold font-mono tabular-nums text-uq">{value}</div>
     </div>

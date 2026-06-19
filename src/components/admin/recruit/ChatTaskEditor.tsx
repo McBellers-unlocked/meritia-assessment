@@ -118,7 +118,7 @@ export default function ChatTaskEditor({
   };
 
   return (
-    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4 space-y-4">
+    <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
           Task {task.number} · <span className="text-uq-cyan">chat</span>

@@ -66,6 +66,42 @@ function wordCount(content: string): number {
   return text ? text.split(/\s+/).filter(Boolean).length : 0;
 }
 
+// The task brief is an in-world email — its markdown opens with
+// **From:** / **To:** / **Subject:** lines. Parse those into a structured
+// header so we can render a real email message view; fall back gracefully
+// (whole markdown as body) when a brief doesn't follow the convention.
+const BRIEF_STOPWORDS = new Set(["of", "and", "the", "for", "to", "a", "an", "in", "on", "you"]);
+function initialsFrom(name: string): string {
+  const words = name.split(/\s+/).filter((w) => /[a-z]/i.test(w[0] ?? "") && !BRIEF_STOPWORDS.has(w.toLowerCase()));
+  if (words.length === 0) return name.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase() || "··";
+  return words.slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+}
+function parseBriefEmail(md: string): { from: string | null; to: string | null; subject: string | null; body: string } {
+  const out: { from: string | null; to: string | null; subject: string | null; body: string } = {
+    from: null, to: null, subject: null, body: md,
+  };
+  const lines = md.split(/\r?\n/);
+  let consumed = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === "") {
+      consumed = i + 1;
+      if (out.from || out.to || out.subject) break; // blank line ends the header block
+      continue;
+    }
+    const m = line.match(/^\*\*\s*(From|To|Subject)\s*:\*\*\s*(.*)$/i);
+    if (!m) break; // first non-meta, non-blank line — body starts here
+    const key = m[1].toLowerCase();
+    const val = m[2].trim();
+    if (key === "from") out.from = val;
+    else if (key === "to") out.to = val;
+    else out.subject = val;
+    consumed = i + 1;
+  }
+  if (out.from || out.to || out.subject) out.body = lines.slice(consumed).join("\n").trim();
+  return out;
+}
+
 export default function AssessmentView({
   token, initial, onReload,
 }: {
@@ -338,7 +374,7 @@ export default function AssessmentView({
   }, [submitting, memos, token, saveMemo, onReload]);
 
   /* ------ timer ------ */
-  const timer = useTimer(initial.candidate.deadline);
+  const timer = useTimer(initial.candidate.deadline, initial.assessment.totalMinutes);
   // Auto-submit on expiry
   useEffect(() => {
     if (timer.expired && !submittedRef.current) {
@@ -356,10 +392,10 @@ export default function AssessmentView({
   return (
     <div className="min-h-screen text-uq font-sans flex flex-col">
       {/* Header */}
-      <header className="bg-uq-glass-strong backdrop-blur-xl border-b border-uq shadow-[0_1px_0_0_var(--uq-inset-hi)_inset] flex-shrink-0">
+      <header className="bg-uq-glass-strong backdrop-blur-xl border-b border-uq-faint shadow-uq-e1 flex-shrink-0">
         <div className="px-4 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="bg-white rounded-md px-2 py-1 inline-flex items-center ring-1 ring-uq shadow-uq-glow-soft flex-shrink-0">
+            <span className="inline-flex items-center flex-shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/brand/logos/uniqassess-logo.png"
@@ -412,51 +448,82 @@ export default function AssessmentView({
             idscCollapsed ? "pr-12" : "pr-0 lg:pr-[420px]"
           }`}
         >
-          {/* View tabs: Exhibit · Split · Memo. Split renders the source
+          {/* View switch — a pill segmented control. Split renders the source
               exhibit and the memo editor side-by-side so candidates can read
               while they write (the #1 navigation need on an analytical task). */}
-          <div className="bg-uq-elev1 border-b border-uq flex-shrink-0 flex items-stretch px-2 gap-0.5">
-            <ViewTab
-              active={activeView === "exhibit"}
-              onClick={() => setActiveView("exhibit")}
-              label="Exhibit"
-              sublabel={activeTaskCfg.exhibitTitle}
-            />
-            <ViewTab
-              active={activeView === "split"}
-              onClick={() => setActiveView("split")}
-              label="Split"
-              sublabel="Exhibit + memo"
-            />
-            <ViewTab
-              active={activeView === "memo"}
-              onClick={() => setActiveView("memo")}
-              label="Memo"
-              sublabel={`${wordCounts[activeTask]} ${wordCounts[activeTask] === 1 ? "word" : "words"}${memoSaving[activeTask] ? " · saving…" : ""}`}
-              warn={wordCounts[activeTask] === 0}
-            />
+          <div className="bg-uq-bg2 border-b border-uq-faint flex-shrink-0 flex items-center px-3 py-2">
+            <div className="inline-flex items-center gap-1 rounded-lg bg-uq-elev2 p-1">
+              <ViewTab
+                active={activeView === "exhibit"}
+                onClick={() => setActiveView("exhibit")}
+                label="Exhibit"
+                sublabel={activeTaskCfg.exhibitTitle}
+              />
+              <ViewTab
+                active={activeView === "split"}
+                onClick={() => setActiveView("split")}
+                label="Split"
+                sublabel="Exhibit + memo, side by side"
+              />
+              <ViewTab
+                active={activeView === "memo"}
+                onClick={() => setActiveView("memo")}
+                label="Memo"
+                sublabel={`${wordCounts[activeTask]} ${wordCounts[activeTask] === 1 ? "word" : "words"}${memoSaving[activeTask] ? " · saving…" : ""}`}
+                warn={wordCounts[activeTask] === 0}
+              />
+            </div>
           </div>
 
-          {/* Brief — shared across every view (Exhibit / Split / Memo) so the
-              task framing is always one click away, not hidden inside the memo. */}
-          <div className="border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0">
-            <button
-              onClick={() => setBriefOpen((v) => !v)}
-              className="w-full text-left px-4 py-2 text-xs font-medium text-uq-2 hover:bg-uq-elev2 hover:text-uq transition-colors flex items-center justify-between focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-              aria-expanded={briefOpen}
-            >
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-accent flex-shrink-0">Brief</span>
-                <span className="truncate">Task {activeTask}: {activeTaskCfg.title}</span>
-              </span>
-              <span className="font-mono text-uq-3 flex-shrink-0 ml-2">{briefOpen ? "− Hide" : "+ Show"}</span>
-            </button>
-            {briefOpen && (
-              <div className="px-4 pb-3 text-sm text-uq-2 leading-relaxed max-h-48 overflow-y-auto">
-                <MarkdownView>{activeTaskCfg.briefMarkdown}</MarkdownView>
+          {/* Brief — rendered as the in-world email it is (from the Chief of
+              MS Division). Shared across every view so the task framing is
+              always one click away, never hidden inside the memo. */}
+          {(() => {
+            const brief = parseBriefEmail(activeTaskCfg.briefMarkdown);
+            const sender = brief.from ?? "Task brief";
+            return (
+              <div className="border-b border-uq-faint bg-uq-elev1 flex-shrink-0">
+                <button
+                  onClick={() => setBriefOpen((v) => !v)}
+                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-uq-elev2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                  aria-expanded={briefOpen}
+                >
+                  <span
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0 shadow-uq-e1"
+                    style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
+                    aria-hidden
+                  >
+                    {brief.from ? initialsFrom(brief.from) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-uq truncate">{sender}</span>
+                      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3 flex-shrink-0 hidden sm:inline">Brief · Task {activeTask}</span>
+                    </span>
+                    <span className="block text-xs text-uq-2 truncate">{brief.subject ?? activeTaskCfg.title}</span>
+                  </span>
+                  <span className="font-mono text-[11px] text-uq-3 flex-shrink-0">{briefOpen ? "Hide" : "Show"}</span>
+                </button>
+                {briefOpen && (
+                  <div className="px-4 pb-4 max-h-60 overflow-y-auto uq-fade-rise">
+                    {(brief.to || brief.subject) && (
+                      <div className="pb-2">
+                        {brief.to && <div className="text-xs text-uq-3">To: <span className="text-uq-2">{brief.to}</span></div>}
+                        {brief.subject && <div className="text-sm font-semibold tracking-[-0.005em] text-uq pt-1">{brief.subject}</div>}
+                      </div>
+                    )}
+                    <div className="border-t border-uq-faint pt-3 text-sm text-uq-2 leading-relaxed">
+                      <MarkdownView>{brief.body}</MarkdownView>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Active content — one pane, or both side-by-side in Split (stacks
               on narrow screens). Sections are keyed so the memo editor instance
@@ -465,7 +532,7 @@ export default function AssessmentView({
             {(activeView === "exhibit" || activeView === "split") && (
               <section
                 key="exhibit-pane"
-                className={`bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1 ${
+                className={`bg-uq-elev1 uq-fade-rise flex flex-col min-h-0 overflow-hidden flex-1 ${
                   activeView === "split" ? "border-b lg:border-b-0 lg:border-r border-uq" : ""
                 }`}
               >
@@ -497,7 +564,7 @@ export default function AssessmentView({
             {(activeView === "memo" || activeView === "split") && (
               <section
                 key="memo-pane"
-                className="bg-uq-elev1 flex flex-col min-h-0 overflow-hidden flex-1"
+                className="bg-uq-elev1 uq-fade-rise flex flex-col min-h-0 overflow-hidden flex-1"
               >
                 {/* Memo header — title + (single-view only) Peek at exhibit. */}
                 <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-2">
@@ -601,12 +668,21 @@ export default function AssessmentView({
             aria-label="IDSC AI assistant chat"
           >
             <div className="px-4 py-2.5 border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                  AI Assistant · Task {activeTask}
-                </div>
-                <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                  IDSC Knowledge System
+              <div className="min-w-0 flex items-center gap-2.5">
+                <span
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-uq-e1"
+                  style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
+                  aria-hidden
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/90" />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
+                    AI Assistant · Task {activeTask}
+                  </div>
+                  <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
+                    IDSC Knowledge System
+                  </div>
                 </div>
               </div>
               <button
@@ -630,7 +706,16 @@ export default function AssessmentView({
                 </div>
               )}
               {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}
-              {sending && <div className="text-xs text-uq-3 italic">IDSC system is replying…</div>}
+              {sending && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span
+                    className="w-5 h-5 rounded-full flex-shrink-0 shadow-uq-e1"
+                    style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
+                    aria-hidden
+                  />
+                  <span className="uq-shimmer-text font-medium">IDSC is thinking…</span>
+                </div>
+              )}
             </div>
 
             {chatError && (
@@ -690,7 +775,7 @@ export default function AssessmentView({
       {/* Fullscreen exhibit modal */}
       {exhibitFullscreen && (
         <div
-          className="fixed inset-0 z-50 bg-[#05080F]/80 backdrop-blur-sm flex flex-col p-3"
+          className="fixed inset-0 z-50 bg-[#16181D]/40 backdrop-blur-sm flex flex-col p-3"
           onClick={() => setExhibitFullscreen(false)}
         >
           <div
@@ -742,7 +827,7 @@ export default function AssessmentView({
         const hasCritical = flags.some((f) => f.kind === "empty-memo" || f.kind === "no-ai");
         return (
           <div
-            className="fixed inset-0 z-50 bg-[#05080F]/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-[#16181D]/40 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setConfirmOpen(false)}
           >
             <div className="rounded-2xl border border-uq-strong bg-uq-elev3 shadow-uq-pop animate-uq-rise max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -896,7 +981,7 @@ export function MarkdownView({ children }: { children: string }) {
             );
           },
           pre: (p) => (
-            <pre className="bg-[#060A12] border border-uq text-[#D7E0EE] text-xs rounded p-2.5 overflow-x-auto my-2 font-mono">
+            <pre className="bg-uq-elev2 border border-uq text-uq text-xs rounded-lg p-2.5 overflow-x-auto my-2 font-mono">
               {p.children}
             </pre>
           ),
@@ -934,46 +1019,41 @@ function TaskTabs({
   wordCounts: Record<number, number>;
 }) {
   return (
-    <div className="inline-flex items-center gap-2">
-      <span className="hidden xl:inline font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">
-        {tasks.length} tasks
-      </span>
-      <div className="inline-flex border border-uq rounded-md overflow-hidden bg-uq-elev1 shadow-uq-glass">
-        {tasks.map((t) => {
-          const isActive = active === t.number;
-          const shortTitle = t.title.split("&")[0].trim();
-          const empty = (wordCounts[t.number] ?? 0) === 0;
-          return (
-            <button
-              key={t.number}
-              onClick={() => onSwitch(t.number)}
-              className={[
-                "px-3 py-1.5 text-xs border-r border-uq last:border-r-0 transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
-                isActive
-                  ? "bg-uq-accent-soft text-uq border-b-2 border-b-uq-accent"
-                  : "bg-transparent text-uq-2 hover:bg-uq-elev2 hover:text-uq",
-              ].join(" ")}
-              title={`Task ${t.number} of ${tasks.length}: ${t.title}`}
-            >
-              <span className="font-semibold">
-                Task {t.number}
-                <span className="opacity-60">/{tasks.length}</span>
-              </span>
-              <span className="hidden md:inline opacity-60">·</span>
-              <span className="hidden md:inline opacity-80 truncate max-w-[140px] font-medium">
-                {shortTitle}
-              </span>
-              <span className="font-mono text-[10px] opacity-70 tabular-nums">{wordCounts[t.number]}w</span>
-              {!isActive && empty && (
-                <span
-                  className="w-1.5 h-1.5 rounded-full bg-uq-danger flex-shrink-0"
-                  title="No memo content yet"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+    <div className="inline-flex items-center gap-1 rounded-lg bg-uq-elev2 p-1">
+      {tasks.map((t) => {
+        const isActive = active === t.number;
+        const shortTitle = t.title.split("&")[0].trim();
+        const empty = (wordCounts[t.number] ?? 0) === 0;
+        return (
+          <button
+            key={t.number}
+            onClick={() => onSwitch(t.number)}
+            aria-pressed={isActive}
+            className={[
+              "px-3 py-1.5 rounded-md text-xs transition-all duration-150 flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
+              isActive
+                ? "bg-uq-elev1 text-uq shadow-uq-e1"
+                : "text-uq-2 hover:text-uq",
+            ].join(" ")}
+            title={`Task ${t.number} of ${tasks.length}: ${t.title}`}
+          >
+            <span className="font-semibold">
+              Task {t.number}
+              <span className="opacity-50 font-normal">/{tasks.length}</span>
+            </span>
+            <span className="hidden lg:inline opacity-70 truncate max-w-[120px] font-medium">
+              {shortTitle}
+            </span>
+            <span className="font-mono text-[10px] tabular-nums text-uq-3">{wordCounts[t.number]}w</span>
+            {!isActive && empty && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-uq-danger flex-shrink-0"
+                title="No memo content yet"
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -992,34 +1072,31 @@ function ViewTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      title={sublabel}
       className={[
-        "relative px-4 pt-2.5 pb-2 -mb-px text-left flex flex-col gap-0.5 transition border-b-2 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md rounded-t",
+        "px-3.5 py-1.5 rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-all duration-150 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
         active
-          ? "border-uq-accent text-uq bg-uq-elev1"
-          : "border-transparent text-uq-3 hover:text-uq hover:bg-uq-elev2",
+          ? "bg-uq-elev1 text-uq shadow-uq-e1"
+          : "text-uq-2 hover:text-uq",
       ].join(" ")}
     >
-      <span className="text-sm font-semibold inline-flex items-center gap-1.5">
-        {label}
-        {warn && (
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-uq-danger flex-shrink-0"
-            aria-label="empty"
-            title="Empty"
-          />
-        )}
-      </span>
-      {sublabel && (
-        <span className="font-mono text-[11px] tabular-nums text-uq-3 truncate max-w-[260px]">{sublabel}</span>
+      {label}
+      {warn && (
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-uq-danger flex-shrink-0"
+          aria-label="empty"
+          title="Empty"
+        />
       )}
     </button>
   );
 }
 
-interface TimerInfo { mm: string; ss: string; warning: boolean; critical: boolean; expired: boolean; }
+interface TimerInfo { mm: string; ss: string; warning: boolean; critical: boolean; expired: boolean; fraction: number; }
 
-function useTimer(deadlineIso: string): TimerInfo {
+function useTimer(deadlineIso: string, totalMinutes: number): TimerInfo {
   const deadline = new Date(deadlineIso).getTime();
+  const totalMs = Math.max(1, totalMinutes * 60_000);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -1035,6 +1112,8 @@ function useTimer(deadlineIso: string): TimerInfo {
     warning: remaining < 10 * 60_000,
     critical: remaining < 60_000,
     expired: remaining === 0,
+    // Fraction of time REMAINING (1 → full, 0 → expired) for the ambient ring.
+    fraction: Math.max(0, Math.min(1, remaining / totalMs)),
   };
 }
 
@@ -1213,18 +1292,42 @@ function ToolbarDivider() {
   return <div className="w-px h-4 bg-uq-border mx-0.5" />;
 }
 
+/**
+ * Ambient timer: a slim progress ring that depletes and shifts hue as time
+ * runs out (calm indigo → amber under 10 min → red under 2), with the numeric
+ * time shown smaller alongside. Visual only — drives off the existing timer.
+ */
 function TimerPill({ timer }: { timer: TimerInfo }) {
-  const cls = timer.critical
-    ? "bg-uq-danger-soft text-uq-danger-text border-uq-danger-line animate-uq-pulse-glow"
+  const ring = timer.critical
+    ? "var(--uq-danger)"
     : timer.warning
-    ? "bg-uq-warn-soft text-uq-warn-text border-uq-warn-line"
-    : "bg-uq-elev2 text-uq-2 border-uq";
+    ? "var(--uq-warn)"
+    : "var(--uq-accent)";
+  const textCls = timer.critical
+    ? "text-[color:var(--uq-danger-text)]"
+    : timer.warning
+    ? "text-[color:var(--uq-warn-text)]"
+    : "text-uq-2";
+  const R = 9;
+  const C = 2 * Math.PI * R;
   return (
-    <div className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-mono tabular-nums border ${cls}`}>
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {timer.mm}:{timer.ss}
+    <div
+      className="inline-flex items-center gap-2 rounded-full bg-uq-elev1 border border-uq shadow-uq-e1 pl-1.5 pr-3 py-1"
+      title={`${timer.mm}:${timer.ss} remaining`}
+    >
+      <span className="relative inline-flex items-center justify-center" style={{ width: 22, height: 22 }}>
+        <svg width="22" height="22" viewBox="0 0 22 22" style={{ transform: "rotate(-90deg)" }}>
+          <circle cx="11" cy="11" r={R} fill="none" stroke="var(--uq-border)" strokeWidth="2.5" />
+          <circle
+            cx="11" cy="11" r={R} fill="none" stroke={ring} strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray={C} strokeDashoffset={C * (1 - timer.fraction)}
+            style={{ transition: "stroke-dashoffset 1s linear, stroke 400ms ease" }}
+          />
+        </svg>
+      </span>
+      <span className={`text-sm font-mono tabular-nums font-medium ${textCls}`}>
+        {timer.mm}:{timer.ss}
+      </span>
     </div>
   );
 }

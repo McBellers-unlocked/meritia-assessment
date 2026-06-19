@@ -160,7 +160,7 @@ export default function AdminRecruitmentList() {
       </div>
 
       {/* Create */}
-      <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5 mb-6">
+      <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5 mb-6">
         <h2 className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Create new assessment</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block text-sm">
@@ -202,13 +202,13 @@ export default function AdminRecruitmentList() {
       </section>
 
       {/* List */}
-      <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
-        <div className="px-5 py-3 border-b border-uq-faint bg-uq-glass-subtle text-sm font-semibold text-uq">Existing assessments</div>
+      <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
+        <div className="px-5 py-3 border-b border-uq-faint bg-uq-elev2 text-sm font-semibold text-uq">Existing assessments</div>
         {rows === null && <div className="p-5 text-sm text-uq-3"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-3 animate-pulse">Loading…</span></div>}
         {rows && rows.length === 0 && <div className="p-5 text-sm text-uq-3">None yet.</div>}
         {rows && rows.length > 0 && (
           <table className="w-full text-sm">
-            <thead className="bg-uq-glass-subtle text-uq-3">
+            <thead className="bg-uq-elev2 text-uq-3">
               <tr className="border-b border-uq-faint">
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Title</th>
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Window</th>

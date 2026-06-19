@@ -2,14 +2,14 @@ import type { Config } from "tailwindcss";
 
 // UNIQAssess palettes.
 //
-// "Observatory" (the `uq.*` group below) is the Premium Dark / AI-native theme
-// used on the candidate assessment experience (/assess) and the admin/marking
-// surfaces ((admin) group). Every token is a CSS variable defined on the
-// `.uq-dark` wrapper in globals.css, so the utilities here are a single source
-// of truth and the theme is scoped — the public landing/login stay light.
+// "Calm Light" (the `uq.*` group below) is the app-wide light design system
+// (Linear/Vercel/Stripe feel). Every token is a CSS variable defined on :root
+// in globals.css, so these utilities are a single source of truth and resolve
+// light everywhere. Depth comes from the soft elevation shadow scale
+// (uq-e1/e2/e3), not hard borders; one indigo accent carries interaction.
 //
-// The legacy navy/crimson/teal palettes are kept for now (navy is still used by
-// a few light surfaces); prune in a follow-up once fully migrated.
+// The legacy navy/crimson/teal palettes are unused by the app now; prune in a
+// follow-up.
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -120,17 +120,21 @@ const config: Config = {
         "uq-accent": "var(--uq-accent)",
       },
       boxShadow: {
-        "uq-glass": "0 1px 0 0 rgba(180,210,255,0.06) inset, 0 12px 30px -12px rgba(0,0,0,0.65)",
-        "uq-pop": "0 1px 0 0 rgba(180,210,255,0.06) inset, 0 24px 60px -18px rgba(0,0,0,0.80)",
-        "uq-glow": "0 0 0 1px rgba(77,163,255,0.35), 0 0 18px -2px rgba(77,163,255,0.45)",
-        "uq-glow-soft": "0 0 22px -6px rgba(77,163,255,0.40)",
-        "uq-glow-cyan": "0 0 22px -6px rgba(95,227,216,0.35)",
+        // Soft, large-radius, low-opacity elevation — depth without hard borders.
+        "uq-glass": "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -8px rgba(16,24,40,0.12)",
+        "uq-pop": "0 4px 12px rgba(16,24,40,0.08), 0 24px 48px -12px rgba(16,24,40,0.18)",
+        "uq-glow": "0 0 0 1px rgba(79,70,229,0.22), 0 8px 20px -6px rgba(79,70,229,0.30)",
+        "uq-glow-soft": "0 1px 2px rgba(16,24,40,0.06), 0 10px 24px -12px rgba(79,70,229,0.28)",
+        "uq-glow-cyan": "0 10px 24px -12px rgba(14,116,144,0.22)",
+        "uq-e1": "0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.04)",
+        "uq-e2": "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -8px rgba(16,24,40,0.12)",
+        "uq-e3": "0 4px 12px rgba(16,24,40,0.08), 0 24px 48px -12px rgba(16,24,40,0.18)",
       },
       backgroundImage: {
         "uq-aurora":
-          "radial-gradient(60rem 40rem at 78% -8%, rgba(77,163,255,0.16), transparent 60%), radial-gradient(48rem 36rem at 8% 108%, rgba(95,227,216,0.10), transparent 55%)",
+          "radial-gradient(55rem 42rem at 90% -12%, rgba(79,70,229,0.06), transparent 60%), radial-gradient(40rem 32rem at 2% 112%, rgba(14,116,144,0.035), transparent 55%)",
         "uq-grid":
-          "linear-gradient(to right, rgba(148,178,224,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,178,224,0.05) 1px, transparent 1px)",
+          "linear-gradient(to right, rgba(16,24,40,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(16,24,40,0.04) 1px, transparent 1px)",
       },
       backgroundSize: {
         "uq-grid": "44px 44px",
@@ -141,8 +145,8 @@ const config: Config = {
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         "uq-pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(77,163,255,0.0)" },
-          "50%": { boxShadow: "0 0 14px -2px rgba(77,163,255,0.55)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(79,70,229,0.0)" },
+          "50%": { boxShadow: "0 0 12px -2px rgba(79,70,229,0.45)" },
         },
       },
       animation: {
