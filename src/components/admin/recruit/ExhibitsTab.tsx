@@ -23,7 +23,7 @@ export default function ExhibitsTab({
 
   return (
     <div className="grid grid-cols-12 gap-4">
-      <aside className="col-span-4 rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-3">
+      <aside className="col-span-4 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-3">
         <div className="flex items-center justify-between mb-3">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Exhibits</div>
           <button
@@ -75,7 +75,7 @@ export default function ExhibitsTab({
             onDelete={() => { setSelected(null); onChanged(); }}
           />
         ) : (
-          <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center text-sm text-uq-3">
+          <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-8 text-center text-sm text-uq-3">
             Select or add an exhibit to edit.
           </div>
         )}
@@ -147,7 +147,7 @@ function ExhibitForm({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-4 space-y-3">
+      <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4 space-y-3">
         <label className="block text-sm">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Title</span>
           <input
@@ -200,7 +200,7 @@ function ExhibitForm({
       </div>
 
       {html && (
-        <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-3">
+        <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-3">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3 mb-2">Preview</div>
           {/* Scenario-authored HTML — keep a light plate (HARD RULE #4); do not force dark onto untrusted author markup. */}
           <iframe

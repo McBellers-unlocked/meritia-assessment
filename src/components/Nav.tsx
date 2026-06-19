@@ -10,11 +10,9 @@ import { usePathname } from "next/navigation";
  *     token-authenticated and should not see platform chrome
  *   - the public landing + login pages when no session is present
  *
- * The header carries `uq-dark` directly so the Observatory tokens resolve on
- * its subtree: it renders OUTSIDE the (admin)/assess group layouts (it lives in
- * the root layout tree), so it can't inherit their wrapper. This is safe only
- * because the early-returns below guarantee the header never appears on a light
- * public page — keep those guards intact.
+ * A sticky, translucent-white glass header. Design tokens (the uq-* utilities)
+ * resolve from :root app-wide, so no theme wrapper is needed here. The
+ * early-returns below are still load-bearing for visibility — keep them intact.
  */
 export default function Nav() {
   const { data: session, status } = useSession();
@@ -34,7 +32,7 @@ export default function Nav() {
     pathname.startsWith(scenariosHref) && !onFromJd;
 
   return (
-    <header className="uq-dark bg-uq-glass-strong text-uq backdrop-blur-xl border-b border-uq shadow-[0_1px_0_0_var(--uq-inset-hi)_inset]">
+    <header className="sticky top-0 z-40 bg-uq-glass-strong text-uq backdrop-blur-xl border-b border-uq shadow-uq-e1">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
           <Link

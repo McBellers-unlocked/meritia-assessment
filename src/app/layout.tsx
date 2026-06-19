@@ -53,7 +53,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-uq-bg min-h-screen`}
       >
         <Providers>
           <Nav />

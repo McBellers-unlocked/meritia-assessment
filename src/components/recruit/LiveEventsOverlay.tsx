@@ -184,7 +184,7 @@ function NotificationRail({
       {emailsVisible && (
         <button
           onClick={onOpenInbox}
-          className="relative w-11 h-11 rounded-full bg-uq-glass backdrop-blur-xl border border-uq shadow-uq-glass hover:border-uq-accent hover:bg-uq-accent-soft text-uq-2 hover:text-uq transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+          className="relative w-11 h-11 rounded-full bg-uq-elev1 border border-uq shadow-uq-glass hover:border-uq-accent hover:bg-uq-accent-soft text-uq-2 hover:text-uq transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
           title="Inbox"
           aria-label={`Inbox${unreadEmails ? `, ${unreadEmails} unread` : ""}`}
         >

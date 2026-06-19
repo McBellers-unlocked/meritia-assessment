@@ -2,25 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   CALM LIGHT — UNIQAssess light design system.
+   A soft, forward-looking light theme (Linear/Vercel/Stripe feel):
+   near-white surfaces, depth via soft elevation rather than hard
+   borders, one confident indigo accent, restraint everywhere.
+   Tokens live on :root so the uq-* Tailwind utilities resolve
+   light across the whole app. All pairings are WCAG-AA verified.
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --background: #FAFAFB;
+  --foreground: #16181D;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* ---- Surfaces ---- */
+  --uq-bg:            #FAFAFB;  /* page */
+  --uq-bg-2:          #F4F4F6;  /* recessed gutter / inset */
+  --uq-elev-1:        #FFFFFF;  /* primary surface (cards) */
+  --uq-elev-2:        #F4F4F6;  /* subtle fill: hover, wells, table headers */
+  --uq-elev-3:        #FFFFFF;  /* modals/popovers — depth via shadow */
+
+  /* ---- Glass: translucent WHITE (use with backdrop-blur) ---- */
+  --uq-glass:         rgba(255, 255, 255, 0.72);
+  --uq-glass-strong:  rgba(255, 255, 255, 0.80);
+  --uq-glass-subtle:  rgba(255, 255, 255, 0.55);
+  --uq-inset-hi:      rgba(255, 255, 255, 0.90);
+
+  /* ---- Borders / hairlines (used sparingly; depth comes from shadow) ---- */
+  --uq-border:        rgba(16, 24, 40, 0.08);
+  --uq-border-strong: rgba(16, 24, 40, 0.16);
+  --uq-border-faint:  rgba(16, 24, 40, 0.05);
+
+  /* ---- Text (text #16181D ~17:1, secondary #475467 ~7:1, muted #5B6473 ~5.4:1) ---- */
+  --uq-text:          #16181D;
+  --uq-text-2:        #475467;
+  --uq-text-3:        #5B6473;
+  --uq-text-on-accent:#FFFFFF;
+
+  /* ---- Accent (Indigo) ---- */
+  --uq-accent:        #4F46E5;
+  --uq-accent-hover:  #4338CA;
+  --uq-accent-press:  #3730A3;
+  --uq-accent-soft:   rgba(79, 70, 229, 0.10);
+  --uq-accent-line:   rgba(79, 70, 229, 0.30);
+  --uq-cyan:          #0E7490;  /* rare data accent / inline code */
+
+  /* ---- Soft elevation + accent glows (shadows, not borders) ---- */
+  --uq-glow:          0 0 0 1px rgba(79,70,229,0.22), 0 8px 20px -6px rgba(79,70,229,0.30);
+  --uq-glow-soft:     0 1px 2px rgba(16,24,40,0.06), 0 10px 24px -12px rgba(79,70,229,0.28);
+  --uq-glow-cyan:     0 10px 24px -12px rgba(14,116,144,0.22);
+  --uq-focus-ring:    0 0 0 2px #FFFFFF, 0 0 0 4px rgba(79,70,229,0.45);
+  --uq-shadow-e1:     0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.04);
+  --uq-shadow-e2:     0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -8px rgba(16,24,40,0.12);
+  --uq-shadow-e3:     0 4px 12px rgba(16,24,40,0.08), 0 24px 48px -12px rgba(16,24,40,0.18);
+
+  /* ---- Semantic (dark-on-light: text colours pass AA on white) ---- */
+  --uq-success:       #059669;
+  --uq-success-soft:  rgba(5, 150, 105, 0.10);
+  --uq-success-line:  rgba(5, 150, 105, 0.28);
+  --uq-success-text:  #047857;
+
+  --uq-warn:          #D97706;
+  --uq-warn-soft:     rgba(217, 119, 6, 0.10);
+  --uq-warn-line:     rgba(217, 119, 6, 0.28);
+  --uq-warn-text:     #B45309;
+
+  --uq-danger:        #DC2626;
+  --uq-danger-soft:   rgba(220, 38, 38, 0.09);
+  --uq-danger-line:   rgba(220, 38, 38, 0.26);
+  --uq-danger-text:   #B42318;
+
+  /* persona-chat secondary identity */
+  --uq-persona:       #7C3AED;
+  --uq-persona-soft:  rgba(124, 58, 237, 0.10);
+
+  --uq-selection:     rgba(79, 70, 229, 0.18);
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  /* Render the already-loaded Geist Sans (next/font/local) instead of falling
-     back to Arial. Applies to every surface; the dark theme overrides the
-     family again under .uq-dark only where needed. */
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer utilities {
@@ -29,245 +91,124 @@ body {
   }
 }
 
-/* Shared WYSIWYG prose styling:
- *   .memo-editor      — TipTap editor in the candidate assessment view
- *   .memo-rendered    — marker view rendering the submitted memo HTML (sanitised)
- *   .markdown-rendered — marker view rendering AI chat replies (ReactMarkdown + GFM)
- */
-.memo-editor, .memo-rendered, .markdown-rendered {
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: #1e293b;
+/* ============================================================
+   WYSIWYG prose — the candidate's memo editor (.memo-editor),
+   the marker views (.memo-rendered), and AI markdown
+   (.markdown-rendered / .markdown-view). Light, readable, ~16px.
+   ============================================================ */
+.memo-editor, .memo-rendered, .markdown-rendered, .markdown-view {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;        /* 16px reading body */
+  line-height: 1.65;
+  color: var(--uq-text);
 }
 .memo-editor:focus { outline: none; }
-.memo-editor p, .memo-rendered p, .markdown-rendered p { margin: 0 0 0.6rem; }
-.memo-editor p:last-child, .memo-rendered p:last-child, .markdown-rendered p:last-child { margin-bottom: 0; }
-.memo-editor h1, .memo-rendered h1, .markdown-rendered h1 { font-size: 1.15rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #0f172a; }
-.memo-editor h2, .memo-rendered h2, .markdown-rendered h2 { font-size: 1rem; font-weight: 700; margin: 0.9rem 0 0.45rem; color: #0f172a; }
-.memo-editor h3, .memo-rendered h3, .markdown-rendered h3 { font-size: 0.95rem; font-weight: 600; margin: 0.8rem 0 0.4rem; color: #0f172a; }
-.memo-editor h4, .memo-rendered h4, .markdown-rendered h4 { font-size: 0.85rem; font-weight: 600; margin: 0.7rem 0 0.3rem; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
-.memo-editor ul, .memo-rendered ul, .markdown-rendered ul { list-style: disc; padding-left: 1.5rem; margin: 0 0 0.6rem; }
-.memo-editor ol, .memo-rendered ol, .markdown-rendered ol { list-style: decimal; padding-left: 1.5rem; margin: 0 0 0.6rem; }
-.memo-editor li, .memo-rendered li, .markdown-rendered li { margin: 0.05rem 0; }
-.memo-editor li > p, .memo-rendered li > p, .markdown-rendered li > p { margin: 0; }
-.memo-editor strong, .memo-rendered strong, .markdown-rendered strong { font-weight: 600; color: #0f172a; }
-.memo-editor em, .memo-rendered em, .markdown-rendered em { font-style: italic; }
-.memo-editor s, .memo-rendered s, .markdown-rendered s,
-.memo-editor del, .memo-rendered del, .markdown-rendered del { text-decoration: line-through; color: #64748b; }
-.memo-editor blockquote, .memo-rendered blockquote, .markdown-rendered blockquote { border-left: 3px solid #cbd5e1; padding: 0.1rem 0 0.1rem 0.85rem; margin: 0.6rem 0; color: #475569; font-style: italic; }
-.memo-editor hr, .memo-rendered hr, .markdown-rendered hr { border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
-.memo-editor code, .memo-rendered code, .markdown-rendered code { background: #f1f5f9; padding: 0.05rem 0.35rem; border-radius: 3px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85em; }
-.memo-editor pre, .memo-rendered pre, .markdown-rendered pre { background: #0f172a; color: #f1f5f9; padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin: 0.6rem 0; font-size: 0.8rem; }
-.memo-editor pre code, .memo-rendered pre code, .markdown-rendered pre code { background: transparent; padding: 0; color: inherit; }
-/* Tables — primarily for markdown-rendered AI replies with GFM tables, but also any pasted tables in the memo */
-.memo-rendered table, .markdown-rendered table { border-collapse: collapse; margin: 0.6rem 0; font-size: 0.85rem; }
-.memo-rendered th, .memo-rendered td, .markdown-rendered th, .markdown-rendered td { border: 1px solid #cbd5e1; padding: 0.3rem 0.55rem; text-align: left; vertical-align: top; }
-.memo-rendered thead th, .markdown-rendered thead th { background: #f1f5f9; font-weight: 600; }
+.memo-editor { caret-color: var(--uq-accent); }
+.memo-editor p, .memo-rendered p, .markdown-rendered p, .markdown-view p { margin: 0 0 0.7rem; }
+.memo-editor p:last-child, .memo-rendered p:last-child, .markdown-rendered p:last-child, .markdown-view p:last-child { margin-bottom: 0; }
+.memo-editor h1, .memo-rendered h1, .markdown-rendered h1, .markdown-view h1 { font-size: 1.3rem; font-weight: 650; letter-spacing: -0.01em; margin: 1rem 0 0.5rem; color: var(--uq-text); }
+.memo-editor h2, .memo-rendered h2, .markdown-rendered h2, .markdown-view h2 { font-size: 1.1rem; font-weight: 650; letter-spacing: -0.005em; margin: 0.9rem 0 0.45rem; color: var(--uq-text); }
+.memo-editor h3, .memo-rendered h3, .markdown-rendered h3, .markdown-view h3 { font-size: 1rem; font-weight: 600; margin: 0.8rem 0 0.4rem; color: var(--uq-text); }
+.memo-editor h4, .memo-rendered h4, .markdown-rendered h4, .markdown-view h4 { font-size: 0.8rem; font-weight: 600; margin: 0.7rem 0 0.3rem; color: var(--uq-text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+.memo-editor ul, .memo-rendered ul, .markdown-rendered ul, .markdown-view ul { list-style: disc; padding-left: 1.5rem; margin: 0 0 0.7rem; }
+.memo-editor ol, .memo-rendered ol, .markdown-rendered ol, .markdown-view ol { list-style: decimal; padding-left: 1.5rem; margin: 0 0 0.7rem; }
+.memo-editor li, .memo-rendered li, .markdown-rendered li, .markdown-view li { margin: 0.1rem 0; }
+.memo-editor li > p, .memo-rendered li > p, .markdown-rendered li > p, .markdown-view li > p { margin: 0; }
+.memo-editor strong, .memo-rendered strong, .markdown-rendered strong, .markdown-view strong { font-weight: 650; color: var(--uq-text); }
+.memo-editor em, .memo-rendered em, .markdown-rendered em, .markdown-view em { font-style: italic; }
+.memo-editor s, .memo-rendered s, .markdown-rendered s, .markdown-view s,
+.memo-editor del, .memo-rendered del, .markdown-rendered del, .markdown-view del { text-decoration: line-through; color: var(--uq-text-3); }
+.memo-editor blockquote, .memo-rendered blockquote, .markdown-rendered blockquote, .markdown-view blockquote { border-left: 3px solid var(--uq-accent-line); padding: 0.2rem 0 0.2rem 0.85rem; margin: 0.7rem 0; color: var(--uq-text-2); font-style: italic; }
+.memo-editor hr, .memo-rendered hr, .markdown-rendered hr, .markdown-view hr { border: none; border-top: 1px solid var(--uq-border); margin: 1rem 0; }
+.memo-editor a, .memo-rendered a, .markdown-rendered a, .markdown-view a { color: var(--uq-accent); text-decoration: underline; text-underline-offset: 2px; }
+.memo-editor code, .memo-rendered code, .markdown-rendered code, .markdown-view code { background: #EEF0F3; color: #3730A3; padding: 0.05rem 0.35rem; border-radius: 5px; font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace; font-size: 0.85em; }
+.memo-editor pre, .memo-rendered pre, .markdown-rendered pre, .markdown-view pre { background: #F4F4F6; border: 1px solid var(--uq-border); color: var(--uq-text); padding: 0.75rem; border-radius: 10px; overflow-x: auto; margin: 0.7rem 0; font-size: 0.8rem; }
+.memo-editor pre code, .memo-rendered pre code, .markdown-rendered pre code, .markdown-view pre code { background: transparent; padding: 0; color: inherit; }
+.memo-rendered table, .markdown-rendered table, .markdown-view table { border-collapse: collapse; margin: 0.7rem 0; font-size: 0.9rem; }
+.memo-rendered th, .memo-rendered td, .markdown-rendered th, .markdown-rendered td, .markdown-view th, .markdown-view td { border: 1px solid var(--uq-border); padding: 0.35rem 0.6rem; text-align: left; vertical-align: top; }
+.memo-rendered thead th, .markdown-rendered thead th, .markdown-view thead th { background: var(--uq-bg-2); font-weight: 600; }
 /* Placeholder text when the editor is empty */
 .memo-editor p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: #94a3b8;
+  color: var(--uq-text-3);
   float: left;
   pointer-events: none;
   height: 0;
 }
 
 /* ============================================================
-   OBSERVATORY DARK — scoped Premium Dark / AI-native theme.
-   Everything below is gated under .uq-dark (applied by the
-   (admin) + /assess route-group layouts and the admin Nav),
-   so the public landing/login and the light marker prose above
-   are provably untouched.
+   Ambient atmosphere — a single fixed, GPU-cheap wash behind the
+   app surfaces: a faint indigo radial in one corner, a whisper of
+   teal in the other, and a barely-there dot grid. Atmospheric,
+   never loud. Painted via .uq-root (the route-group wrappers) so
+   it sits once behind everything.
    ============================================================ */
-.uq-dark {
-  /* ---- Backgrounds: softer mid-slate ladder (lifted a step from near-black
-     for comfort; every token below is WCAG-AA-verified against these). ---- */
-  --uq-bg:            #11161F;
-  --uq-bg-2:          #161C27;
-  --uq-elev-1:        #1A2230;
-  --uq-elev-2:        #212B3A;
-  --uq-elev-3:        #283342;
-
-  /* ---- Glass: translucent fills layered over the void ---- */
-  --uq-glass:         rgba(30, 40, 56, 0.72);
-  --uq-glass-strong:  rgba(36, 47, 64, 0.86);
-  --uq-glass-subtle:  rgba(24, 32, 46, 0.60);
-  --uq-inset-hi:      rgba(180, 210, 255, 0.06);
-
-  /* ---- Borders / hairlines (border-strong clears the 3:1 UI minimum on
-     outline-only controls, incl. on elev3 modals) ---- */
-  --uq-border:        rgba(148, 178, 224, 0.16);
-  --uq-border-strong: rgba(148, 178, 224, 0.60);
-  --uq-border-faint:  rgba(148, 178, 224, 0.10);
-
-  /* ---- Text (text-3 #93A1BB clears AA 4.5:1 on every surface it's used on) ---- */
-  --uq-text:          #E8EDF6;
-  --uq-text-2:        #AEBACE;
-  --uq-text-3:        #93A1BB;
-  --uq-text-on-accent:#06121F;
-
-  /* ---- Accent (Azure) + glow ---- */
-  --uq-accent:        #4DA3FF;
-  --uq-accent-hover:  #6FB6FF;
-  --uq-accent-press:  #3A8CE6;
-  --uq-accent-soft:   rgba(77, 163, 255, 0.14);
-  --uq-accent-line:   rgba(77, 163, 255, 0.45);
-  --uq-cyan:          #5FE3D8;
-
-  /* ---- Glow / depth shadows ---- */
-  --uq-glow:          0 0 0 1px rgba(77,163,255,0.35), 0 0 18px -2px rgba(77,163,255,0.45);
-  --uq-glow-soft:     0 0 22px -6px rgba(77,163,255,0.40);
-  --uq-glow-cyan:     0 0 22px -6px rgba(95,227,216,0.35);
-  --uq-focus-ring:    0 0 0 2px var(--uq-bg), 0 0 0 4px var(--uq-accent), 0 0 16px -2px rgba(77,163,255,0.55);
-
-  /* ---- Semantic (tuned for dark — soft fill / tinted line / bright text) ---- */
-  --uq-success:       #34D399;
-  --uq-success-soft:  rgba(52, 211, 153, 0.13);
-  --uq-success-line:  rgba(52, 211, 153, 0.40);
-  --uq-success-text:  #6EE7B7;
-
-  --uq-warn:          #F5B544;
-  --uq-warn-soft:     rgba(245, 181, 68, 0.13);
-  --uq-warn-line:     rgba(245, 181, 68, 0.40);
-  --uq-warn-text:     #FBD38D;
-
-  --uq-danger:        #FB6F84;
-  --uq-danger-soft:   rgba(251, 111, 132, 0.13);
-  --uq-danger-line:   rgba(251, 111, 132, 0.40);
-  --uq-danger-text:   #FCA5B4;
-
-  /* persona-chat secondary identity (was purple) */
-  --uq-persona:       #B794F6;
-  --uq-persona-soft:  rgba(183, 148, 246, 0.14);
-
-  --uq-selection:     rgba(77, 163, 255, 0.30);
-
-  color: var(--uq-text);
-  position: relative;
-  isolation: isolate;
-}
-/* The void base lives on the fixed glow-grid layer below (not as a
-   background-color here) so elements that carry .uq-dark purely for token
-   resolution — e.g. the glass Nav header — keep their own translucent
-   background instead of being painted solid. */
-
-/* ---- Signature ambient glow-grid: a single fixed, GPU-cheap layer behind
-   all in-scope content (aurora wash + faint coordinate lattice). Static (no
-   perpetual animation) so it never pins the compositor during a long exam.
-   Gated to .uq-root (the route-group layout wrappers) so it is painted exactly
-   once per page — the Nav header carries .uq-dark for tokens but not .uq-root,
-   so it does not add a second backdrop. */
-.uq-dark.uq-root::before {
+.uq-root { position: relative; isolation: isolate; }
+.uq-root::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(60rem 40rem at 78% -8%, rgba(77,163,255,0.16), transparent 60%),
-    radial-gradient(48rem 36rem at 8% 108%, rgba(95,227,216,0.10), transparent 55%),
-    linear-gradient(to right, rgba(148,178,224,0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148,178,224,0.045) 1px, transparent 1px),
+    radial-gradient(55rem 42rem at 90% -12%, rgba(79,70,229,0.06), transparent 60%),
+    radial-gradient(40rem 32rem at 2% 112%, rgba(14,116,144,0.035), transparent 55%),
+    radial-gradient(rgba(16,24,40,0.022) 1px, transparent 1px),
     var(--uq-bg);
-  background-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px, 100% 100%;
+  background-size: 100% 100%, 100% 100%, 22px 22px, 100% 100%;
   background-position: center;
 }
-/* Top vignette so the glass header reads cleanly against the grid. */
-.uq-dark.uq-root::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(5,8,15,0.55) 0%, transparent 22%);
-}
 
-/* ---- Custom scrollbars (scoped) ---- */
-.uq-dark *::-webkit-scrollbar { width: 10px; height: 10px; }
-.uq-dark *::-webkit-scrollbar-track { background: transparent; }
-.uq-dark *::-webkit-scrollbar-thumb {
-  background: rgba(148,178,224,0.18);
+/* ---- Custom scrollbars (scoped to themed surfaces) ---- */
+.uq-root *::-webkit-scrollbar { width: 10px; height: 10px; }
+.uq-root *::-webkit-scrollbar-track { background: transparent; }
+.uq-root *::-webkit-scrollbar-thumb {
+  background: rgba(16,24,40,0.16);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-.uq-dark *::-webkit-scrollbar-thumb:hover {
-  background: rgba(77,163,255,0.40);
+.uq-root *::-webkit-scrollbar-thumb:hover {
+  background: rgba(79,70,229,0.45);
   background-clip: content-box;
 }
-.uq-dark { scrollbar-color: rgba(148,178,224,0.25) transparent; scrollbar-width: thin; }
+.uq-root { scrollbar-color: rgba(16,24,40,0.20) transparent; scrollbar-width: thin; }
 
-/* ---- Selection (scoped) ---- */
-.uq-dark ::selection { background: var(--uq-selection); color: var(--uq-text); }
+/* ---- Selection ---- */
+.uq-root ::selection { background: var(--uq-selection); color: var(--uq-text); }
 
-/* ---- DARK prose variant — the writing surface (.memo-editor) the candidate
-   writes in, and the rendered prose markers read (.memo-rendered) and AI
-   markdown (.markdown-rendered / .markdown-view). Legibility-first: warm-white
-   ink (not pure #fff to avoid halation), 15px / 1.7 for long-session comfort.
-   Only applies under a .uq-dark ancestor — the light rules above stay intact. */
-.uq-dark .memo-editor,
-.uq-dark .memo-rendered,
-.uq-dark .markdown-rendered,
-.uq-dark .markdown-view {
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.9375rem; /* 15px */
-  line-height: 1.7;
-  color: var(--uq-text);
+/* ============================================================
+   Motion — calm, confirmational. Content mounts with a gentle
+   fade + rise; the AI "thinking" indicator shimmers softly.
+   ============================================================ */
+@keyframes uq-fade-rise {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.uq-dark .memo-editor { caret-color: var(--uq-accent); }
-.uq-dark .memo-editor:focus { outline: none; }
-.uq-dark .memo-editor h1, .uq-dark .memo-rendered h1, .uq-dark .markdown-rendered h1, .uq-dark .markdown-view h1,
-.uq-dark .memo-editor h2, .uq-dark .memo-rendered h2, .uq-dark .markdown-rendered h2, .uq-dark .markdown-view h2,
-.uq-dark .memo-editor h3, .uq-dark .memo-rendered h3, .uq-dark .markdown-rendered h3, .uq-dark .markdown-view h3 {
-  color: #F2F6FC;
-  font-weight: 600;
+@keyframes uq-shimmer {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
 }
-.uq-dark .memo-editor h4, .uq-dark .memo-rendered h4, .uq-dark .markdown-rendered h4, .uq-dark .markdown-view h4 {
-  color: var(--uq-text-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-weight: 500;
+.uq-fade-rise { animation: uq-fade-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.uq-shimmer-text {
+  background: linear-gradient(90deg, var(--uq-text-3) 0%, var(--uq-text-3) 35%, var(--uq-accent) 50%, var(--uq-text-3) 65%, var(--uq-text-3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: uq-shimmer 1.6s ease-in-out infinite;
 }
-.uq-dark .memo-editor strong, .uq-dark .memo-rendered strong, .uq-dark .markdown-rendered strong, .uq-dark .markdown-view strong { color: #FFFFFF; font-weight: 600; }
-.uq-dark .memo-editor em, .uq-dark .memo-rendered em, .uq-dark .markdown-rendered em, .uq-dark .markdown-view em { font-style: italic; }
-.uq-dark .memo-editor s, .uq-dark .memo-rendered s, .uq-dark .markdown-rendered s, .uq-dark .markdown-view s,
-.uq-dark .memo-editor del, .uq-dark .memo-rendered del, .uq-dark .markdown-rendered del, .uq-dark .markdown-view del { color: var(--uq-text-3); }
-.uq-dark .memo-editor blockquote, .uq-dark .memo-rendered blockquote, .uq-dark .markdown-rendered blockquote, .uq-dark .markdown-view blockquote {
-  border-left: 3px solid var(--uq-accent-line);
-  color: var(--uq-text-2);
-  background: var(--uq-accent-soft);
-  border-radius: 0 6px 6px 0;
-  padding: 0.35rem 0.85rem;
-}
-.uq-dark .memo-editor hr, .uq-dark .memo-rendered hr, .uq-dark .markdown-rendered hr, .uq-dark .markdown-view hr { border-top: 1px solid var(--uq-border); }
-.uq-dark .memo-editor a, .uq-dark .memo-rendered a, .uq-dark .markdown-rendered a, .uq-dark .markdown-view a { color: var(--uq-accent); text-decoration: underline; text-underline-offset: 2px; }
-.uq-dark .memo-editor code, .uq-dark .memo-rendered code, .uq-dark .markdown-rendered code, .uq-dark .markdown-view code {
-  background: var(--uq-glass-subtle);
-  border: 1px solid var(--uq-border-faint);
-  color: var(--uq-cyan);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-}
-.uq-dark .memo-editor pre, .uq-dark .memo-rendered pre, .uq-dark .markdown-rendered pre, .uq-dark .markdown-view pre {
-  background: #060A12;
-  border: 1px solid var(--uq-border);
-  color: #D7E0EE;
-}
-.uq-dark .memo-editor pre code, .uq-dark .memo-rendered pre code, .uq-dark .markdown-rendered pre code, .uq-dark .markdown-view pre code { background: transparent; border: 0; color: inherit; }
-.uq-dark .memo-rendered th, .uq-dark .memo-rendered td,
-.uq-dark .markdown-rendered th, .uq-dark .markdown-rendered td,
-.uq-dark .markdown-view th, .uq-dark .markdown-view td { border: 1px solid var(--uq-border); }
-.uq-dark .memo-rendered thead th, .uq-dark .markdown-rendered thead th, .uq-dark .markdown-view thead th { background: var(--uq-glass-subtle); color: var(--uq-text); font-weight: 600; }
-.uq-dark .memo-editor p.is-editor-empty:first-child::before { color: var(--uq-text-3); }
 
-/* ---- Reduced-motion: kill animations, keep resting states intact ---- */
+/* ---- Reduced-motion: keep resting states, drop animation ---- */
 @media (prefers-reduced-motion: reduce) {
-  .uq-dark *,
-  .uq-dark *::before,
-  .uq-dark *::after {
+  .uq-root *,
+  .uq-root *::before,
+  .uq-root *::after,
+  .uq-fade-rise,
+  .uq-shimmer-text {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+  .uq-shimmer-text { color: var(--uq-text-3); }
 }

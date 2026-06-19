@@ -73,7 +73,7 @@ export default function NewScenarioPage() {
         Start with the scenario&apos;s header information. You&apos;ll add tasks, exhibits, emails and chat scripts on the next page.
       </p>
 
-      <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5 space-y-4">
+      <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5 space-y-4">
         <label className="block text-sm">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Title</span>
           <input
@@ -92,7 +92,7 @@ export default function NewScenarioPage() {
             className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm font-mono text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
           <span className="text-xs text-uq-3 mt-1 block">
-            Used in candidate URLs: <code className="font-mono bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">/assess/{slug || "..."}</code> · lowercase letters, numbers and hyphens only.
+            Used in candidate URLs: <code className="font-mono bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">/assess/{slug || "..."}</code> · lowercase letters, numbers and hyphens only.
           </span>
         </label>
         <div className="grid sm:grid-cols-2 gap-4">

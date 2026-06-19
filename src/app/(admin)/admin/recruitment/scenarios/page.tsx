@@ -94,7 +94,7 @@ export default function ScenariosListPage() {
 
       {error && <div className="rounded-md px-3 py-2 mb-4 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
 
-      <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
+      <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
         {rows === null && <div className="p-5 text-sm text-uq-3"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-3 animate-pulse">Loading…</span></div>}
         {rows && rows.length === 0 && (
           <div className="p-8 text-center">
@@ -109,7 +109,7 @@ export default function ScenariosListPage() {
         )}
         {rows && rows.length > 0 && (
           <table className="w-full text-sm">
-            <thead className="bg-uq-glass-subtle text-uq-3">
+            <thead className="bg-uq-elev2 text-uq-3">
               <tr className="border-b border-uq-faint">
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Title</th>
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Status</th>
@@ -125,7 +125,7 @@ export default function ScenariosListPage() {
                   <td className="px-4 py-2">
                     <div className="font-medium text-uq">{s.title}</div>
                     <div className="text-xs text-uq-3">
-                      {s.organisation} · <code className="font-mono text-[11px] bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">{s.slug}</code> · {s.defaultTotalMinutes} min
+                      {s.organisation} · <code className="font-mono text-[11px] bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">{s.slug}</code> · {s.defaultTotalMinutes} min
                     </div>
                   </td>
                   <td className="px-4 py-2">

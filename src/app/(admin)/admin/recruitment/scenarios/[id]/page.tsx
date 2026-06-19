@@ -70,7 +70,7 @@ export default function ScenarioEditorPage() {
           <div className="text-xs text-uq-3 mt-1">
             <StatusBadge status={scenario.status} />
             <span className="ml-2">
-              <code className="font-mono text-xs bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">{scenario.slug}</code> · {scenario.tasks.length} task{scenario.tasks.length === 1 ? "" : "s"} · {scenario.defaultTotalMinutes} min
+              <code className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">{scenario.slug}</code> · {scenario.tasks.length} task{scenario.tasks.length === 1 ? "" : "s"} · {scenario.defaultTotalMinutes} min
             </span>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function ScenarioEditorPage() {
         onJumpToPublish={() => setTab("publish")}
       />
 
-      <nav className="mt-6 border-b border-uq flex gap-1">
+      <nav className="mt-6 inline-flex gap-1 rounded-lg bg-uq-elev2 p-1">
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>Overview</TabButton>
         <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")}>Tasks ({scenario.tasks.length})</TabButton>
         <TabButton active={tab === "exhibits"} onClick={() => setTab("exhibits")}>Exhibits ({scenario.exhibits.length})</TabButton>
@@ -188,8 +188,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md ${
-        active ? "border-uq-accent text-uq" : "border-transparent text-uq-3 hover:text-uq hover:bg-uq-elev2"
+      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+        active ? "bg-uq-elev1 text-uq shadow-uq-e1" : "text-uq-2 hover:text-uq"
       }`}
     >
       {children}
@@ -285,7 +285,7 @@ function TasksTab({
   return (
     <div className="grid grid-cols-12 gap-4">
       <aside className="col-span-4">
-        <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-3">
+        <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-3">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3 mb-2">Tasks</div>
           {scenario.tasks.length === 0 && (
             <div className="text-xs text-uq-3 py-3 text-center">No tasks yet.</div>
@@ -358,7 +358,7 @@ function TasksTab({
             onDeleted={() => { onSelect(null); void onChanged(); }}
           />
         ) : (
-          <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center text-sm text-uq-3">
+          <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-8 text-center text-sm text-uq-3">
             Select or add a task to edit.
           </div>
         )}
@@ -451,7 +451,7 @@ function PublishTab({
   };
 
   return (
-    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-5 space-y-4">
+    <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5 space-y-4">
       <div>
         <h2 className="text-base font-semibold text-uq">Status: <StatusBadge status={scenario.status} /></h2>
         <p className="text-sm text-uq-2 mt-1">

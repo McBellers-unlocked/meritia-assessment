@@ -126,7 +126,7 @@ function Landing({
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-10">
-        <div className="rounded-2xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-7">
+        <div className="rounded-2xl border border-uq bg-uq-elev1 shadow-uq-glass p-7">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Technical Assessment</div>
           <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-1 mb-1">{scenario.positionTitle}</h1>
           <div className="text-sm text-uq-2">{scenario.organisation}</div>
@@ -253,7 +253,7 @@ function Landing({
 function Submitted({ submittedAt, anonymousId }: { submittedAt?: string | null; anonymousId?: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="max-w-xl rounded-2xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center">
+      <div className="max-w-xl rounded-2xl border border-uq bg-uq-elev1 shadow-uq-glass p-8 text-center">
         <div className="font-mono text-uq-accent text-[10px] uppercase tracking-[0.18em]">Assessment complete</div>
         <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">Thank you</h1>
         <p className="text-sm text-uq-2 mt-3">

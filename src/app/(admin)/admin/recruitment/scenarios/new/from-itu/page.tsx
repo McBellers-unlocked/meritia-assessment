@@ -219,7 +219,7 @@ export default function FromItuPickerPage() {
           );
         })}
         {!loading && items.length === 0 && !listError && (
-          <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-8 text-center text-sm text-uq-3">
+          <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-8 text-center text-sm text-uq-3">
             No matching open postings.
           </div>
         )}
@@ -254,7 +254,7 @@ function FilterBar({
   loading: boolean;
 }) {
   return (
-    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-3 mb-4">
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-3 mb-4">
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={qInput}
@@ -311,7 +311,7 @@ function JobCard({
     .join(" · ");
 
   return (
-    <article className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
+    <article className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -336,7 +336,7 @@ function JobCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-uq-faint px-4 py-4 bg-uq-glass-subtle">
+        <div className="border-t border-uq-faint px-4 py-4 bg-uq-elev2">
           {detailLoading && (
             <div className="text-sm text-uq-2 inline-flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow" />

@@ -712,7 +712,7 @@ function UploadStep({
   onFileSelected: (file: File) => void;
 }) {
   return (
-    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-6">
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-6">
       <h2 className="text-base font-semibold text-uq">
         Upload the job description
       </h2>
@@ -803,7 +803,7 @@ function CriteriaStep({
       : `Continue (${generatedTaskCount} task${generatedTaskCount === 1 ? "" : "s"} · ${selectedCount} criteri${selectedCount === 1 ? "on" : "a"})`;
 
   return (
-    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-6 space-y-5">
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-6 space-y-5">
       <div>
         <h2 className="text-base font-semibold text-uq">
           Pick the criteria to test
@@ -818,7 +818,7 @@ function CriteriaStep({
       </div>
 
       {extracting && (
-        <div className="rounded-md border border-uq-faint bg-uq-glass-subtle px-4 py-6 text-center">
+        <div className="rounded-md border border-uq-faint bg-uq-elev2 px-4 py-6 text-center">
           <div className="inline-flex items-center gap-2 text-sm text-uq-2">
             <span className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow" />
             Extracting essential and desirable criteria from the JD…
@@ -1217,7 +1217,7 @@ function ConfigureStep({
     ? `Source job description (${postingMatch[1]})`
     : "Parsed JD";
   return (
-    <section className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass p-6 space-y-5">
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-6 space-y-5">
       <div>
         <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
           {sourceLabel}
@@ -1244,7 +1244,7 @@ function ConfigureStep({
           <summary className="cursor-pointer text-xs text-uq-accent hover:text-uq-accent-hover hover:underline">
             Preview text
           </summary>
-          <pre className="mt-2 max-h-64 overflow-y-auto bg-uq-glass-subtle border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
+          <pre className="mt-2 max-h-64 overflow-y-auto bg-uq-elev2 border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
             {jdText.slice(0, 4000)}
             {jdText.length > 4000 && "\n\n…[truncated for preview]"}
           </pre>
@@ -1273,7 +1273,7 @@ function ConfigureStep({
           />
           <span className="text-xs text-uq-3 mt-1 block">
             Candidate URL will be{" "}
-            <code className="font-mono bg-uq-glass-subtle border border-uq-faint text-uq-cyan px-1.5 rounded">
+            <code className="font-mono bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">
               /assess/{slug || "..."}
             </code>
           </span>
@@ -1309,7 +1309,7 @@ function ConfigureStep({
         </label>
         <div className="block text-sm">
           <span className="text-uq-2">Tasks to generate</span>
-          <div className="mt-1 px-3 py-2 text-sm bg-uq-glass-subtle border border-uq-faint rounded-md text-uq-2">
+          <div className="mt-1 px-3 py-2 text-sm bg-uq-elev2 border border-uq-faint rounded-md text-uq-2">
             <span className="font-mono tabular-nums text-uq">{generatedTaskCount}</span> task
             {generatedTaskCount === 1 ? "" : "s"} ·{" "}
             {selectedCount === 1
@@ -1438,8 +1438,8 @@ function TaskCard({
   onRegenerate: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-uq bg-uq-glass backdrop-blur-xl shadow-uq-glass overflow-hidden">
-      <div className="px-4 py-3 border-b border-uq-faint bg-uq-glass-subtle flex items-center justify-between">
+    <div className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass overflow-hidden">
+      <div className="px-4 py-3 border-b border-uq-faint bg-uq-elev2 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <span className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq-2 rounded px-2 py-0.5">
             Task {index + 1}
@@ -1532,7 +1532,7 @@ function TaskCard({
             <summary className="cursor-pointer text-xs text-uq-accent hover:text-uq-accent-hover hover:underline">
               Brief preview
             </summary>
-            <div className="mt-2 max-h-72 overflow-y-auto bg-uq-glass-subtle border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
+            <div className="mt-2 max-h-72 overflow-y-auto bg-uq-elev2 border border-uq-faint rounded p-3 text-xs whitespace-pre-wrap font-mono text-uq-2">
               {task.briefMarkdown}
             </div>
           </details>
