@@ -5,6 +5,8 @@ import {
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
 import { loadRubricForAssessment } from "@/lib/recruit/rubric";
+import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
+import { isChatTask, isEmailInboxTask } from "@/lib/recruit/types";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +64,59 @@ export async function GET(
 
   const rubric = await loadRubricForAssessment(c.assessment);
 
+  // Resolve the scenario so the marker can see non-memo tasks (the email
+  // in-tray and the live persona chat) alongside the scored memos, plus the
+  // candidate's email-triage decisions. Scenario content is not candidate
+  // identity, so it's safe under blind marking.
+  const scenario = await getScenarioForAssessment(c.assessment);
+  const scenarioTasks = (scenario?.tasks ?? []).map((t) => {
+    if (isEmailInboxTask(t)) {
+      return {
+        number: t.number,
+        kind: t.kind,
+        title: t.title,
+        emails: t.emails.map((e) => ({
+          id: e.id,
+          senderName: e.senderName,
+          senderEmail: e.senderEmail,
+          subject: e.subject,
+          bodyHtml: e.bodyHtml,
+          triggerOffsetSeconds: e.triggerOffsetSeconds,
+          expectedAction: e.expectedAction,
+          markerNotes: e.markerNotes,
+        })),
+      };
+    }
+    if (isChatTask(t)) {
+      return {
+        number: t.number,
+        kind: t.kind,
+        title: t.title,
+        persona: {
+          personaName: t.script.personaName,
+          personaRole: t.script.personaRole,
+          openerMessage: t.script.openerMessage,
+          maxTurns: t.script.maxTurns,
+          expectedOutcomes: t.script.expectedOutcomes,
+        },
+      };
+    }
+    return { number: t.number, kind: t.kind, title: t.title };
+  });
+
+  const emailResponses = await prisma.recruitmentEmailResponse.findMany({
+    where: { candidateId: c.id },
+    orderBy: { deliveredAt: "asc" },
+    select: {
+      emailId: true,
+      action: true,
+      replyBody: true,
+      deliveredAt: true,
+      respondedAt: true,
+      markerComment: true,
+    },
+  });
+
   return NextResponse.json({
     candidate: {
       id: c.id,
@@ -75,9 +130,13 @@ export async function GET(
       totalScore: c.totalScore,
     },
     assessment: c.assessment,
+    assistantName: scenario?.assistantName ?? null,
+    assistantShortName: scenario?.assistantShortName ?? null,
     rubric,
+    scenarioTasks,
     responses: c.responses,
     interactions: c.interactions,
+    emailResponses,
     activityEvents: c.activityEvents,
   });
 }

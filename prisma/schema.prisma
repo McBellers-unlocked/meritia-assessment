@@ -284,8 +284,6 @@ model RecruitmentScenarioEmail {
   expectedAction       String                  @map("expected_action") // reply | ignore | flag | forward
   markerNotes          String?                 @map("marker_notes") @db.Text
 
-  responses RecruitmentEmailResponse[]
-
   @@index([scenarioId, triggerOffsetSeconds])
   @@index([taskId, orderIndex])
   @@map("recruitment_scenario_emails")
@@ -321,8 +319,12 @@ model RecruitmentEmailResponse {
   id          String                   @id @default(cuid())
   candidateId String                   @map("candidate_id")
   candidate   RecruitmentCandidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  // emailId is a plain identifier, NOT a foreign key: scripted emails can come
+  // from a DB scenario (RecruitmentScenarioEmail row) OR a code scenario
+  // (config-only id, e.g. "ipac-email-ed-deadline"). The reply route validates
+  // the id against the resolved scenario config. Mirrors how persona-chat
+  // interactions (RecruitmentInteraction) carry no scenario FK.
   emailId     String                   @map("email_id")
-  email       RecruitmentScenarioEmail @relation(fields: [emailId], references: [id], onDelete: Cascade)
   action      String // replied | ignored | flagged
   replyBody   String?                  @map("reply_body") @db.Text
   deliveredAt DateTime                 @map("delivered_at")

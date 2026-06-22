@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   // Slug collision — include hardcoded slugs that would clash with
   // /assess/<slug> routing (built-in code-based scenarios).
-  const RESERVED_SLUGS = new Set(["fam-p4", "aplo-p2"]);
+  const RESERVED_SLUGS = new Set(["fam-p4", "aplo-p2", "cso-p3", "ipac-d1"]);
   if (RESERVED_SLUGS.has(slug)) {
     return NextResponse.json({ error: "slug is reserved by a built-in scenario" }, { status: 409 });
   }

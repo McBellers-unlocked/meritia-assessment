@@ -1,0 +1,156 @@
+{
+  "scenario_id": "ipac-d1-2026",
+  "position": "Director, People & Capability (D-1)",
+  "organisation": "International Policy Analytics Centre (IPAC), Nairobi",
+  "total_marks": 100,
+  "probity_note": "IPAC, the vendor 'WorkforceLens', all named staff (Dr. Priya Raghavan, Tomás Iglesias, the Staff Council president and all in-tray correspondents), every figure in the two exhibits, and the workforce data are fictional and were invented for assessment purposes. Markers should treat this as an internal recruitment scenario, not as a reflection of any real organisation, vendor, or workforce. The marking model is an EVIDENCE MAP for human-anchored scoring, not an automated trait engine: each row needs behavioural anchors, rater calibration and an adverse-impact check before it informs a decision. The defensible claim is 'evidence of this construct in this exercise', never a validated personality score. Score judgement, not velocity.",
+  "task1": {
+    "title": "The Strategy — Board-paper diagnosis & Future-Skills approach (Exhibit A)",
+    "max_marks": 50,
+    "categories": {
+      "diagnostic_acuity": {
+        "max": 20,
+        "description": "Whether the candidate unpicks the decomposition's fallacy chain rather than accepting the 78% / ~88 FTE / consolidate headline. Everything needed is on Exhibit A (KPI flags, the task-category spectrum caption, and the 'Methodology & limitations' notes) and retrievable in detail from the IPAC Knowledge System. Reward a candidate who identifies the flaw and argues a defensible position, even if framed differently from the expected one.",
+        "embedded_issues": [
+          {
+            "id": "technical_feasibility_only",
+            "title": "'Automatable' = technical feasibility ONLY. The headline silently collapses technically-automatable -> economically viable -> organisationally feasible -> desirable, and treats 'automatable task-time' as 'removable headcount'.",
+            "max_marks": 4,
+            "expected": "Separate the four senses explicitly (technically automatable is not economically viable is not organisationally feasible is not desirable) and separate 'automatable task' from 'removable post'. State that the 78% is a technical-suitability figure (flagged on the lead KPI and in the methodology notes), not a headcount-reduction figure."
+          },
+          {
+            "id": "scored_in_isolation",
+            "title": "Tasks were rated independently. The integrative work of combining tasks into a finished, defensible product was not modelled, so the highest-value judgement work is under-weighted.",
+            "max_marks": 4,
+            "expected": "Recognise that task-level scoring in isolation misses sequencing, integration and the synthesis that is IPAC's actual product. The residual (judgement, QA/oversight, synthesis of contested evidence, stakeholder engagement) is precisely the scarce skill, not a rounding error."
+          },
+          {
+            "id": "confidence_gap",
+            "title": "Model confidence is LOWER exactly where it matters: 0.91 on routine tasks vs 0.63 on complex, contested, judgement-intensive tasks — and quality impact was not assessed at all.",
+            "max_marks": 4,
+            "expected": "Surface the 0.91 vs 0.63 confidence split (ask the Knowledge System for confidence by task type) and note the model does not estimate effect on accuracy, bias or reliability. Conclude that the figures are least reliable on the work that carries the most risk."
+          },
+          {
+            "id": "capacity_freed_gross_vs_net",
+            "title": "'~88 FTE / $9.4M capacity freed' is GROSS. It assumes full reallocation of task-time and excludes oversight, integration, residual review and transition cost.",
+            "max_marks": 4,
+            "expected": "Confront the gross-vs-net gap. Pull the net-FTE bridge from the Knowledge System (oversight, integration, residual review, transition/change cost) and present an honest net range rather than banking the 88 FTE / $9.4M."
+          },
+          {
+            "id": "snapshot_not_redesign",
+            "title": "The decomposition is a snapshot of TODAY's task design. It automates the current shape of the work rather than redesigning roles or outputs.",
+            "max_marks": 4,
+            "expected": "Note that the analysis configures automation around how work is done today and says nothing about redesigning roles/outputs. Frame the opportunity as transformation/redesign, not subtraction from the current establishment."
+          }
+        ]
+      },
+      "inquiry_quality": {
+        "max": 8,
+        "description": "How systematically the candidate used the IPAC Knowledge System to disaggregate the decomposition rather than accept the summary. Scored on the QUALITY of inquiry, not the count of questions.",
+        "indicators": [
+          "Asks how 'automatable' was defined and what is excluded (surfaces technical-feasibility-only)",
+          "Asks for model confidence by task type (surfaces 0.91 vs 0.63)",
+          "Asks what 'capacity freed' assumes / for the gross-to-net bridge",
+          "Asks which tasks carry the most value and risk regardless of automatability (surfaces the residual)",
+          "Frames questions to retrieve and interrogate evidence, not to solicit a verdict or have the system author the answer",
+          "Inquiry gets progressively sharper — early questions broad, later questions target specific evidence gaps"
+        ]
+      },
+      "strategic_judgement": {
+        "max": 12,
+        "description": "Quality of the recommended Future-Skills & AI-capability approach: transform rather than merely cut.",
+        "rubric": {
+          "10-12": "Rejects 'consolidate and train the survivors'. Recommends a coherent transform strategy — a roles / reskill / redeploy / targeted-hire mix that protects and grows the scarce judgement-and-evaluation skill, redesigns work around human+AI, and sequences the change. Owns a clear recommendation within the time.",
+          "7-9": "Resists pure consolidation and proposes a credible mix, but the approach is partial — e.g. reskilling without redesign, or a recommendation that is sound but under-specified or hedged.",
+          "4-6": "Mixed: some transform instinct but drifts toward cuts as the headline answer, or deliberates without reaching an owned position.",
+          "0-3": "Accepts the engine recommendation — consolidate the analyst function and train survivors on the tools. The answer a chatbot writes in ninety seconds."
+        }
+      },
+      "governance_assurance": {
+        "max": 5,
+        "description": "Technical and governance soundness — builds quality assurance into the AI-enabled model rather than being silent on it.",
+        "indicators": [
+          "Builds in assurance / human-in-the-loop for high-stakes, contested or judgement-intensive work",
+          "Treats the confidence gap (0.63) as a control requirement, not a footnote",
+          "Addresses how output quality, accuracy and bias will be monitored where tasks are automated",
+          "Keeps experienced reviewers in the loop precisely where the model is least confident"
+        ]
+      },
+      "financing_realism": {
+        "max": 5,
+        "description": "Honesty about the money under a cost-recovery funding model.",
+        "indicators": [
+          "Does not bank the $9.4M / 88 FTE gross saving",
+          "Accounts for transition, reskilling and oversight cost before claiming a net saving",
+          "Engages the cost-recovery constraint — how (and whether) savings can fund the reskilling/redesign, and over what horizon",
+          "Gives the Executive Director a financing answer that would survive Board and member-state scrutiny"
+        ]
+      }
+    }
+  },
+  "task2": {
+    "title": "The Stakeholder Test — Response to Tomás & the human reality (Exhibit B)",
+    "max_marks": 50,
+    "categories": {
+      "stakeholder_political_acuity": {
+        "max": 16,
+        "description": "Whether the candidate engages the substance of a senior expert's challenge, rebuilds trust and keeps the transformation moving — with credibility, not spin. Tomás is exactly the judgement-rich expert the strategy depends on keeping.",
+        "rubric": {
+          "13-16": "Engages Tomás's substance head-on, concedes what is right (the tools are wrong in ways juniors can't see; experienced people caught it), and rebuilds trust without capitulating or spinning. Holds independence on the strategy while honouring the expertise. Could put '78%' to a Board AND a Staff Association without detonating trust.",
+          "9-12": "Substantive and respectful reply that mostly lands, but either softens the strategy too far to appease, or addresses the politics without fully engaging the technical substance Tomás raised.",
+          "5-8": "Acknowledges Tomás but treats him as a communications problem to be managed rather than an expert to be heard; thin on substance or quietly defensive.",
+          "0-4": "Capitulates to seniority, or is tone-deaf/dismissive/doubles down (a classic derailer tell). Treats staff as a cost line."
+        }
+      },
+      "empathy_equity": {
+        "max": 14,
+        "description": "Surfaces duty-of-care and the equity gap unprompted, and designs for fairness. Exhibit B and the Knowledge System carry the specific signals below.",
+        "embedded_issues": [
+          {
+            "id": "two_tier_training_gap",
+            "title": "AI-tool training completion is uneven (81% under-40/HQ vs 34% over-40 or field-based). A strategy targeted on early adopters would widen the gap and risk a two-tier workforce, cutting across IPAC's geographic-representation and equitable-access commitments.",
+            "max_marks": 4,
+            "expected": "Identify the access/equity gap, refuse to target only early adopters, and design equitable access (field offices, over-40 cohort) so reskilling does not create a two-tier workforce."
+          },
+          {
+            "id": "losing_the_strongest",
+            "title": "High-performer attrition has risen from 8% to 15% (top tier), ~60% leaving to private/tech employers citing 'uncertainty about the future of the role'. The org is losing exactly the judgement-rich people the strategy depends on.",
+            "max_marks": 3,
+            "expected": "Connect the attrition data to the strategy: the scarce skill is walking out of the door over uncertainty. Treat retention of high performers and a credible career story as a core part of the plan, not a footnote."
+          },
+          {
+            "id": "morale_and_trust_signal",
+            "title": "Engagement 58 (down 13), confidence in the future 39% (down 25), trust in leadership intent 41% (down 17) over the pilot. The verbatims ask leadership to say out loud that IPAC is built on being right, not fast.",
+            "max_marks": 3,
+            "expected": "Read the morale/trust collapse as a leadership signal, not noise. Offer a humane, honest line to staff that rebuilds trust without over-promising."
+          }
+        ],
+        "indicators": [
+          "Raises duty-of-care for affected staff unprompted",
+          "Honours existing commitments (geographic representation, equitable access) rather than overriding them for the saving",
+          "Designs reskilling access equitably across age/location cohorts"
+        ]
+      },
+      "integrity_values": {
+        "max": 10,
+        "description": "Holds the fair, defensible line even when the expedient cut is tempting; engages challenge with self-awareness.",
+        "indicators": [
+          "Holds a fair, defensible position rather than letting the headline number override fairness and due process",
+          "Engages Tomás's substance and updates where warranted, rather than defending or doubling down",
+          "Open to challenge without being captured by it — neither capitulates nor dismisses",
+          "Is honest about uncertainty rather than projecting false confidence to close the issue"
+        ]
+      },
+      "communication": {
+        "max": 10,
+        "description": "Clear, honest, Board-ready communication — the opposite of generic and inspirational.",
+        "indicators": [
+          "Reply to Tomás is clear, specific and credible — no spin, no boilerplate",
+          "Any all-staff framing is honest and would rebuild rather than erode trust",
+          "Distinguishes what is known from what is uncertain",
+          "Concise and fit for the Board / a senior expert audience"
+        ]
+      }
+    }
+  }
+}

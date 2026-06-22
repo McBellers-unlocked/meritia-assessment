@@ -42,6 +42,8 @@ export async function GET(
         organisation: scenario.organisation,
         positionTitle: scenario.positionTitle,
         taskCount: scenario.tasks.length,
+        assistantName: scenario.assistantName ?? null,
+        assistantShortName: scenario.assistantShortName ?? null,
       },
       candidate: { anonymousId: candidate.anonymousId },
     });
@@ -78,6 +80,8 @@ export async function GET(
       title: scenario.title,
       organisation: scenario.organisation,
       positionTitle: scenario.positionTitle,
+      assistantName: scenario.assistantName ?? null,
+      assistantShortName: scenario.assistantShortName ?? null,
       // taskCount reports ALL tasks so the landing page accurately describes
       // what the candidate will encounter. `tasks` below is narrowed to the
       // memo_ai subset — those are the tasks the AssessmentView renders

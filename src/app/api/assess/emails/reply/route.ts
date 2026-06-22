@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadCandidate, verifySessionCookie } from "@/lib/recruit/candidate-auth";
+import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
+import { isEmailInboxTask } from "@/lib/recruit/types";
 
 export const dynamic = "force-dynamic";
 
@@ -48,15 +50,17 @@ export async function POST(request: NextRequest) {
   const cookieOk = await verifySessionCookie(result.candidate);
   if (!cookieOk) return NextResponse.json({ error: "Session mismatch." }, { status: 403 });
 
-  // Verify the email belongs to this candidate's scenario (prevent a candidate
-  // from writing a response keyed to an email from a different scenario).
-  // We use a join via the scenario -> assessment path.
-  const email = await prisma.recruitmentScenarioEmail.findUnique({
-    where: { id: emailId },
-    select: { id: true, scenarioId: true },
-  });
-  if (!email) return NextResponse.json({ error: "Email not found" }, { status: 404 });
-  if (email.scenarioId !== result.assessment.customScenarioId) {
+  // Verify the email belongs to this candidate's scenario by resolving the
+  // scenario config (code OR DB) and checking the id against its email_inbox
+  // tasks. emailId is not an FK, so this is the single source of truth for
+  // both sources — a code scenario's emails (e.g. "ipac-email-ed-deadline")
+  // and a DB scenario's RecruitmentScenarioEmail rows both validate here.
+  const scenario = await getScenarioForAssessment(result.assessment);
+  if (!scenario) return NextResponse.json({ error: "Scenario config missing" }, { status: 500 });
+  const known = scenario.tasks.some(
+    (t) => isEmailInboxTask(t) && t.emails.some((e) => e.id === emailId)
+  );
+  if (!known) {
     return NextResponse.json({ error: "Email does not belong to this candidate's scenario" }, { status: 400 });
   }
 

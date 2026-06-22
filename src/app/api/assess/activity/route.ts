@@ -52,7 +52,12 @@ export async function POST(request: NextRequest) {
     for (const ev of events) {
       const type = String(ev.type ?? "");
       if (!ALLOWED_TYPES.has(type)) continue;
-      const taskNumber = ev.taskNumber === 1 || ev.taskNumber === 2 ? (ev.taskNumber as 1 | 2) : null;
+      // Attribute the event to whichever task it came from (memo tasks 1/2,
+      // the email_inbox task, the chat task, …); window-level events send none.
+      const taskNumber =
+        Number.isInteger(ev.taskNumber) && (ev.taskNumber as number) > 0
+          ? (ev.taskNumber as number)
+          : null;
       const occurredAt = typeof ev.occurredAt === "string" ? new Date(ev.occurredAt) : new Date();
       const metadata =
         ev.metadata && typeof ev.metadata === "object" && !Array.isArray(ev.metadata)
