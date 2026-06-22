@@ -129,6 +129,10 @@ model RecruitmentResponse {
   content     String               @db.Text
   wordCount   Int                  @default(0) @map("word_count")
   updatedAt   DateTime             @updatedAt @map("updated_at")
+  // When the candidate explicitly "sent" this memo (per-task finalise +
+  // advance-to-next). Null = still a draft. The overall submit remains the
+  // hard finaliser; sending is a soft, re-doable signal.
+  sentAt      DateTime?            @map("sent_at")
 
   // Marker output (Half 2)
   score            Float?

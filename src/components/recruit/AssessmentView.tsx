@@ -33,6 +33,7 @@ interface ResponseRow {
   content: string;
   wordCount: number;
   updatedAt: string | null;
+  sentAt?: string | null;
 }
 
 export interface AssessmentInitial {
@@ -79,9 +80,9 @@ function initialsFrom(name: string): string {
   if (words.length === 0) return name.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase() || "··";
   return words.slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 }
-function parseBriefEmail(md: string): { from: string | null; to: string | null; subject: string | null; body: string } {
-  const out: { from: string | null; to: string | null; subject: string | null; body: string } = {
-    from: null, to: null, subject: null, body: md,
+function parseBriefEmail(md: string): { from: string | null; to: string | null; subject: string | null; sent: string | null; body: string } {
+  const out: { from: string | null; to: string | null; subject: string | null; sent: string | null; body: string } = {
+    from: null, to: null, subject: null, sent: null, body: md,
   };
   const lines = md.split(/\r?\n/);
   let consumed = 0;
@@ -89,16 +90,17 @@ function parseBriefEmail(md: string): { from: string | null; to: string | null; 
     const line = lines[i].trim();
     if (line === "") {
       consumed = i + 1;
-      if (out.from || out.to || out.subject) break; // blank line ends the header block
+      if (out.from || out.to || out.subject || out.sent) break; // blank line ends the header block
       continue;
     }
-    const m = line.match(/^\*\*\s*(From|To|Subject)\s*:\*\*\s*(.*)$/i);
+    const m = line.match(/^\*\*\s*(From|To|Subject|Sent|Date)\s*:\*\*\s*(.*)$/i);
     if (!m) break; // first non-meta, non-blank line — body starts here
     const key = m[1].toLowerCase();
     const val = m[2].trim();
     if (key === "from") out.from = val;
     else if (key === "to") out.to = val;
-    else out.subject = val;
+    else if (key === "subject") out.subject = val;
+    else out.sent = val; // "Sent" or "Date"
     consumed = i + 1;
   }
   if (out.from || out.to || out.subject) out.body = lines.slice(consumed).join("\n").trim();
@@ -135,6 +137,14 @@ export default function AssessmentView({
     return s;
   });
   const [memoSaving, setMemoSaving] = useState<Record<number, boolean>>({ 1: false, 2: false });
+  // Per-memo "sent" timestamps — the candidate's explicit finalise + advance.
+  const [memoSentAt, setMemoSentAt] = useState<Record<number, string | null>>(() => {
+    const s: Record<number, string | null> = {};
+    for (const r of initial.responses) s[r.taskNumber] = r.sentAt ?? null;
+    return s;
+  });
+  const [sendingMemo, setSendingMemo] = useState<number | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>(initial.interactions);
 
   const [sending, setSending] = useState(false);
@@ -334,6 +344,31 @@ export default function AssessmentView({
     }
   }, [token]);
 
+  /* ------ per-memo "Send" + advance to the next memo ------ */
+  const sendMemo = useCallback(async (taskNumber: number) => {
+    setSendingMemo(taskNumber);
+    setSendError(null);
+    try {
+      // Persist the latest draft before finalising it.
+      await saveMemo(taskNumber, memos[taskNumber] || "");
+      const res = await fetch("/api/assess/memo/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, taskNumber }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      setMemoSentAt((s) => ({ ...s, [taskNumber]: body.sentAt }));
+      // Move on to the next memo ("next email"), if there is one.
+      const next = tasks.find((t) => t.number > taskNumber);
+      if (next) setActiveTask(next.number);
+    } catch (e) {
+      setSendError((e as Error).message);
+    } finally {
+      setSendingMemo(null);
+    }
+  }, [token, memos, tasks, saveMemo]);
+
   // Debounce per task
   const memoTimers = useRef<Record<number, ReturnType<typeof setTimeout> | null>>({ 1: null, 2: null });
   useEffect(() => {
@@ -516,13 +551,19 @@ export default function AssessmentView({
                     </span>
                     <span className="block text-xs text-uq-2 truncate">{brief.subject ?? activeTaskCfg.title}</span>
                   </span>
+                  {brief.sent && (
+                    <span className="font-mono text-[10px] text-uq-3 flex-shrink-0 hidden md:inline whitespace-nowrap">{brief.sent}</span>
+                  )}
                   <span className="font-mono text-[11px] text-uq-3 flex-shrink-0">{briefOpen ? "Hide" : "Show"}</span>
                 </button>
                 {briefOpen && (
                   <div className="px-4 pb-4 max-h-60 overflow-y-auto uq-fade-rise">
-                    {(brief.to || brief.subject) && (
+                    {(brief.to || brief.subject || brief.sent) && (
                       <div className="pb-2">
-                        {brief.to && <div className="text-xs text-uq-3">To: <span className="text-uq-2">{brief.to}</span></div>}
+                        <div className="flex items-start justify-between gap-3">
+                          {brief.to && <div className="text-xs text-uq-3">To: <span className="text-uq-2">{brief.to}</span></div>}
+                          {brief.sent && <div className="text-xs text-uq-3 flex-shrink-0">Sent: <span className="text-uq-2">{brief.sent}</span></div>}
+                        </div>
                         {brief.subject && <div className="text-sm font-semibold tracking-[-0.005em] text-uq pt-1">{brief.subject}</div>}
                       </div>
                     )}
@@ -611,16 +652,43 @@ export default function AssessmentView({
                   onPasteCapture={(charCount) => logActivity("paste", { target: "memo", charCount })}
                 />
 
-                <div className="px-4 py-2 border-t border-uq-faint bg-uq-glass-subtle text-xs text-uq-3 flex items-center justify-between flex-shrink-0">
-                  <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
-                  <span className="font-mono tabular-nums">
-                    {memoSaving[activeTask]
-                      ? "Saving…"
-                      : savedAt[activeTask]
-                      ? `Saved ${new Date(savedAt[activeTask]!).toLocaleTimeString()}`
-                      : "Not yet saved"}
-                  </span>
+                <div className="px-4 py-2 border-t border-uq-faint bg-uq-glass-subtle text-xs text-uq-3 flex items-center justify-between gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                    <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
+                    <span className="font-mono tabular-nums">
+                      {memoSaving[activeTask]
+                        ? "Saving…"
+                        : savedAt[activeTask]
+                        ? `Saved ${new Date(savedAt[activeTask]!).toLocaleTimeString()}`
+                        : "Not yet saved"}
+                    </span>
+                    {memoSentAt[activeTask] && (
+                      <span className="font-mono text-[color:var(--uq-success-text)] whitespace-nowrap">✓ Sent {new Date(memoSentAt[activeTask]!).toLocaleTimeString()}</span>
+                    )}
+                  </div>
+                  {(() => {
+                    const hasNext = !!tasks.find((t) => t.number > activeTask);
+                    const sent = !!memoSentAt[activeTask];
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => void sendMemo(activeTask)}
+                        disabled={sendingMemo === activeTask || (wordCounts[activeTask] ?? 0) === 0}
+                        className="px-3 py-1.5 rounded-md bg-uq-accent text-[color:var(--uq-text-on-accent)] text-xs font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] flex-shrink-0"
+                        title={hasNext ? "Send this memo and move to the next" : "Send this memo"}
+                      >
+                        {sendingMemo === activeTask
+                          ? "Sending…"
+                          : sent
+                          ? (hasNext ? "Re-send & next →" : "Re-send")
+                          : (hasNext ? "Send & next →" : "Send memo")}
+                      </button>
+                    );
+                  })()}
                 </div>
+                {sendError && (
+                  <div className="px-4 py-1.5 text-xs text-uq-danger-text bg-uq-danger-soft border-t border-uq-danger-line flex-shrink-0">{sendError}</div>
+                )}
               </section>
             )}
           </div>
@@ -820,18 +888,21 @@ export default function AssessmentView({
 
       {/* Submit modal */}
       {confirmOpen && (() => {
-        const interactionCounts = {
-          1: interactions.filter((i) => i.taskNumber === 1 && i.actor === "candidate").length,
-          2: interactions.filter((i) => i.taskNumber === 2 && i.actor === "candidate").length,
-        };
-        const flags: { task: 1 | 2; kind: "empty-memo" | "short-memo" | "no-ai"; label: string }[] = [];
-        ([1, 2] as const).forEach((t) => {
-          if (wordCounts[t] === 0) {
+        const memoTaskNums = tasks.map((t) => t.number);
+        const interactionCounts: Record<number, number> = {};
+        for (const n of memoTaskNums) {
+          interactionCounts[n] = interactions.filter((i) => i.taskNumber === n && i.actor === "candidate").length;
+        }
+        const flags: { task: number; kind: "empty-memo" | "short-memo" | "no-ai" | "not-sent"; label: string }[] = [];
+        memoTaskNums.forEach((t) => {
+          if ((wordCounts[t] ?? 0) === 0) {
             flags.push({ task: t, kind: "empty-memo", label: `Task ${t} memo is empty` });
-          } else if (wordCounts[t] < 50) {
+          } else if ((wordCounts[t] ?? 0) < 50) {
             flags.push({ task: t, kind: "short-memo", label: `Task ${t} memo is very short (${wordCounts[t]} words)` });
+          } else if (!memoSentAt[t]) {
+            flags.push({ task: t, kind: "not-sent", label: `Task ${t} memo hasn't been sent` });
           }
-          if (interactionCounts[t] === 0) {
+          if ((interactionCounts[t] ?? 0) === 0) {
             flags.push({ task: t, kind: "no-ai", label: `You have not used the AI system on Task ${t}` });
           }
         });
@@ -844,26 +915,31 @@ export default function AssessmentView({
             <div className="rounded-2xl border border-uq-strong bg-uq-elev3 shadow-uq-pop animate-uq-rise max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-semibold tracking-[-0.005em] text-uq">Submit assessment?</h3>
               <p className="text-sm text-uq-2 mt-2 leading-relaxed">
-                This assessment has <strong>two tasks</strong>. You will not be able to return
+                This assessment has <strong>{memoTaskNums.length === 2 ? "two" : memoTaskNums.length} {memoTaskNums.length === 1 ? "task" : "tasks"}</strong>. You will not be able to return
                 to this assessment or modify your responses after submission.
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                {([1, 2] as const).map((t) => (
+                {memoTaskNums.map((t) => (
                   <div
                     key={t}
                     className={`rounded-xl p-3 ${
-                      wordCounts[t] === 0 || interactionCounts[t] === 0
+                      (wordCounts[t] ?? 0) === 0 || (interactionCounts[t] ?? 0) === 0
                         ? "border border-uq-danger-line bg-uq-danger-soft"
                         : "border border-uq bg-uq-glass-subtle"
                     }`}
                   >
                     <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3">Task {t}</div>
                     <div className="font-semibold font-mono text-uq">
-                      {wordCounts[t]} words
+                      {wordCounts[t] ?? 0} words
                       <span className="text-xs font-normal text-uq-3 ml-1">memo</span>
                     </div>
                     <div className="font-mono text-xs text-uq-2 tabular-nums mt-1">
-                      {interactionCounts[t]} AI {interactionCounts[t] === 1 ? "question" : "questions"}
+                      {interactionCounts[t] ?? 0} AI {interactionCounts[t] === 1 ? "question" : "questions"}
+                    </div>
+                    <div className="font-mono text-[10px] tabular-nums mt-1">
+                      {memoSentAt[t]
+                        ? <span className="text-[color:var(--uq-success-text)]">✓ sent</span>
+                        : <span className="text-uq-3">not sent</span>}
                     </div>
                   </div>
                 ))}

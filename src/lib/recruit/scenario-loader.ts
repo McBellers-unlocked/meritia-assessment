@@ -91,7 +91,21 @@ type DbScenarioRow = NonNullable<
   >
 >;
 
+/**
+ * Derive the in-assessment AI brand from the organisation's acronym, e.g.
+ * "International Policy Analytics Centre (IPAC), Nairobi" → "IPAC Knowledge
+ * System". DB scenarios have no brand column, so this keeps a ported scenario
+ * (e.g. IPAC) on-brand. Returns nulls when there's no acronym; the candidate
+ * UI then falls back to the IDSC default.
+ */
+function deriveAssistantBrand(org: string): { name: string | null; short: string | null } {
+  const m = org.match(/\(([A-Za-z][A-Za-z0-9&-]{1,7})\)/);
+  const short = m ? m[1] : null;
+  return { name: short ? `${short} Knowledge System` : null, short };
+}
+
 function materialiseScenario(row: DbScenarioRow): RecruitScenarioConfig {
+  const brand = deriveAssistantBrand(row.organisation);
   return {
     scenarioId: row.id,
     slug: row.slug,
@@ -100,6 +114,8 @@ function materialiseScenario(row: DbScenarioRow): RecruitScenarioConfig {
     positionTitle: row.positionTitle,
     defaultTotalMinutes: row.defaultTotalMinutes,
     source: "db",
+    assistantName: brand.name ?? undefined,
+    assistantShortName: brand.short ?? undefined,
     tasks: row.tasks.map(materialiseTask),
   };
 }

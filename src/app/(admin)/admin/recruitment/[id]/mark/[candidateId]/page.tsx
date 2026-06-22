@@ -17,7 +17,7 @@ interface ActivityEvent {
   metadata: Record<string, unknown> | null;
 }
 interface ResponseRow {
-  taskNumber: number; content: string; wordCount: number;
+  taskNumber: number; content: string; wordCount: number; sentAt: string | null;
   score: number | null; comments: string | null; issuesIdentified: string[] | null; markedAt: string | null;
 }
 interface RubricIssue { id: string; title: string; max_marks?: number; description?: string; expected?: string; }
@@ -240,8 +240,11 @@ export default function MarkCandidatePage() {
                 ) : (
                   <div className="text-sm text-uq-3 italic">No memo submitted for this task.</div>
                 )}
-                <div className="mt-3 font-mono text-xs tabular-nums text-uq-3">
-                  {responseForActive?.wordCount ?? 0} words
+                <div className="mt-3 font-mono text-xs tabular-nums text-uq-3 flex items-center gap-2">
+                  <span>{responseForActive?.wordCount ?? 0} words</span>
+                  {responseForActive?.sentAt && (
+                    <span className="text-[color:var(--uq-success-text)]">· sent {new Date(responseForActive.sentAt).toLocaleTimeString()}</span>
+                  )}
                 </div>
               </section>
 

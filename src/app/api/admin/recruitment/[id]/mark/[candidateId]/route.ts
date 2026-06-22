@@ -40,7 +40,7 @@ export async function GET(
       assessment: { select: { id: true, title: true, scenarioId: true, customScenarioId: true, revealedAt: true } },
       responses: {
         select: {
-          taskNumber: true, content: true, wordCount: true,
+          taskNumber: true, content: true, wordCount: true, sentAt: true,
           score: true, comments: true, issuesIdentified: true, markedAt: true,
         },
       },
