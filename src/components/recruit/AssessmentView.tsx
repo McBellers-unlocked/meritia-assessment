@@ -80,9 +80,9 @@ function initialsFrom(name: string): string {
   if (words.length === 0) return name.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase() || "··";
   return words.slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 }
-function parseBriefEmail(md: string): { from: string | null; to: string | null; subject: string | null; sent: string | null; body: string } {
-  const out: { from: string | null; to: string | null; subject: string | null; sent: string | null; body: string } = {
-    from: null, to: null, subject: null, sent: null, body: md,
+function parseBriefEmail(md: string): { from: string | null; to: string | null; cc: string | null; subject: string | null; sent: string | null; body: string } {
+  const out: { from: string | null; to: string | null; cc: string | null; subject: string | null; sent: string | null; body: string } = {
+    from: null, to: null, cc: null, subject: null, sent: null, body: md,
   };
   const lines = md.split(/\r?\n/);
   let consumed = 0;
@@ -90,15 +90,16 @@ function parseBriefEmail(md: string): { from: string | null; to: string | null; 
     const line = lines[i].trim();
     if (line === "") {
       consumed = i + 1;
-      if (out.from || out.to || out.subject || out.sent) break; // blank line ends the header block
+      if (out.from || out.to || out.cc || out.subject || out.sent) break; // blank line ends the header block
       continue;
     }
-    const m = line.match(/^\*\*\s*(From|To|Subject|Sent|Date)\s*:\*\*\s*(.*)$/i);
+    const m = line.match(/^\*\*\s*(From|To|Cc|Subject|Sent|Date)\s*:\*\*\s*(.*)$/i);
     if (!m) break; // first non-meta, non-blank line — body starts here
     const key = m[1].toLowerCase();
     const val = m[2].trim();
     if (key === "from") out.from = val;
     else if (key === "to") out.to = val;
+    else if (key === "cc") out.cc = val;
     else if (key === "subject") out.subject = val;
     else out.sent = val; // "Sent" or "Date"
     consumed = i + 1;
@@ -557,17 +558,20 @@ export default function AssessmentView({
                   <span className="font-mono text-[11px] text-uq-3 flex-shrink-0">{briefOpen ? "Hide" : "Show"}</span>
                 </button>
                 {briefOpen && (
-                  <div className="px-4 pb-4 max-h-60 overflow-y-auto uq-fade-rise">
-                    {(brief.to || brief.subject || brief.sent) && (
-                      <div className="pb-2">
-                        <div className="flex items-start justify-between gap-3">
-                          {brief.to && <div className="text-xs text-uq-3">To: <span className="text-uq-2">{brief.to}</span></div>}
-                          {brief.sent && <div className="text-xs text-uq-3 flex-shrink-0">Sent: <span className="text-uq-2">{brief.sent}</span></div>}
-                        </div>
-                        {brief.subject && <div className="text-sm font-semibold tracking-[-0.005em] text-uq pt-1">{brief.subject}</div>}
+                  <div className="px-4 pb-4 max-h-72 overflow-y-auto uq-fade-rise">
+                    <div className="text-xs space-y-0.5 pb-2">
+                      {brief.from && <div className="text-uq-3"><span className="inline-block w-11 align-top">From</span><span className="text-uq-2">{brief.from}</span></div>}
+                      {brief.to && <div className="text-uq-3"><span className="inline-block w-11 align-top">To</span><span className="text-uq-2">{brief.to}</span></div>}
+                      {brief.cc && <div className="text-uq-3"><span className="inline-block w-11 align-top">Cc</span><span className="text-uq-2">{brief.cc}</span></div>}
+                      {brief.sent && <div className="text-uq-3"><span className="inline-block w-11 align-top">Sent</span><span className="text-uq-2">{brief.sent}</span></div>}
+                    </div>
+                    {brief.subject && (
+                      <div className="border-t border-uq-faint pt-2 pb-1">
+                        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Subject</div>
+                        <div className="text-base font-semibold tracking-[-0.005em] text-uq">{brief.subject}</div>
                       </div>
                     )}
-                    <div className="border-t border-uq-faint pt-3 text-sm text-uq-2 leading-relaxed">
+                    <div className="border-t border-uq-faint pt-3 mt-1 text-sm text-uq-2 leading-relaxed">
                       <MarkdownView>{brief.body}</MarkdownView>
                     </div>
                   </div>

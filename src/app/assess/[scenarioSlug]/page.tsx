@@ -99,7 +99,11 @@ function AssessRouter() {
 function Landing({
   scenario, assessment, anonymousId, acknowledge, setAcknowledge, onBegin, starting,
 }: {
-  scenario: { title: string; organisation: string; positionTitle: string; taskCount: number };
+  scenario: {
+    title: string; organisation: string; positionTitle: string; taskCount: number;
+    memoTaskCount?: number; hasLiveMessage?: boolean;
+    assistantName?: string | null; assistantShortName?: string | null;
+  };
   assessment: { title: string; totalMinutes: number; closeDate: string };
   anonymousId: string;
   acknowledge: boolean;
@@ -107,6 +111,15 @@ function Landing({
   onBegin: () => void;
   starting: boolean;
 }) {
+  // Scenario-driven branding + structure. Falls back to the IDSC defaults so
+  // the IDSC built-ins render exactly as before; a scenario in another org
+  // (e.g. IPAC) carries its own brand, and only scenarios with a chat task
+  // show the live-message guidance.
+  const ksName = scenario.assistantName || "IDSC Knowledge System";
+  const shortName = scenario.assistantShortName || "IDSC";
+  const memoCount = scenario.memoTaskCount ?? scenario.taskCount;
+  const hasIm = scenario.hasLiveMessage ?? false;
+  const memoCountWord = memoCount === 1 ? "one" : memoCount === 2 ? "two" : memoCount === 3 ? "three" : String(memoCount);
   return (
     <div className="min-h-screen text-uq">
       <header className="bg-uq-glass-strong backdrop-blur-xl border-b border-uq shadow-[0_1px_0_0_var(--uq-inset-hi)_inset]">
@@ -131,7 +144,7 @@ function Landing({
           <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-1 mb-1">{scenario.positionTitle}</h1>
           <div className="text-sm text-uq-2">{scenario.organisation}</div>
           <div className="text-xs text-uq-3 italic mt-1">
-            IDSC is a fictionalised entity modelled on a real UN-system centre. All names, figures, and internal details are invented for this assessment — cross-referencing the real-world organisation will not help.
+            {shortName} is a fictionalised entity modelled on a real UN-system centre. All names, figures, and internal details are invented for this assessment — cross-referencing the real-world organisation will not help.
           </div>
 
           <div className="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
@@ -142,8 +155,8 @@ function Landing({
             </div>
             <div className="bg-uq-glass-subtle border border-uq rounded-xl p-3">
               <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Tasks</div>
-              <div className="text-lg font-semibold text-uq">{scenario.taskCount}</div>
-              <div className="text-xs text-uq-3 mt-0.5">Switch freely</div>
+              <div className="text-lg font-semibold text-uq">{memoCount}</div>
+              <div className="text-xs text-uq-3 mt-0.5">{hasIm ? "Switch freely · + a live message" : "Switch freely"}</div>
             </div>
             <div className="bg-uq-glass-subtle border border-uq rounded-xl p-3">
               <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Closes</div>
@@ -161,16 +174,25 @@ function Landing({
           <div className="mt-7 prose prose-sm max-w-none text-uq-2">
             <h2 className="text-base font-semibold text-uq">What to expect</h2>
             <p>
-              This assessment has two tasks. You have <strong>{assessment.totalMinutes} minutes total</strong>.
+              This assessment has <strong>{memoCountWord} written {memoCount === 1 ? "task" : "tasks"}</strong>. You have <strong>{assessment.totalMinutes} minutes total</strong>.
               You may switch between tasks at any time and divide the time as you see fit — time management is
               part of what is being assessed.
             </p>
-            <p>For each task you will have:</p>
+            <p>For each written task you will have:</p>
             <ul className="text-sm list-disc pl-5">
               <li>An exhibit document — for example a contract, a financial statement, a report, or a briefing pack.</li>
-              <li>The IDSC Knowledge System — an in-app AI assistant holding the underlying data, text, and reference material. Ask it specific questions; it will not volunteer issues for you.</li>
-              <li>A workspace for your written deliverable. It autosaves every few seconds.</li>
+              <li>The {ksName} — an in-app AI assistant holding the underlying data, text, and reference material. Ask it specific questions; it will not volunteer issues for you.</li>
+              <li>A workspace for your written deliverable. It autosaves every few seconds — and you can <strong>Send</strong> a memo when you are done with it to move on to the next.</li>
             </ul>
+            {hasIm && (
+              <p>
+                <strong>A colleague may message you during the assessment.</strong> At some point a member of staff
+                may contact you directly through an in-app chat (similar to MS Teams) — it will pop up while you
+                work. Read it, decide whether and how to reply, and respond in the chat. How you handle the
+                interruption — what you commit to, and how you balance it against your written work — is part of
+                what is assessed.
+              </p>
+            )}
             <p>
               Your responses are evaluated holistically. There is no pass mark — your work will be ranked
               alongside other candidates. The way you investigate (the AI interaction) is recorded and
@@ -182,7 +204,10 @@ function Landing({
               <li>Once you click <strong>Begin</strong> the {assessment.totalMinutes}-minute timer starts and cannot be paused.</li>
               <li>You may close your browser and return — your work and timer continue server-side.</li>
               <li>This URL is single-use. If a different browser tries to use the same link, it will be locked out.</li>
-              <li>You are expected to use the IDSC Knowledge System (the in-app AI assistant) as part of your work — your interaction trail forms part of the assessment.</li>
+              <li>You are expected to use the {ksName} (the in-app AI assistant) as part of your work — your interaction trail forms part of the assessment.</li>
+              {hasIm && (
+                <li>A colleague may contact you by chat during the assessment. Treat it as a real interruption — read it, reply in the chat as you see fit, and return to your work. Your reply, and how you manage it alongside your written tasks, is recorded and reviewed.</li>
+              )}
               <li>External AI tools (e.g. ChatGPT, Claude, Gemini, Copilot) and online lookups are not permitted. Your activity during the assessment — including pasted content, tab-switches, and AI interactions — is logged and reviewed by examiners. Printed reference material relevant to the role is allowed.</li>
               <li>When time expires, your responses are submitted automatically.</li>
             </ul>
@@ -228,7 +253,7 @@ function Landing({
               onChange={(e) => setAcknowledge(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-uq bg-uq-glass-subtle accent-[color:var(--uq-accent)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             />
-            <span>I confirm this is my own work, that I will use only the in-app IDSC Knowledge System (no external AI tools), that I understand my activity during the assessment is logged, and that I will complete the assessment in a single sitting where possible.</span>
+            <span>I confirm this is my own work, that I will use only the in-app {ksName} (no external AI tools), that I understand my activity during the assessment is logged, and that I will complete the assessment in a single sitting where possible.</span>
           </label>
 
           <div className="mt-6 flex items-center justify-end">

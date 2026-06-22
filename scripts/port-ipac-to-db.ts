@@ -24,16 +24,6 @@ const prisma = new PrismaClient();
 const SLUG = "ipac-people-capability";
 const CHAT_TRIGGER_SECONDS = 300; // 5 min default; editable in the builder
 
-// Insert a "Sent:" header line after the Subject line of an email-style brief.
-function withSent(brief: string, sent: string): string {
-  return brief.replace(/(\*\*\s*Subject\s*:\*\*[^\n]*)/i, `$1\n**Sent:** ${sent}`);
-}
-
-const SENT_TIMES: Record<number, string> = {
-  1: "Mon 23 Jun 2026, 08:14",
-  2: "Mon 23 Jun 2026, 09:02",
-};
-
 async function main() {
   const cfg = IPAC_D1_2026;
   const rubric = JSON.parse(
@@ -73,7 +63,7 @@ async function main() {
         number: t.number,
         kind: "memo_ai",
         title: t.title,
-        briefMarkdown: withSent(t.briefMarkdown, SENT_TIMES[t.number] ?? ""),
+        briefMarkdown: t.briefMarkdown,
         totalMarks: t.totalMarks,
         systemPrompt: t.systemPrompt,
         exhibitId: exhibit.id,
