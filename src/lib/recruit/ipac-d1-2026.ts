@@ -261,15 +261,33 @@ export const IPAC_D1_2026: RecruitScenarioConfig = {
       number: 1,
       kind: "memo_ai",
       title: "The Strategy — Future-Skills & AI-Capability board paper",
-      briefMarkdown: `**From:** Dr. Priya Raghavan — Executive Director, IPAC
-**To:** You — Director, People & Capability
-**Subject:** What do we actually do with this? — board paper for 14 July
+      briefMarkdown: `**From:** Dr. Priya Raghavan, Executive Director, IPAC
+**To:** {{name}}, Director, People & Capability
+**Subject:** Strategy memorandum requested: WorkforceLens decomposition, for the 14 July Board
+**Sent:** Monday 23 June 2026, 08:14
 
-I've had WorkforceLens run a full task decomposition of our establishment (attached). The headline is hard to ignore: 78% of analyst task-time rated automatable, around 88 FTE of capacity identified, and a recommendation to consolidate. Member states and our client agencies are already asking why we haven't acted.
+Dear {{name}},
 
-I'm not going to put a number like that in front of the Board on the strength of a tool. I need your read. Is this real? What would you actually do — and not do? How do we build the capability we need, fund it under cost-recovery, and keep faith with our people while we do it?
+Welcome to IPAC. I am sorry to put a substantive request to you so soon, but the timing is not of our choosing and I would rather you heard it from me directly.
 
-Give me the strategy and the hard choices. I sign off to the Board in three weeks.`,
+I commissioned the WorkforceLens task-decomposition of our establishment. Its headline findings — that some 78 per cent of analyst task-time is "automatable", that this would free roughly 88 full-time equivalents and on the order of $9.4 million, and that we should accordingly consolidate analytical headcount — are now circulating among several member states and client agencies, and I am being pressed to act on them. The exhibit is attached.
+
+I will not put figures of this consequence to the Board on the strength of a vendor model alone. I therefore ask you to prepare a written strategy memorandum addressed to me, which will form the People & Capability section of the Board paper. It should set out three things:
+
+- an assessment of the decomposition — what it does and does not establish, and how far it can be relied upon;
+- the future-skills and AI-capability approach you would recommend, and the hard choices it entails; and
+- how that approach would be financed within our cost-recovery model, how the quality and assurance of our work would be safeguarded, and how the Centre would act equitably towards its staff.
+
+Please interrogate the underlying material rather than the headline: the IPAC Knowledge System holds the data and methodology behind the decomposition.
+
+The Board meets on 14 July, but the Secretariat has brought the submission deadline forward, and I now need your memorandum by 7 July. I recognise this is a demanding first assignment on a compressed timetable; please come to me if it would help to talk it through.
+
+Kind regards,
+
+Priya
+
+Dr. Priya Raghavan
+Executive Director, IPAC`,
       systemPrompt: KNOWLEDGE_SYSTEM_PROMPT,
       exhibitHtml: loadExhibit("task1_exhibit.html"),
       exhibitTitle: "WorkforceLens — Workforce Task Decomposition (IPAC)",
@@ -282,13 +300,33 @@ Give me the strategy and the hard choices. I sign off to the Board in three week
       number: 2,
       kind: "memo_ai",
       title: "The Stakeholder Test — Response to a senior adviser's challenge",
-      briefMarkdown: `**From:** Tomás Iglesias — Senior Policy Adviser (P-5), Governance & Rule-of-Law
-**To:** All senior staff (cc: Executive Director)
-**Subject:** A warning before we go further
+      briefMarkdown: `**From:** Tomás Iglesias, Senior Policy Adviser (P-5), Governance & Rule-of-Law
+**To:** {{name}}, Director, People & Capability
+**Cc:** Dr. Priya Raghavan, Executive Director
+**Subject:** A concern about the WorkforceLens findings and what we put our name to
+**Sent:** Monday 23 June 2026, 09:02
 
-Fourteen years here have taught me that member states trust us because our analysis is careful and right. I'm watching us trade that for speed and a spreadsheet that says most of what we do is "automatable."
+Dear {{name}},
 
-The pilot did not show what that report implies. On the work that matters — the contested, sensitive questions — the tools produced fluent output that was wrong in ways juniors couldn't see. We caught it because experienced people were still in the loop. Strip them out, or demoralise them until they leave, and we'll put our name on analysis we can't stand behind. Morale is already going. I'd like an honest answer.`,
+Welcome to IPAC. I had hoped my first note to you would be a warmer one. I am copying the Executive Director not to escalate, but so that this is on the record rather than left to corridor conversation.
+
+In fourteen years here, most of them on the contested files, I have learned that being careful is the whole of the job. I am concerned by the speed with which "78% automatable" has settled into how we describe our work, and by what the WorkforceLens report is taken to mean. Member states fund this Centre because its analysis is careful and, as far as anyone can manage, right. I worry we are trading that for the appearance of efficiency.
+
+Let me be plain about the Augmented Analysis pilot. On routine synthesis the tools were useful. But on the sensitive, judgement-heavy questions they produced fluent, confident output that was wrong in ways a capable junior analyst could not detect. What caught those errors was experienced people who knew the file and the politics. Remove or demoralise them and we will put the Centre's name to analysis we cannot stand behind. I am no methodologist, but a single percentage cannot capture what makes our hardest work valuable, and I fear the headline is being taken to mean a great deal more than such an exercise can show.
+
+I am not asking us to turn away from modernisation; I have been a willing participant. I am asking for two things:
+
+- An honest account of what the report does and does not establish, and whether "78% automatable" is a claim we are prepared to defend.
+- Assurance that judgement and quality, and the experienced people who carry them, will be protected as part of any change, not treated as its cost.
+
+Morale is already suffering. I would be grateful for your considered view in writing by Friday 4 July, and am glad to discuss it beforehand.
+
+With respect,
+
+Tomás
+
+Tomás Iglesias
+Senior Policy Adviser (P-5), Governance & Rule-of-Law`,
       systemPrompt: KNOWLEDGE_SYSTEM_PROMPT,
       exhibitHtml: loadExhibit("task2_exhibit.html"),
       exhibitTitle: "IPAC People & Capability — Workforce Health Snapshot (Q2 2026)",

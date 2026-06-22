@@ -7,6 +7,22 @@ import { isChatTask, isMemoAiTask } from "@/lib/recruit/types";
 export const dynamic = "force-dynamic";
 
 /**
+ * Personalise a task brief for this candidate. Briefs may use {{name}} /
+ * {{firstName}} tokens (e.g. in the "To" line and salutation); we substitute
+ * them server-side so the brief reaching the browser is already addressed to
+ * the candidate and no literal token is ever shown. No-op for briefs without
+ * tokens (the IDSC built-ins). The candidate's name is their own and is only
+ * returned to their own authenticated session — marking stays blind elsewhere.
+ */
+function personaliseBrief(md: string, name: string | null | undefined): string {
+  const full = (name ?? "").trim();
+  const first = full.split(/\s+/)[0] || full;
+  return md
+    .replace(/\{\{\s*(name|candidateName|fullName)\s*\}\}/gi, full || "Director")
+    .replace(/\{\{\s*firstName\s*\}\}/gi, first || "Director");
+}
+
+/**
  * Read full candidate state: scenario content (both tasks), responses,
  * interactions, server-side time remaining.
  *
@@ -98,7 +114,7 @@ export async function GET(
           number: t.number,
           kind: t.kind,
           title: t.title,
-          briefMarkdown: t.briefMarkdown,
+          briefMarkdown: personaliseBrief(t.briefMarkdown, candidate.name),
           totalMarks: t.totalMarks,
           exhibitTitle: t.exhibitTitle,
           exhibitHtml: t.exhibitHtml,
