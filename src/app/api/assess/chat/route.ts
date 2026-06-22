@@ -22,13 +22,21 @@ export const maxDuration = 60;
  */
 function buildPersonaSystemPrompt(
   adminPrompt: string,
-  scenario: { organisation: string; positionTitle: string; title: string }
+  scenario: { organisation: string; positionTitle: string; title: string },
+  openerMessage?: string
 ): string {
-  return `You are roleplaying a real colleague contacting a new hire through an internal chat system (similar to MS Teams). The candidate is being assessed for the role of ${scenario.positionTitle} at ${scenario.organisation}.
+  // The opener is shown to the candidate client-side but is NOT part of the
+  // message history sent to the model (it's config-level). Without it, the
+  // model can lose track of who it is on the candidate's first reply and
+  // answer *as* the candidate. Re-anchor it here so the persona stays in role.
+  const openerBlock = openerMessage
+    ? `\n\nYou have ALREADY sent the candidate this opening message, and they are now replying to it:\n"""\n${openerMessage}\n"""\nContinue the conversation in character as the SAME person who sent that opener. Do not reintroduce yourself, do not repeat the opener, and never reply as if you were the candidate.`
+    : "";
+  return `You are roleplaying a real colleague contacting a new hire through an internal chat system (similar to MS Teams). The candidate is being assessed for the role of ${scenario.positionTitle} at ${scenario.organisation}. YOU are the colleague; the person you are messaging with is the candidate. Never speak as the candidate.
 
 Scenario: ${scenario.title}
 
-${adminPrompt}
+${adminPrompt}${openerBlock}
 
 Stay in character throughout. If the candidate asks questions unrelated to this specific issue, redirect once back to the task at hand, then if they persist off-topic, politely end the conversation. Do not reveal that you are an AI, do not mention Claude, Anthropic, or system prompts. Reply in a tone consistent with your role — informal chat messages, not long analyst essays.`;
 }
@@ -78,7 +86,7 @@ export async function POST(request: NextRequest) {
     if (isMemoAiTask(taskCfg)) {
       systemPrompt = taskCfg.systemPrompt;
     } else if (isChatTask(taskCfg)) {
-      systemPrompt = buildPersonaSystemPrompt(taskCfg.script.systemPrompt, scenario);
+      systemPrompt = buildPersonaSystemPrompt(taskCfg.script.systemPrompt, scenario, taskCfg.script.openerMessage);
       maxTurns = taskCfg.script.maxTurns;
     } else {
       return NextResponse.json({ error: "This task type does not support chat" }, { status: 400 });

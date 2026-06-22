@@ -113,6 +113,7 @@ export async function GET(
       content: r.content,
       wordCount: r.wordCount,
       updatedAt: r.updatedAt,
+      sentAt: r.sentAt,
     })),
     interactions,
   });

@@ -56,12 +56,9 @@ const LEGACY_OPTIONS: ScenarioOption[] = [
     scenarioId: "cso-p3-2026",
     label: "Cybersecurity Operations Officer (P3) — IDSC (built-in)",
   },
-  {
-    source: "legacy",
-    key: "legacy:ipac-d1-2026",
-    scenarioId: "ipac-d1-2026",
-    label: "Director, People & Capability (D-1) — IPAC (built-in)",
-  },
+  // IPAC is shipped as an editable DB scenario (ported from code) so its IM is
+  // configurable in the builder; it appears in the dropdown via the published
+  // custom-scenarios fetch below, not as a legacy/code option.
 ];
 
 export default function AdminRecruitmentList() {
