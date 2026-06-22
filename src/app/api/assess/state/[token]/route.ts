@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadCandidate, verifySessionCookie } from "@/lib/recruit/candidate-auth";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
-import { isMemoAiTask } from "@/lib/recruit/types";
+import { isChatTask, isMemoAiTask } from "@/lib/recruit/types";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +42,10 @@ export async function GET(
         organisation: scenario.organisation,
         positionTitle: scenario.positionTitle,
         taskCount: scenario.tasks.length,
+        // Number of written (memo) deliverables — the switchable tasks the
+        // landing page should describe — and whether a live chat/IM can fire.
+        memoTaskCount: scenario.tasks.filter(isMemoAiTask).length,
+        hasLiveMessage: scenario.tasks.some(isChatTask),
         assistantName: scenario.assistantName ?? null,
         assistantShortName: scenario.assistantShortName ?? null,
       },
