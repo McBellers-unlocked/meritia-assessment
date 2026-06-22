@@ -27,12 +27,34 @@ interface RubricTask { title: string; max_marks: number; categories: Record<stri
 // tasks is keyed by task number, so a scenario can carry 1–5 tasks.
 interface Rubric { tasks: Record<number, RubricTask>; total_marks: number; }
 
+// Non-memo tasks surfaced for marker review (the dynamic streams).
+interface ScenarioEmail {
+  id: string; senderName: string; senderEmail: string; subject: string;
+  bodyHtml: string; triggerOffsetSeconds: number; expectedAction: string; markerNotes: string | null;
+}
+interface ScenarioPersona {
+  personaName: string; personaRole: string; openerMessage: string;
+  maxTurns: number; expectedOutcomes: string | null;
+}
+interface ScenarioTask {
+  number: number; kind: "memo_ai" | "email_inbox" | "chat"; title: string;
+  emails?: ScenarioEmail[]; persona?: ScenarioPersona;
+}
+interface EmailResponseRow {
+  emailId: string; action: string; replyBody: string | null;
+  deliveredAt: string; respondedAt: string; markerComment: string | null;
+}
+
 interface MarkData {
   candidate: { id: string; anonymousId: string; startedAt: string; submittedAt: string; timeTakenMin: number | null; totalScore: number | null; };
   assessment: { id: string; title: string; scenarioId: string };
+  assistantName: string | null;
+  assistantShortName: string | null;
   rubric: Rubric | null;
+  scenarioTasks: ScenarioTask[];
   responses: ResponseRow[];
   interactions: Interaction[];
+  emailResponses: EmailResponseRow[];
   activityEvents: ActivityEvent[];
 }
 
@@ -127,9 +149,13 @@ export default function MarkCandidatePage() {
     new Set<number>([
       ...data.responses.map((r) => r.taskNumber),
       ...Object.keys(data.rubric?.tasks ?? {}).map(Number),
+      ...(data.scenarioTasks ?? []).map((t) => t.number),
     ]),
   ).sort((a, b) => a - b);
 
+  const activeScenarioTask = (data.scenarioTasks ?? []).find((t) => t.number === activeTask);
+  const activeKind = activeScenarioTask?.kind ?? "memo_ai";
+  const assistantShort = data.assistantShortName || "IDSC";
   const responseForActive = data.responses.find((r) => r.taskNumber === activeTask);
   const rubricTask = data.rubric?.tasks[activeTask];
   const trailForActive = data.interactions.filter((i) => i.taskNumber === activeTask);
@@ -191,43 +217,57 @@ export default function MarkCandidatePage() {
       <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] grid-cols-1">
         {/* Candidate work */}
         <div className="overflow-y-auto px-6 py-4 space-y-4">
-          <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Memo · Task {activeTask}</div>
-            <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">{rubricTask?.title}</div>
-            {responseForActive && responseForActive.content ? (
-              <div
-                className="memo-rendered"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(responseForActive.content) }}
-              />
-            ) : (
-              <div className="text-sm text-uq-3 italic">No memo submitted for this task.</div>
-            )}
-            <div className="mt-3 font-mono text-xs tabular-nums text-uq-3">
-              {responseForActive?.wordCount ?? 0} words
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Investigation trail · Task {activeTask}</div>
-            <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">
-              {trailForActive.length} message{trailForActive.length === 1 ? "" : "s"}
-            </div>
-            {trailForActive.length === 0 && (
-              <div className="text-sm text-uq-3 italic">No interactions for this task.</div>
-            )}
-            <div className="space-y-2">
-              {trailForActive.map((i) => (
-                <div key={i.id} className={i.actor === "candidate" ? "border-l-4 border-uq-accent pl-3" : "border-l-4 border-uq-faint pl-3"}>
-                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
-                    {i.actor === "candidate" ? "Candidate" : "IDSC system"} · #{i.sequenceNum}
-                  </div>
-                  <div className="markdown-rendered mt-0.5">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{i.content}</ReactMarkdown>
-                  </div>
+          {activeKind === "email_inbox" ? (
+            <InTraySection
+              task={activeScenarioTask!}
+              responses={data.emailResponses ?? []}
+            />
+          ) : activeKind === "chat" ? (
+            <ChatTranscriptSection
+              task={activeScenarioTask!}
+              trail={trailForActive}
+            />
+          ) : (
+            <>
+              <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Memo · Task {activeTask}</div>
+                <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">{rubricTask?.title ?? activeScenarioTask?.title}</div>
+                {responseForActive && responseForActive.content ? (
+                  <div
+                    className="memo-rendered"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(responseForActive.content) }}
+                  />
+                ) : (
+                  <div className="text-sm text-uq-3 italic">No memo submitted for this task.</div>
+                )}
+                <div className="mt-3 font-mono text-xs tabular-nums text-uq-3">
+                  {responseForActive?.wordCount ?? 0} words
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
+
+              <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Investigation trail · Task {activeTask}</div>
+                <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">
+                  {trailForActive.length} message{trailForActive.length === 1 ? "" : "s"}
+                </div>
+                {trailForActive.length === 0 && (
+                  <div className="text-sm text-uq-3 italic">No interactions for this task.</div>
+                )}
+                <div className="space-y-2">
+                  {trailForActive.map((i) => (
+                    <div key={i.id} className={i.actor === "candidate" ? "border-l-4 border-uq-accent pl-3" : "border-l-4 border-uq-faint pl-3"}>
+                      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
+                        {i.actor === "candidate" ? "Candidate" : `${assistantShort} system`} · #{i.sequenceNum}
+                      </div>
+                      <div className="markdown-rendered mt-0.5">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{i.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
 
           <ActivitySection events={activityForActive} activeTask={activeTask} />
         </div>
@@ -236,22 +276,30 @@ export default function MarkCandidatePage() {
         <div className="border-l border-uq bg-uq-bg2 overflow-y-auto">
           <div className="p-5 space-y-5">
             <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
-              <h2 className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Score · Task {activeTask}</h2>
-              <label className="block text-xs">
-                <span className="text-uq-2">Score (out of {rubricTask?.max_marks ?? 50})</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={rubricTask?.max_marks ?? 50}
-                  step="0.5"
-                  value={scores[activeTask] ?? ""}
-                  onChange={(e) => {
-                    setScores((prev) => ({ ...prev, [activeTask]: e.target.value }));
-                    triggerSave(activeTask);
-                  }}
-                  className="mt-1 block w-32 rounded-md border border-uq bg-uq-glass-subtle px-3 py-1.5 text-base font-mono tabular-nums text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
-                />
-              </label>
+              <h2 className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">
+                {rubricTask ? `Score · Task ${activeTask}` : `Notes · Task ${activeTask}`}
+              </h2>
+              {rubricTask ? (
+                <label className="block text-xs">
+                  <span className="text-uq-2">Score (out of {rubricTask?.max_marks ?? 50})</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={rubricTask?.max_marks ?? 50}
+                    step="0.5"
+                    value={scores[activeTask] ?? ""}
+                    onChange={(e) => {
+                      setScores((prev) => ({ ...prev, [activeTask]: e.target.value }));
+                      triggerSave(activeTask);
+                    }}
+                    className="mt-1 block w-32 rounded-md border border-uq bg-uq-glass-subtle px-3 py-1.5 text-base font-mono tabular-nums text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
+                  />
+                </label>
+              ) : (
+                <p className="text-xs leading-relaxed text-uq-2">
+                  Observational task — not scored. Record what the candidate did (what they protected, deferred, delegated or handled) in the notes below; score judgement, not speed or volume.
+                </p>
+              )}
               <label className="block text-xs mt-3">
                 <span className="text-uq-2">Comments / notes</span>
                 <textarea
@@ -438,4 +486,95 @@ function formatDuration(ms: number): string {
   const m = Math.floor(s / 60);
   const rs = s % 60;
   return rs ? `${m}m ${rs}s` : `${m}m`;
+}
+
+function actionChip(action: string): { label: string; cls: string } {
+  if (action === "replied") {
+    return { label: "Replied", cls: "bg-[color:var(--uq-success-soft)] border-[color:var(--uq-success-line)] text-[color:var(--uq-success-text)]" };
+  }
+  if (action === "flagged") {
+    return { label: "Flagged", cls: "bg-[color:var(--uq-warn-soft)] border-[color:var(--uq-warn-line)] text-[color:var(--uq-warn-text)]" };
+  }
+  return { label: "Ignored", cls: "bg-uq-elev2 border-uq text-uq-3" };
+}
+
+// The candidate's in-tray triage: every scripted email, what the candidate
+// did with it (replied / flagged / ignored / no action), and the marker's
+// expected handling. Observational — informs the marker, never auto-scored.
+function InTraySection({ task, responses }: { task: ScenarioTask; responses: EmailResponseRow[] }) {
+  const emails = task.emails ?? [];
+  const byId = new Map(responses.map((r) => [r.emailId, r]));
+  const handled = emails.filter((e) => byId.has(e.id)).length;
+  return (
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
+      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">In-tray · Task {task.number}</div>
+      <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">
+        {handled} of {emails.length} item{emails.length === 1 ? "" : "s"} actioned
+      </div>
+      <div className="space-y-3">
+        {emails.map((e) => {
+          const r = byId.get(e.id);
+          const chip = r ? actionChip(r.action) : { label: "No action", cls: "bg-uq-elev2 border-uq text-uq-3" };
+          return (
+            <div key={e.id} className="rounded-lg border border-uq bg-uq-bg2 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-uq">{e.subject}</div>
+                  <div className="text-xs text-uq-3">From {e.senderName} &lt;{e.senderEmail}&gt;</div>
+                </div>
+                <span className={`flex-shrink-0 px-2 py-0.5 rounded-full border font-mono text-[10px] ${chip.cls}`}>{chip.label}</span>
+              </div>
+              {r?.action === "replied" && r.replyBody && (
+                <div className="mt-2 rounded-md border border-uq-faint bg-uq-elev1 p-2 text-sm text-uq whitespace-pre-wrap">{r.replyBody}</div>
+              )}
+              <details className="mt-2">
+                <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3 hover:text-uq">
+                  Marker reference · expected: {e.expectedAction}
+                </summary>
+                <div className="mt-1 text-xs text-uq-2 whitespace-pre-wrap">{e.markerNotes ?? "—"}</div>
+              </details>
+            </div>
+          );
+        })}
+        {emails.length === 0 && <div className="text-sm text-uq-3 italic">No in-tray items in this scenario.</div>}
+      </div>
+    </section>
+  );
+}
+
+// The live persona conversation (e.g. the Staff Council president). The opener
+// is config-level (not stored as an interaction), so we render it first, then
+// the stored back-and-forth, then the marker's "what to look for".
+function ChatTranscriptSection({ task, trail }: { task: ScenarioTask; trail: Interaction[] }) {
+  const persona = task.persona;
+  return (
+    <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
+      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Live chat · Task {task.number}</div>
+      <div className="text-base font-semibold tracking-[-0.005em] text-uq">{persona?.personaName}</div>
+      <div className="font-mono text-[11px] text-uq-3 mb-3">{persona?.personaRole}</div>
+      <div className="space-y-2">
+        {persona?.openerMessage && (
+          <div className="border-l-4 border-uq-faint pl-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">{persona.personaName} · opener</div>
+            <div className="text-sm text-uq mt-0.5 whitespace-pre-wrap">{persona.openerMessage}</div>
+          </div>
+        )}
+        {trail.map((i) => (
+          <div key={i.id} className={i.actor === "candidate" ? "border-l-4 border-uq-accent pl-3" : "border-l-4 border-uq-faint pl-3"}>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
+              {i.actor === "candidate" ? "Candidate" : persona?.personaName ?? "Persona"} · #{i.sequenceNum}
+            </div>
+            <div className="text-sm text-uq mt-0.5 whitespace-pre-wrap">{i.content}</div>
+          </div>
+        ))}
+        {trail.length === 0 && <div className="text-sm text-uq-3 italic">The candidate did not reply in the chat.</div>}
+      </div>
+      {persona?.expectedOutcomes && (
+        <details className="mt-3">
+          <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3 hover:text-uq">Marker reference — what to look for</summary>
+          <div className="mt-1 text-xs text-uq-2 whitespace-pre-wrap">{persona.expectedOutcomes}</div>
+        </details>
+      )}
+    </section>
+  );
 }

@@ -9,7 +9,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import LiveEventsOverlay from "./LiveEventsOverlay";
 
 interface TaskCfg {
-  number: 1 | 2;
+  number: number;
   title: string;
   briefMarkdown: string;
   exhibitTitle: string;
@@ -41,6 +41,9 @@ export interface AssessmentInitial {
   scenario: {
     title: string; organisation: string; positionTitle: string; taskCount: number;
     tasks: TaskCfg[];
+    // In-assessment AI branding; null/absent → IDSC defaults (existing scenarios).
+    assistantName?: string | null;
+    assistantShortName?: string | null;
   };
   candidate: { anonymousId: string; startedAt: string; deadline: string; submittedAt: string | null };
   responses: ResponseRow[];
@@ -110,8 +113,14 @@ export default function AssessmentView({
   onReload: () => Promise<void> | void;
 }) {
   const tasks = initial.scenario.tasks;
-  const [activeTask, setActiveTask] = useState<1 | 2>(1);
+  const [activeTask, setActiveTask] = useState<number>(1);
   const activeTaskCfg = tasks.find((t) => t.number === activeTask) ?? tasks[0];
+
+  // In-assessment AI branding. Falls back to the IDSC defaults so the
+  // existing built-ins (FAM/CSO/APLO) render exactly as before; scenarios set
+  // in a different organisation (e.g. IPAC) carry their own brand.
+  const assistantName = initial.scenario.assistantName || "IDSC Knowledge System";
+  const assistantShort = initial.scenario.assistantShortName || "IDSC";
 
   // Per-task chat input + memo (drafts in client state, autosaved to server)
   const [chatInputs, setChatInputs] = useState<Record<number, string>>({ 1: "", 2: "" });
@@ -308,7 +317,7 @@ export default function AssessmentView({
   }, [chatInputs, activeTask, sending, interactions, token]);
 
   /* ------ memo autosave (debounced + 30s force) ------ */
-  const saveMemo = useCallback(async (taskNumber: 1 | 2, content: string) => {
+  const saveMemo = useCallback(async (taskNumber: number, content: string) => {
     setMemoSaving((s) => ({ ...s, [taskNumber]: true }));
     try {
       const res = await fetch("/api/assess/memo", {
@@ -382,10 +391,11 @@ export default function AssessmentView({
     }
   }, [timer.expired, submit]);
 
-  const wordCounts = useMemo(() => ({
-    1: wordCount(memos[1] || ""),
-    2: wordCount(memos[2] || ""),
-  }), [memos]);
+  const wordCounts = useMemo(() => {
+    const wc: Record<number, number> = {};
+    for (const t of tasks) wc[t.number] = wordCount(memos[t.number] || "");
+    return wc;
+  }, [memos, tasks]);
 
   const trailForActive = interactions.filter((i) => i.taskNumber === activeTask);
 
@@ -624,9 +634,9 @@ export default function AssessmentView({
             type="button"
             onClick={toggleIdsc}
             className="absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-uq-2 transition-colors border-l border-uq z-10 bg-uq-glass-strong backdrop-blur-xl hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-            aria-label="Expand IDSC AI assistant (Ctrl/Cmd+J)"
+            aria-label={`Expand ${assistantShort} AI assistant (Ctrl/Cmd+J)`}
             aria-expanded={false}
-            title="IDSC AI assistant — Ctrl/Cmd+J"
+            title={`${assistantShort} AI assistant — Ctrl/Cmd+J`}
           >
             <div className="flex flex-col items-center gap-1.5">
               <svg
@@ -646,7 +656,7 @@ export default function AssessmentView({
                 className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-2 whitespace-nowrap"
                 style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
               >
-                IDSC · AI ASSISTANT
+                {assistantShort} · AI ASSISTANT
               </span>
             </div>
             <div className="flex flex-col items-center gap-1">
@@ -665,7 +675,7 @@ export default function AssessmentView({
         ) : (
           <aside
             className="absolute right-0 top-0 bottom-0 bg-uq-glass-strong backdrop-blur-xl border-l border-uq flex flex-col z-10 w-full lg:w-[420px] shadow-uq-glass lg:shadow-uq-glass"
-            aria-label="IDSC AI assistant chat"
+            aria-label={`${assistantShort} AI assistant chat`}
           >
             <div className="px-4 py-2.5 border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0 flex items-center justify-between gap-3">
               <div className="min-w-0 flex items-center gap-2.5">
@@ -681,7 +691,7 @@ export default function AssessmentView({
                     AI Assistant · Task {activeTask}
                   </div>
                   <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                    IDSC Knowledge System
+                    {assistantName}
                   </div>
                 </div>
               </div>
@@ -689,7 +699,7 @@ export default function AssessmentView({
                 type="button"
                 onClick={toggleIdsc}
                 className="text-uq-3 hover:text-uq w-8 h-8 rounded-md hover:bg-uq-elev2 flex items-center justify-center flex-shrink-0 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                aria-label="Collapse IDSC sidebar (Ctrl/Cmd+J)"
+                aria-label={`Collapse ${assistantShort} sidebar (Ctrl/Cmd+J)`}
                 title="Collapse — Ctrl/Cmd+J"
               >
                 <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
@@ -701,8 +711,9 @@ export default function AssessmentView({
             <div ref={chatScroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
               {trailForActive.length === 0 && (
                 <div className="text-xs text-uq-3 italic">
-                  Ask the IDSC AI anything. Be specific — request source documents, underlying data,
-                  or detail on a particular item. Your questions form part of the assessment.
+                  Ask the {assistantShort} AI anything. Be specific — request source documents, underlying data,
+                  or detail on a particular item. It won&apos;t write your answer or tell you what to conclude — the
+                  analysis and the writing are yours. Every question you ask forms part of the assessment.
                 </div>
               )}
               {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}
@@ -713,7 +724,7 @@ export default function AssessmentView({
                     style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
                     aria-hidden
                   />
-                  <span className="uq-shimmer-text font-medium">IDSC is thinking…</span>
+                  <span className="uq-shimmer-text font-medium">{assistantShort} is thinking…</span>
                 </div>
               )}
             </div>
@@ -737,7 +748,7 @@ export default function AssessmentView({
                     void sendMessage();
                   }
                 }}
-                placeholder="Ask the IDSC Knowledge System… (Ctrl/Cmd ⏎ to send)"
+                placeholder={`Ask the ${assistantName}… (Ctrl/Cmd ⏎ to send)`}
                 className="w-full h-20 text-sm rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1 resize-none"
                 maxLength={CHAT_MAX_CHARS}
                 disabled={sending}
@@ -1014,8 +1025,8 @@ function TaskTabs({
   tasks, active, onSwitch, wordCounts,
 }: {
   tasks: TaskCfg[];
-  active: 1 | 2;
-  onSwitch: (n: 1 | 2) => void;
+  active: number;
+  onSwitch: (n: number) => void;
   wordCounts: Record<number, number>;
 }) {
   return (

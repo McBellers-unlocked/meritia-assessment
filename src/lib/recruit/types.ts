@@ -90,6 +90,16 @@ export interface RecruitScenarioConfig {
   positionTitle: string;
   defaultTotalMinutes: number;
   /**
+   * Branding for the in-assessment AI panel. The candidate UI falls back to
+   * the IDSC defaults when these are absent, so existing scenarios are
+   * unaffected; a scenario set in a different organisation (e.g. IPAC) sets
+   * its own. assistantName is the full system name shown in the panel header
+   * ("IPAC Knowledge System"); assistantShortName is the terse tag used in the
+   * rail / "thinking…" indicator ("IPAC").
+   */
+  assistantName?: string;
+  assistantShortName?: string;
+  /**
    * Variable length (MVP: 1-N tasks). Legacy FAM uses exactly 2. The
    * candidate UI tolerates any count and renders tabs dynamically.
    */

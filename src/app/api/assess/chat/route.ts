@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     const errType = (e as { error?: { error?: { type?: string } } })?.error?.error?.type;
     if (status === 529 || errType === "overloaded_error") {
       return NextResponse.json(
-        { error: "The IDSC system is briefly overloaded. Please wait a few seconds and try again." },
+        { error: "The knowledge system is briefly overloaded. Please wait a few seconds and try again." },
         { status: 503 }
       );
     }

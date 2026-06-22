@@ -56,6 +56,12 @@ const LEGACY_OPTIONS: ScenarioOption[] = [
     scenarioId: "cso-p3-2026",
     label: "Cybersecurity Operations Officer (P3) — IDSC (built-in)",
   },
+  {
+    source: "legacy",
+    key: "legacy:ipac-d1-2026",
+    scenarioId: "ipac-d1-2026",
+    label: "Director, People & Capability (D-1) — IPAC (built-in)",
+  },
 ];
 
 export default function AdminRecruitmentList() {

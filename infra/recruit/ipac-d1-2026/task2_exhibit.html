@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce Health Snapshot — IPAC</title>
+<style>
+  :root{
+    --bg:#F6F7F9;
+    --surface:#FFFFFF;
+    --ink:#0F1419;
+    --muted:#5B6470;
+    --faint:#8A929E;
+    --line:#E6E8EC;
+    --line-soft:#EEF0F3;
+    --accent:#4F46E5;
+    --accent-deep:#3730A3;
+    --accent-wash:#EEEDFB;
+    --neg:#C0492F;
+    --neg-wash:#FBEEEA;
+    --pos:#2F855A;
+    --r:14px;
+    --r-sm:10px;
+    --shadow-sm:0 1px 2px rgba(16,20,25,.05);
+    --shadow:0 1px 2px rgba(16,20,25,.04), 0 8px 24px rgba(16,20,25,.05);
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;
+    -webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1;}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 28px 64px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;margin-bottom:24px;border-bottom:1px solid var(--line);}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{width:30px;height:30px;border-radius:8px;flex:none;background:linear-gradient(135deg,#0F1419,#3a4150);position:relative;}
+  .brand-mark::after{content:"";position:absolute;inset:8px;border-radius:50%;border:2.5px solid rgba(255,255,255,.92);border-right-color:transparent;}
+  .brand-name{font-weight:700;font-size:15px;letter-spacing:-.01em;}
+  .brand-name span{color:var(--faint);font-weight:500;}
+  .badge{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:#F0F1F4;padding:5px 10px;border-radius:999px;border:1px solid var(--line);font-weight:600;}
+
+  .titleblock{margin-bottom:28px;}
+  .titleblock h1{font-size:30px;line-height:1.12;letter-spacing:-.02em;font-weight:700;margin:10px 0 8px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:18px;color:var(--muted);font-size:13px;}
+  .meta-row b{color:var(--ink);font-weight:600;}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 16px;box-shadow:var(--shadow-sm);}
+  .kpi .num{font-size:30px;font-weight:700;letter-spacing:-.025em;margin:8px 0 2px;line-height:1;}
+  .kpi .sub{font-size:12px;color:var(--muted);}
+  .delta{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:11px;font-weight:600;margin-top:9px;padding:3px 8px;border-radius:6px;}
+  .delta.down{color:var(--neg);background:var(--neg-wash);}
+  .delta.up-bad{color:var(--neg);background:var(--neg-wash);}
+
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:14px;}
+  .section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow-sm);}
+  .section h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:6px 0 2px;}
+  .section .sec-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px;}
+
+  /* trend chart */
+  .legend{display:flex;gap:18px;margin-bottom:6px;}
+  .legend span{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);}
+  .swatch{width:14px;height:3px;border-radius:2px;}
+  .chart{width:100%;height:auto;display:block;}
+
+  /* bars */
+  .bars{display:flex;flex-direction:column;gap:14px;}
+  .bar-row{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:12px;}
+  .bar-label{font-size:12.5px;}
+  .bar-track{height:18px;background:var(--line-soft);border-radius:5px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;}
+  .bar-val{font-family:var(--mono);font-size:12.5px;text-align:right;font-weight:600;}
+
+  /* equity callout */
+  .equity{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow-sm);}
+  .gap-wrap{display:flex;align-items:flex-end;gap:8px;margin-top:6px;}
+  .gap-col{flex:1;text-align:center;}
+  .gap-bar{border-radius:8px 8px 0 0;margin:0 auto 8px;width:70%;}
+  .gap-num{font-family:var(--mono);font-weight:700;font-size:18px;}
+  .gap-lab{font-size:11px;color:var(--muted);line-height:1.35;}
+  .gap-note{margin-top:16px;font-size:12px;color:var(--muted);padding-left:14px;border-left:2px solid var(--neg);}
+
+  /* verbatims */
+  .quotes{margin-top:14px;}
+  .quotes h2{font-size:15px;font-weight:600;margin:0 0 4px;}
+  .quotes .sec-sub{font-size:12.5px;color:var(--muted);margin-bottom:16px;}
+  .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .quote{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow-sm);position:relative;}
+  .quote::before{content:"\201C";position:absolute;top:6px;left:14px;font-size:38px;color:var(--line);font-family:Georgia,serif;line-height:1;}
+  .quote p{margin:6px 0 12px;font-size:13.5px;line-height:1.5;padding-left:6px;}
+  .quote .who{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);padding-left:6px;}
+
+  .footer{margin-top:26px;display:flex;justify-content:space-between;align-items:center;color:var(--faint);font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;border-top:1px solid var(--line);padding-top:16px;flex-wrap:wrap;gap:8px;}
+
+  @media (max-width:760px){
+    .kpis{grid-template-columns:1fr 1fr;}
+    .grid2{grid-template-columns:1fr;}
+    .qgrid{grid-template-columns:1fr;}
+    .titleblock h1{font-size:24px;}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .kpi,.section,.equity,.quote{animation:rise .5s cubic-bezier(.2,.7,.3,1) both;}
+    .kpi:nth-child(2){animation-delay:.03s;}.kpi:nth-child(3){animation-delay:.06s;}.kpi:nth-child(4){animation-delay:.09s;}
+    @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">IPAC People &amp; Capability<span> / People Analytics</span></div>
+    </div>
+    <div class="badge">Q2 2026 · Internal</div>
+  </div>
+
+  <div class="titleblock">
+    <div class="eyebrow">Quarterly people analytics</div>
+    <h1>Workforce Health Snapshot</h1>
+    <div class="meta-row">
+      <span>Population&nbsp; <b>320 staff</b></span>
+      <span>Source&nbsp; <b>Pulse survey (n=271) · HR system</b></span>
+      <span>Period&nbsp; <b>Q3 2025 – Q2 2026</b></span>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="eyebrow">Engagement index</div>
+      <div class="num">58</div>
+      <div class="sub">/100 composite</div>
+      <div class="delta down">▼ 13 pts vs Q3</div>
+    </div>
+    <div class="kpi">
+      <div class="eyebrow">Confidence in future</div>
+      <div class="num">39%</div>
+      <div class="sub">positive responses</div>
+      <div class="delta down">▼ 25 pts vs Q3</div>
+    </div>
+    <div class="kpi">
+      <div class="eyebrow">Trust in leadership intent</div>
+      <div class="num">41%</div>
+      <div class="sub">positive responses</div>
+      <div class="delta down">▼ 17 pts vs Q3</div>
+    </div>
+    <div class="kpi">
+      <div class="eyebrow">High-performer attrition</div>
+      <div class="num">15%</div>
+      <div class="sub">annualised, voluntary</div>
+      <div class="delta up-bad">▲ from 8%</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <!-- trend -->
+    <div class="section">
+      <div class="eyebrow">Trend</div>
+      <h2>Sentiment over four quarters</h2>
+      <div class="sec-sub">Both measures declined sharply over the Augmented Analysis pilot period.</div>
+      <div class="legend">
+        <span><span class="swatch" style="background:#4F46E5;"></span>Engagement index</span>
+        <span><span class="swatch" style="background:#C0492F;"></span>Confidence in future</span>
+      </div>
+      <svg class="chart" viewBox="0 0 600 200" role="img" aria-label="Declining sentiment trend">
+        <line x1="50" y1="20" x2="50" y2="170" stroke="#EEF0F3"/>
+        <line x1="50" y1="170" x2="580" y2="170" stroke="#E6E8EC"/>
+        <line x1="50" y1="113" x2="580" y2="113" stroke="#F4F5F7" stroke-dasharray="3 4"/>
+        <line x1="50" y1="56" x2="580" y2="56" stroke="#F4F5F7" stroke-dasharray="3 4"/>
+        <!-- engagement -->
+        <polyline points="50,42 220,55 390,70 560,83" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="50" cy="42" r="3.5" fill="#4F46E5"/><circle cx="220" cy="55" r="3.5" fill="#4F46E5"/>
+        <circle cx="390" cy="70" r="3.5" fill="#4F46E5"/><circle cx="560" cy="83" r="3.5" fill="#4F46E5"/>
+        <!-- confidence -->
+        <polyline points="50,64 220,92 390,117 560,142" fill="none" stroke="#C0492F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="50" cy="64" r="3.5" fill="#C0492F"/><circle cx="220" cy="92" r="3.5" fill="#C0492F"/>
+        <circle cx="390" cy="117" r="3.5" fill="#C0492F"/><circle cx="560" cy="142" r="3.5" fill="#C0492F"/>
+        <!-- x labels -->
+        <text x="50" y="190" fill="#8A929E" font-size="11" font-family="ui-monospace,monospace" text-anchor="start">Q3 25</text>
+        <text x="220" y="190" fill="#8A929E" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle">Q4 25</text>
+        <text x="390" y="190" fill="#8A929E" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle">Q1 26</text>
+        <text x="560" y="190" fill="#8A929E" font-size="11" font-family="ui-monospace,monospace" text-anchor="end">Q2 26</text>
+      </svg>
+    </div>
+
+    <!-- attrition -->
+    <div class="section">
+      <div class="eyebrow">Attrition by performance tier</div>
+      <h2>We are losing our strongest</h2>
+      <div class="sec-sub">Annualised voluntary attrition, last 12 months.</div>
+      <div class="bars">
+        <div class="bar-row">
+          <div class="bar-label">Top tier</div>
+          <div class="bar-track"><div class="bar-fill" style="width:75%;background:#C0492F;"></div></div>
+          <div class="bar-val">15%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Upper-mid</div>
+          <div class="bar-track"><div class="bar-fill" style="width:50%;background:#D98A4E;"></div></div>
+          <div class="bar-val">10%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Mid</div>
+          <div class="bar-track"><div class="bar-fill" style="width:30%;background:#C6C3F6;"></div></div>
+          <div class="bar-val">6%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Lower</div>
+          <div class="bar-track"><div class="bar-fill" style="width:20%;background:#DEDCFB;"></div></div>
+          <div class="bar-val">4%</div>
+        </div>
+      </div>
+      <div class="gap-note" style="margin-top:18px;">Of leavers, ~60% moved to private-sector or technology employers, most citing "uncertainty about the future of the role."</div>
+    </div>
+  </div>
+
+  <!-- equity gap -->
+  <div class="equity">
+    <div class="eyebrow">Access &amp; equity</div>
+    <h2 style="font-size:15px;font-weight:600;margin:6px 0 2px;">AI-tool training completion is uneven</h2>
+    <div class="sec-sub" style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">Completion of the optional Augmented Analysis tool curriculum, by cohort.</div>
+    <div class="gap-wrap">
+      <div class="gap-col"><div class="gap-bar" style="height:128px;background:linear-gradient(180deg,#4F46E5,#3730A3);"></div><div class="gap-num">81%</div><div class="gap-lab">Under-40,<br>HQ-based</div></div>
+      <div class="gap-col"><div class="gap-bar" style="height:104px;background:#7E78EC;"></div><div class="gap-num">62%</div><div class="gap-lab">Under-40,<br>field-based</div></div>
+      <div class="gap-col"><div class="gap-bar" style="height:82px;background:#9C97F0;"></div><div class="gap-num">49%</div><div class="gap-lab">Over-40,<br>HQ-based</div></div>
+      <div class="gap-col"><div class="gap-bar" style="height:54px;background:#C6C3F6;"></div><div class="gap-num">34%</div><div class="gap-lab">Over-40 or<br>field-based</div></div>
+    </div>
+    <div class="gap-note">A capability strategy targeted on early adopters would widen this gap and risk a two-tier workforce, cutting across IPAC's geographic-representation and equitable-access commitments.</div>
+  </div>
+
+  <!-- verbatims -->
+  <div class="quotes">
+    <h2>In their words</h2>
+    <div class="sec-sub">Anonymised free-text responses, Q2 pulse survey.</div>
+    <div class="qgrid">
+      <div class="quote">
+        <p>The tools are genuinely useful for first drafts. What worries me is that no one above me seems to grasp where they quietly get things wrong.</p>
+        <div class="who">Policy analyst · P-4 · 6 yrs</div>
+      </div>
+      <div class="quote">
+        <p>I've had three offers this year. I'm not leaving over money — I'm leaving because I can't tell whether there's a career here in two years.</p>
+        <div class="who">Research analyst · P-3 · 4 yrs</div>
+      </div>
+      <div class="quote">
+        <p>We built our name on being right, not fast. I'd like to hear leadership say that out loud, just once.</p>
+        <div class="who">Senior adviser · P-5 · 14 yrs</div>
+      </div>
+      <div class="quote">
+        <p>The training rolled out at HQ. Those of us in regional offices found out it had happened from a newsletter.</p>
+        <div class="who">Analyst · P-2 · field office</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>IPAC People Analytics · pulse survey Q2 2026 · n=271 (85% response)</span>
+    <span>Office of the Director, People &amp; Capability · Internal</span>
+  </div>
+
+</div>
+</body>
+</html>

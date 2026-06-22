@@ -48,6 +48,8 @@ export interface ScenarioRubric {
 const SCENARIO_DIR_MAP: Record<string, string> = {
   "fam-p4-2026": "idsc-fam-p4-2026",
   "aplo-p2-2026": "idsc-aplo-p2-2026",
+  "cso-p3-2026": "idsc-cso-p3-2026",
+  "ipac-d1-2026": "ipac-d1-2026",
 };
 
 export function loadRubric(scenarioId: string): ScenarioRubric | null {
