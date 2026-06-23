@@ -58,6 +58,10 @@ interface MarkData {
   activityEvents: ActivityEvent[];
 }
 
+// The IPAC Knowledge System's brand mark (mirrors the candidate-facing AI orb
+// in AssessmentView) — so the marker recognises the same speaker the candidate saw.
+const ORB_GRADIENT = "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))";
+
 export default function MarkCandidatePage() {
   const params = useParams<{ id: string; candidateId: string }>();
   const router = useRouter();
@@ -159,6 +163,8 @@ export default function MarkCandidatePage() {
   const responseForActive = data.responses.find((r) => r.taskNumber === activeTask);
   const rubricTask = data.rubric?.tasks[activeTask];
   const trailForActive = data.interactions.filter((i) => i.taskNumber === activeTask);
+  const candidateMsgCount = trailForActive.filter((i) => i.actor === "candidate").length;
+  const aiMsgCount = trailForActive.length - candidateMsgCount;
   const activityForActive = (data.activityEvents ?? []).filter(
     (e) => e.taskNumber === activeTask || e.taskNumber === null,
   );
@@ -250,23 +256,84 @@ export default function MarkCandidatePage() {
 
               <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
                 <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Investigation trail · Task {activeTask}</div>
-                <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">
-                  {trailForActive.length} message{trailForActive.length === 1 ? "" : "s"}
+                <div className="flex items-baseline justify-between gap-3 mb-3">
+                  <div className="text-base font-semibold tracking-[-0.005em] text-uq">
+                    {trailForActive.length} message{trailForActive.length === 1 ? "" : "s"}
+                  </div>
+                  {/* Speaker legend — pre-teaches the two-actor code before the marker reads. */}
+                  <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3 flex items-center gap-2">
+                    <span className="text-uq-accent tabular-nums">
+                      {candidateMsgCount} question{candidateMsgCount === 1 ? "" : "s"}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <span className="flex items-center gap-1.5 text-[color:var(--uq-persona)]">
+                      <span className="w-2.5 h-2.5 rounded-full shadow-uq-e1" style={{ backgroundImage: ORB_GRADIENT }} aria-hidden />
+                      <span className="tabular-nums">{aiMsgCount}</span> {assistantShort} repl{aiMsgCount === 1 ? "y" : "ies"}
+                    </span>
+                  </div>
                 </div>
                 {trailForActive.length === 0 && (
                   <div className="text-sm text-uq-3 italic">No interactions for this task.</div>
                 )}
-                <div className="space-y-2">
-                  {trailForActive.map((i) => (
-                    <div key={i.id} className={i.actor === "candidate" ? "border-l-4 border-uq-accent pl-3" : "border-l-4 border-uq-faint pl-3"}>
-                      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
-                        {i.actor === "candidate" ? "Candidate" : `${assistantShort} system`} · #{i.sequenceNum}
-                      </div>
-                      <div className="markdown-rendered mt-0.5">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{i.content}</ReactMarkdown>
-                      </div>
-                    </div>
-                  ))}
+                {/* Candidate questions (numbered indigo avatar + left rail) vs the IPAC
+                    system's answers (gradient orb + violet label). Any non-candidate
+                    actor renders as the system — today the only two are candidate/ai. */}
+                <div className="space-y-2.5">
+                  {(() => {
+                    let q = 0;
+                    return trailForActive.map((i) => {
+                      const isCandidate = i.actor === "candidate";
+                      const qNum = isCandidate ? ++q : null;
+                      const time = new Date(i.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      return (
+                        <div key={i.id} className="flex gap-3 items-start">
+                          {isCandidate ? (
+                            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-uq-accent text-[color:var(--uq-text-on-accent)] flex items-center justify-center font-mono text-[11px] font-semibold tabular-nums shadow-uq-e1">
+                              Q{qNum}
+                            </span>
+                          ) : (
+                            <span
+                              className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center shadow-uq-e1"
+                              style={{ backgroundImage: ORB_GRADIENT }}
+                              aria-hidden
+                            >
+                              <span className="w-2.5 h-2.5 rounded-full bg-white/90" />
+                            </span>
+                          )}
+                          <div
+                            className={
+                              isCandidate
+                                ? "flex-1 min-w-0 rounded-xl rounded-br-md border-l-[3px] border-[color:var(--uq-accent-line)] bg-[color:var(--uq-accent-soft)] px-3 py-2"
+                                : "flex-1 min-w-0 rounded-xl rounded-bl-md border border-uq bg-uq-elev2 px-3 py-2"
+                            }
+                          >
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span
+                                className={
+                                  "font-mono text-[10px] uppercase tracking-[0.18em] " +
+                                  (isCandidate ? "text-uq-accent" : "text-[color:var(--uq-persona)]")
+                                }
+                              >
+                                {isCandidate ? "Candidate" : `${assistantShort} system`} · #{i.sequenceNum}
+                              </span>
+                              <span className="flex-shrink-0 font-mono text-[10px] tabular-nums tracking-[0.04em] text-uq-3">
+                                {time}
+                              </span>
+                            </div>
+                            {isCandidate ? (
+                              <div className="text-sm leading-relaxed text-uq whitespace-pre-wrap mt-1">
+                                {i.content}
+                              </div>
+                            ) : (
+                              <div className="markdown-rendered text-uq mt-1">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{i.content}</ReactMarkdown>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </section>
             </>
