@@ -305,23 +305,18 @@ Executive Director, IPAC`,
       briefMarkdown: `**From:** Tomás Iglesias, Senior Policy Adviser (P-5), Governance & Rule-of-Law
 **To:** {{name}}, Director, People & Capability
 **Cc:** Dr. Priya Raghavan, Executive Director
-**Subject:** A concern about the WorkforceLens findings and what we put our name to
+**Subject:** Before this hardens — a word, colleague to colleague
 **Sent:** Monday 23 June 2026, 09:02
 
 Dear {{name}},
 
-Welcome to IPAC. I had hoped my first note to you would be a warmer one. I am copying the Executive Director not to escalate, but so that this is on the record rather than left to corridor conversation.
+Welcome to IPAC. I had hoped my first note to you would be a warmer one. I'm copying the Executive Director not to escalate, but so that what I say is on the record rather than left to corridor conversation.
 
-In fourteen years here, most of them on the contested files, I have learned that being careful is the whole of the job. I am concerned by the speed with which "78% automatable" has settled into how we describe our work, and by what the WorkforceLens report is taken to mean. Member states fund this Centre because its analysis is careful and, as far as anyone can manage, right. I worry we are trading that for the appearance of efficiency.
+Fourteen years here, most of them on the contested files, have taught me that being careful is the whole of the job. So I'll be plain. I'm less troubled by a vendor's percentage than by what it is doing to us. In a fortnight, "78 per cent automatable" has become the way we talk about ourselves, and I can feel the institution beginning to believe that the part of our work that takes judgement is the part it can most afford to lose. It is the opposite. It is the only part member states cannot get anywhere else.
 
-Let me be plain about the Augmented Analysis pilot. On routine synthesis the tools were useful. But on the sensitive, judgement-heavy questions they produced fluent, confident output that was wrong in ways a capable junior analyst could not detect. What caught those errors was experienced people who knew the file and the politics. Remove or demoralise them and we will put the Centre's name to analysis we cannot stand behind. I am no methodologist, but a single percentage cannot capture what makes our hardest work valuable, and I fear the headline is being taken to mean a great deal more than such an exercise can show.
+I'm not asking you to turn away from modernisation — I've been a willing part of it, and I will be again. I'm asking whether you understand what makes our hardest work valuable, and whether the experienced people who carry it are to be partners in this change or treated as its cost. Two of our strongest left this month. The ones who remain are watching how their new director answers precisely that question.
 
-I am not asking us to turn away from modernisation; I have been a willing participant. I am asking for two things:
-
-- An honest account of what the report does and does not establish, and whether "78% automatable" is a claim we are prepared to defend.
-- Assurance that judgement and quality, and the experienced people who carry them, will be protected as part of any change, not treated as its cost.
-
-Morale is already suffering. I would be grateful for your considered view in writing by Friday 4 July, and am glad to discuss it beforehand.
+I'm not your opponent in this, and I could be useful to you if you'd let me. But I won't tell colleagues all is well if I don't believe it. So I'd value your honest view — not a reassurance, and not a Board line, but a straight answer, one professional to another, about where you stand and what you intend.
 
 With respect,
 
@@ -335,7 +330,7 @@ Senior Policy Adviser (P-5), Governance & Rule-of-Law`,
       totalMarks: 50,
       deliverableLabel: "Reply to Tomás Iglesias",
       deliverablePlaceholder:
-        "Draft your reply to Tomás (you may also include a short all-staff framing). Engage the substance, rebuild trust, and keep the transformation moving — with credibility, not spin. He is exactly the judgement-rich expert the strategy depends on keeping.",
+        "Draft your reply to Tomás. He's a respected fourteen-year veteran whose support you'll need — and he's copied the Executive Director. Be straight with him, and write something real — where you stand and what you intend — not just an offer to talk it over.",
     },
     {
       number: 3,
