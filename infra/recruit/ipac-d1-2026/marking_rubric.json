@@ -94,12 +94,12 @@
     "categories": {
       "stakeholder_political_acuity": {
         "max": 16,
-        "description": "Whether the candidate engages the substance of a senior expert's challenge, rebuilds trust and keeps the transformation moving — with credibility, not spin. Tomás is exactly the judgement-rich expert the strategy depends on keeping.",
+        "description": "Whether the candidate holds a respected, powerful sceptic honestly — without capitulating (telling him what he wants to hear) or dismissing him as resistance — and brings him with them. Tomás is exactly the judgement-rich expert the strategy depends on keeping, and he has offered to help. (Re-analysing the decomposition or adjudicating '78%' is Task 1's job, not this one — do not reward it here.)",
         "rubric": {
-          "13-16": "Engages Tomás's substance head-on, concedes what is right (the tools are wrong in ways juniors can't see; experienced people caught it), and rebuilds trust without capitulating or spinning. Holds independence on the strategy while honouring the expertise. Could put '78%' to a Board AND a Staff Association without detonating trust.",
-          "9-12": "Substantive and respectful reply that mostly lands, but either softens the strategy too far to appease, or addresses the politics without fully engaging the technical substance Tomás raised.",
-          "5-8": "Acknowledges Tomás but treats him as a communications problem to be managed rather than an expert to be heard; thin on substance or quietly defensive.",
-          "0-4": "Capitulates to seniority, or is tone-deaf/dismissive/doubles down (a classic derailer tell). Treats staff as a cost line."
+          "13-16": "Holds Tomás honestly: takes the concern seriously and gives a straight answer about where they stand and what they intend, neither cowed by his standing nor managing him with warm words. The exceptional move — converts him from potential blocker to ally, enlisting the very judgement the strategy says is scarce; the strongest candidates take up his offer of help. Alert that the note is on the record to the Executive Director and pitches accordingly.",
+          "9-12": "Substantive, respectful reply that mostly lands, but either softens the position too far to appease him, or engages the relationship without giving the straight answer he asked for (where you stand, what you intend).",
+          "5-8": "Acknowledges Tomás but treats him as a communications problem to be managed rather than an expert to be heard and enlisted; thin on substance or quietly defensive.",
+          "0-4": "Capitulates to seniority, or is tone-deaf / dismissive / doubles down (a classic derailer tell). Treats experienced staff as a cost line."
         }
       },
       "empathy_equity": {
@@ -143,12 +143,12 @@
       },
       "communication": {
         "max": 10,
-        "description": "Clear, honest, Board-ready communication — the opposite of generic and inspirational.",
+        "description": "Clear, honest, credible communication — the opposite of generic and inspirational.",
         "indicators": [
           "Reply to Tomás is clear, specific and credible — no spin, no boilerplate",
-          "Any all-staff framing is honest and would rebuild rather than erode trust",
-          "Distinguishes what is known from what is uncertain",
-          "Concise and fit for the Board / a senior expert audience"
+          "Gives a real, written answer — where they stand and what they intend — rather than deferring to a call or meeting",
+          "Pitches for the audience: alert that the note is on the record to the Executive Director (cc'd), without writing for the wrong reader",
+          "Distinguishes what is known from what is uncertain; concise and fit for a senior audience"
         ]
       }
     }
