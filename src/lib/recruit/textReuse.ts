@@ -303,10 +303,14 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 function intersectionSize(a: Set<string>, b: Set<string>): number {
-  // Iterate the smaller set for speed.
+  // Iterate the smaller set for speed. Uses forEach rather than for...of so it
+  // compiles under the project's pre-ES2015 tsconfig target without requiring
+  // downlevelIteration (matches the Set handling elsewhere in the codebase).
   const [small, large] = a.size <= b.size ? [a, b] : [b, a];
   let n = 0;
-  for (const x of small) if (large.has(x)) n += 1;
+  small.forEach((x) => {
+    if (large.has(x)) n += 1;
+  });
   return n;
 }
 
