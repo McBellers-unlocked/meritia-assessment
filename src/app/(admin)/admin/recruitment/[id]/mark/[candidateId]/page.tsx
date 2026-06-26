@@ -173,6 +173,13 @@ export default function MarkCandidatePage() {
     (e) => e.taskNumber === activeTask || e.taskNumber === null,
   );
   const reuseForActive = data.reuseByTask?.[activeTask] ?? null;
+  // Opener delivery time for a chat task — the opener is config-level (not an
+  // interaction), but a "chat_opened" activity event records when it was shown,
+  // letting us measure the candidate's first response time.
+  const chatOpenedForActive =
+    (data.activityEvents ?? []).find(
+      (e) => e.eventType === "chat_opened" && e.taskNumber === activeTask,
+    )?.occurredAt ?? null;
   const issuesForTask: RubricIssue[] = rubricTask
     ? Object.values(rubricTask.categories).flatMap((c) => c.embedded_issues ?? [])
     : [];
@@ -237,6 +244,7 @@ export default function MarkCandidatePage() {
             <ChatTranscriptSection
               task={activeScenarioTask!}
               trail={trailForActive}
+              openedAt={chatOpenedForActive}
             />
           ) : (
             <>
@@ -676,28 +684,82 @@ function InTraySection({ task, responses }: { task: ScenarioTask; responses: Ema
 // The live persona conversation (e.g. the Staff Council president). The opener
 // is config-level (not stored as an interaction), so we render it first, then
 // the stored back-and-forth, then the marker's "what to look for".
-function ChatTranscriptSection({ task, trail }: { task: ScenarioTask; trail: Interaction[] }) {
+function ChatTranscriptSection({ task, trail, openedAt }: { task: ScenarioTask; trail: Interaction[]; openedAt: string | null }) {
   const persona = task.persona;
+
+  // Per-message timing: the gap from the previous message (or the opener, for
+  // the first message) to this one. The gap before a candidate message is the
+  // candidate's response time; before a persona message it's the reply latency.
+  // Timestamps are server-recorded, so gaps include network/model latency.
+  const openedMs = openedAt ? new Date(openedAt).getTime() : null;
+  let prevMs: number | null = openedMs;
+  const timed = trail.map((i) => {
+    const thisMs = new Date(i.timestamp).getTime();
+    let gapMs: number | null = prevMs != null ? thisMs - prevMs : null;
+    if (gapMs != null && gapMs < 0) gapMs = null; // guard against clock skew
+    prevMs = thisMs;
+    return {
+      i,
+      gapMs,
+      time: new Date(i.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+  });
+
+  const candidateGaps = timed
+    .filter((t) => t.i.actor === "candidate" && t.gapMs != null)
+    .map((t) => t.gapMs as number);
+  const firstCandidateGap = timed.find((t) => t.i.actor === "candidate")?.gapMs ?? null;
+  const avgCandidateGap = candidateGaps.length
+    ? Math.round(candidateGaps.reduce((s, g) => s + g, 0) / candidateGaps.length)
+    : null;
+  const openerTime =
+    openedMs != null ? new Date(openedMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+
   return (
     <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Live chat · Task {task.number}</div>
       <div className="text-base font-semibold tracking-[-0.005em] text-uq">{persona?.personaName}</div>
-      <div className="font-mono text-[11px] text-uq-3 mb-3">{persona?.personaRole}</div>
+      <div className={`font-mono text-[11px] text-uq-3 ${avgCandidateGap != null ? "" : "mb-3"}`}>{persona?.personaRole}</div>
+      {avgCandidateGap != null && (
+        <div
+          className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3 mt-1 mb-3 flex items-center gap-2 flex-wrap"
+          title="Candidate response time — server-recorded, so it includes network/processing time"
+        >
+          <span className="text-uq-accent">Candidate response</span>
+          {firstCandidateGap != null && <span>· first {formatDuration(firstCandidateGap)}</span>}
+          <span>· avg {formatDuration(avgCandidateGap)}</span>
+        </div>
+      )}
       <div className="space-y-2">
         {persona?.openerMessage && (
           <div className="border-l-4 border-uq-faint pl-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">{persona.personaName} · opener</div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3 flex items-baseline justify-between gap-2">
+              <span>{persona.personaName} · opener</span>
+              {openerTime && <span className="normal-case tracking-normal tabular-nums">{openerTime}</span>}
+            </div>
             <div className="text-sm text-uq mt-0.5 whitespace-pre-wrap">{persona.openerMessage}</div>
           </div>
         )}
-        {trail.map((i) => (
-          <div key={i.id} className={i.actor === "candidate" ? "border-l-4 border-uq-accent pl-3" : "border-l-4 border-uq-faint pl-3"}>
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">
-              {i.actor === "candidate" ? "Candidate" : persona?.personaName ?? "Persona"} · #{i.sequenceNum}
+        {timed.map(({ i, gapMs, time }) => {
+          const isCandidate = i.actor === "candidate";
+          return (
+            <div key={i.id} className={isCandidate ? "border-l-4 border-uq-accent pl-3" : "border-l-4 border-uq-faint pl-3"}>
+              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3 flex items-baseline justify-between gap-2">
+                <span>{isCandidate ? "Candidate" : persona?.personaName ?? "Persona"} · #{i.sequenceNum}</span>
+                <span className="flex items-baseline gap-2 normal-case tracking-normal tabular-nums">
+                  {gapMs != null &&
+                    (isCandidate ? (
+                      <span className="text-uq-accent" title="Time the candidate took to respond (server-recorded)">responded in {formatDuration(gapMs)}</span>
+                    ) : (
+                      <span className="text-uq-3" title="Time until this reply (includes network/model latency)">+{formatDuration(gapMs)}</span>
+                    ))}
+                  <span className="text-uq-3">{time}</span>
+                </span>
+              </div>
+              <div className="text-sm text-uq mt-0.5 whitespace-pre-wrap">{i.content}</div>
             </div>
-            <div className="text-sm text-uq mt-0.5 whitespace-pre-wrap">{i.content}</div>
-          </div>
-        ))}
+          );
+        })}
         {trail.length === 0 && <div className="text-sm text-uq-3 italic">The candidate did not reply in the chat.</div>}
       </div>
       {persona?.expectedOutcomes && (
