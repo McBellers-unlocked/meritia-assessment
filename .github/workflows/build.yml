@@ -1,0 +1,44 @@
+name: build
+
+# Verifies the app compiles before a change is merged — the same
+# `prisma generate && next build` that AWS Amplify runs to deploy. Catches
+# type errors (e.g. an un-downlevelable Set iteration) that would otherwise
+# only surface as a failed production deploy.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` runs the postinstall (prisma generate); the build step runs it
+      # again, which is cheap and keeps this identical to the Amplify command.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Text-reuse analyzer checks
+        run: npx tsx scripts/check-text-reuse.ts
+
+      - name: Build (prisma generate + next build)
+        run: npm run build
+        env:
+          # Build never connects to the DB (all API routes are force-dynamic),
+          # but Prisma wants the datasource URL present. A dummy value is enough.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db?schema=public
+          NEXT_TELEMETRY_DISABLED: "1"
