@@ -7,6 +7,7 @@ import {
 import { loadRubricForAssessment } from "@/lib/recruit/rubric";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { isChatTask, isEmailInboxTask } from "@/lib/recruit/types";
+import { analyzeTextReuse, type ReuseResult } from "@/lib/recruit/textReuse";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,19 @@ export async function GET(
   });
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (c.assessmentId !== params.id) return NextResponse.json({ error: "Mismatch" }, { status: 400 });
+
+  // Integrity signal: how much of each memo overlaps with the AI "knowledge
+  // system" output the candidate saw (lexical text reuse — detects copy-paste).
+  // Computed in-memory from data already loaded above; advisory only, never
+  // scored. Keyed by task number; non-memo tasks have no response row and so
+  // get no entry.
+  const reuseByTask: Record<number, ReuseResult> = {};
+  for (const r of c.responses) {
+    const aiTexts = c.interactions
+      .filter((i) => i.taskNumber === r.taskNumber && i.actor === "ai")
+      .map((i) => i.content);
+    reuseByTask[r.taskNumber] = analyzeTextReuse(r.content ?? "", aiTexts);
+  }
 
   const rubric = await loadRubricForAssessment(c.assessment);
 
@@ -138,6 +152,7 @@ export async function GET(
     interactions: c.interactions,
     emailResponses,
     activityEvents: c.activityEvents,
+    reuseByTask,
   });
 }
 

@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { ReuseResult } from "@/lib/recruit/textReuse";
 
 interface Interaction { id: string; sequenceNum: number; taskNumber: number; timestamp: string; actor: string; content: string; }
 interface ActivityEvent {
@@ -56,6 +57,9 @@ interface MarkData {
   interactions: Interaction[];
   emailResponses: EmailResponseRow[];
   activityEvents: ActivityEvent[];
+  // Per-task lexical text-reuse analysis (memo vs the AI output the candidate
+  // saw). Keyed by task number; absent for non-memo tasks.
+  reuseByTask: Record<number, ReuseResult>;
 }
 
 // The IPAC Knowledge System's brand mark (mirrors the candidate-facing AI orb
@@ -168,6 +172,7 @@ export default function MarkCandidatePage() {
   const activityForActive = (data.activityEvents ?? []).filter(
     (e) => e.taskNumber === activeTask || e.taskNumber === null,
   );
+  const reuseForActive = data.reuseByTask?.[activeTask] ?? null;
   const issuesForTask: RubricIssue[] = rubricTask
     ? Object.values(rubricTask.categories).flatMap((c) => c.embedded_issues ?? [])
     : [];
@@ -339,7 +344,7 @@ export default function MarkCandidatePage() {
             </>
           )}
 
-          <ActivitySection events={activityForActive} activeTask={activeTask} />
+          <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
         </div>
 
         {/* Marking panel */}
@@ -482,7 +487,10 @@ function Box({ loading, error }: { loading?: boolean; error?: string }) {
   );
 }
 
-function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; activeTask: number }) {
+function ActivitySection({ events, activeTask, reuse }: { events: ActivityEvent[]; activeTask: number; reuse: ReuseResult | null }) {
+  // The reuse box / breakdown self-hide for non-memo tasks (email_inbox/chat
+  // have no memo response, so no reuse entry) and for empty memos.
+  const showReuse = reuse != null && reuse.numSentences > 0;
   const pasteCount = events.filter((e) => e.eventType === "paste").length;
   const pasteChars = events
     .filter((e) => e.eventType === "paste")
@@ -497,7 +505,7 @@ function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; acti
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Activity · Task {activeTask}</div>
       <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Integrity signals</div>
 
-      <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-xs">
         <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Pastes</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">
@@ -513,6 +521,15 @@ function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; acti
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Time off-tab</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">{formatDuration(hiddenTotalMs)}</div>
         </div>
+        {showReuse && (
+          <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">AI reuse</div>
+            <div className={`text-base font-semibold font-mono tabular-nums ${reuseToneClass(reuse!.reuseRatio)}`}>
+              {Math.round(reuse!.reuseRatio * 100)}%
+              <span className="text-xs font-normal text-uq-3"> · {reuse!.numReusedSentences}/{reuse!.numSentences} sent</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {events.length === 0 ? (
@@ -527,6 +544,41 @@ function ActivitySection({ events, activeTask }: { events: ActivityEvent[]; acti
                 <span>{formatActivityEvent(e)}</span>
               </li>
             ))}
+          </ol>
+        </details>
+      )}
+
+      {showReuse && (
+        <details className="mt-2">
+          <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.12em] text-uq-2 hover:text-uq select-none transition-colors">
+            Sentence reuse breakdown · {Math.round(reuse!.originalityScore * 100)}% original
+          </summary>
+          <ol className="mt-2 space-y-2 text-xs max-h-80 overflow-y-auto">
+            {[...reuse!.sentences]
+              .sort((a, b) => Number(b.isReused) - Number(a.isReused) || b.similarity - a.similarity)
+              .map((s, i) => (
+                <li
+                  key={i}
+                  className={`rounded-lg border px-3 py-2 ${
+                    s.isReused
+                      ? "border-[color:var(--uq-warn-line)] bg-[color:var(--uq-warn-soft)]"
+                      : "border-uq-faint bg-uq-elev2"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-uq">{s.memoSentence}</span>
+                    <span className={`flex-shrink-0 font-mono tabular-nums ${s.isReused ? "text-[color:var(--uq-warn-text)]" : "text-uq-3"}`}>
+                      {Math.round(s.similarity * 100)}%
+                    </span>
+                  </div>
+                  {s.isReused && s.bestAiSentence && (
+                    <div className="mt-1 border-l-2 border-uq-faint pl-2 text-uq-2">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3">Matched AI: </span>
+                      {s.bestAiSentence}
+                    </div>
+                  )}
+                </li>
+              ))}
           </ol>
         </details>
       )}
@@ -556,6 +608,15 @@ function formatDuration(ms: number): string {
   const m = Math.floor(s / 60);
   const rs = s % 60;
   return rs ? `${m}m ${rs}s` : `${m}m`;
+}
+
+// Colour tone for the AI-reuse headline. These display bands are independent of
+// the per-sentence flag threshold — they describe how much of the whole memo
+// overlaps the AI output, as a quick at-a-glance severity for the marker.
+function reuseToneClass(ratio: number): string {
+  if (ratio >= 0.5) return "text-[color:var(--uq-danger-text)]";
+  if (ratio >= 0.2) return "text-[color:var(--uq-warn-text)]";
+  return "text-uq";
 }
 
 function actionChip(action: string): { label: string; cls: string } {
