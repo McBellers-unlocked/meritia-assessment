@@ -4,6 +4,7 @@ import {
   assertAssessmentAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
+import { summarizeIntegrity } from "@/lib/recruit/integrity";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function GET(
       anonymousId: true, name: true, email: true, status: true,
       startedAt: true, submittedAt: true, totalScore: true,
       responses: { select: { taskNumber: true, score: true, wordCount: true } },
+      activityEvents: { select: { eventType: true, metadata: true } },
       _count: { select: { interactions: { where: { actor: "candidate" } } } },
     },
   });
@@ -45,13 +47,16 @@ export async function GET(
     "rank", "anonymous_id", "name", "email", "status",
     "total_score", "task1_score", "task2_score",
     "task1_words", "task2_words",
-    "candidate_messages", "time_taken_min",
+    "candidate_messages",
+    "pastes", "paste_chars", "tab_aways", "off_tab_seconds",
+    "time_taken_min",
     "submitted_at",
   ].join(",");
 
   const lines = candidates.map((c, i) => {
     const t1 = c.responses.find((r) => r.taskNumber === 1);
     const t2 = c.responses.find((r) => r.taskNumber === 2);
+    const integrity = summarizeIntegrity(c.activityEvents);
     const timeMin = c.startedAt && c.submittedAt
       ? Math.round((c.submittedAt.getTime() - c.startedAt.getTime()) / 60_000)
       : "";
@@ -67,6 +72,10 @@ export async function GET(
       escape(t1?.wordCount ?? ""),
       escape(t2?.wordCount ?? ""),
       escape(c._count.interactions),
+      escape(integrity.pasteCount),
+      escape(integrity.pasteChars),
+      escape(integrity.tabAways),
+      escape(Math.round(integrity.offTabMs / 1000)),
       escape(timeMin),
       escape(c.submittedAt ? c.submittedAt.toISOString() : ""),
     ].join(",");

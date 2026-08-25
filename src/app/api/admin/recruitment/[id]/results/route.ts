@@ -6,6 +6,7 @@ import {
 } from "@/lib/admin-auth";
 import { allIssuesNormalized, loadRubricForAssessment } from "@/lib/recruit/rubric";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
+import { summarizeIntegrity } from "@/lib/recruit/integrity";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export async function GET(
       anonymousId: true, status: true,
       startedAt: true, submittedAt: true, totalScore: true,
       responses: { select: { taskNumber: true, score: true, issuesIdentified: true, wordCount: true, markedAt: true } },
+      activityEvents: { select: { eventType: true, metadata: true } },
       _count: {
         select: {
           interactions: { where: { actor: "candidate" } },
@@ -85,6 +87,7 @@ export async function GET(
       task1Words: t1?.wordCount ?? 0,
       task2Words: t2?.wordCount ?? 0,
       candidateMessageCount: c._count.interactions,
+      integrity: summarizeIntegrity(c.activityEvents),
       task1IssuesIdentified: (t1?.issuesIdentified as string[] | null) ?? [],
       task2IssuesIdentified: (t2?.issuesIdentified as string[] | null) ?? [],
       allIssuesIdentified,

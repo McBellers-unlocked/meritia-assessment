@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { PasteSignal, OffTabSignal, type IntegritySignals } from "@/components/recruit/IntegrityCells";
 
 interface PerTaskCell { taskNumber: number; score: number | null; markedAt: string | null; wordCount: number }
 interface MarkRow {
@@ -15,6 +16,7 @@ interface MarkRow {
   perTask: PerTaskCell[];
   totalScore: number | null;
   interactionCount: number;
+  integrity?: IntegritySignals;
   fullyMarked: boolean;
   anyMarked: boolean;
 }
@@ -44,9 +46,9 @@ export default function MarkListPage() {
   if (!data) return <Box loading />;
 
   const taskNumbers = data.taskNumbers ?? [1, 2];
-  // 3 fixed left cols (anon/time/messages) + word col per task + score
-  // col per task + total + action.
-  const colCount = 3 + taskNumbers.length * 2 + 2;
+  // 5 fixed left cols (anon/time/messages/pastes/off-tab) + word col per
+  // task + score col per task + total + action.
+  const colCount = 5 + taskNumbers.length * 2 + 2;
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 animate-uq-rise">
@@ -81,6 +83,8 @@ export default function MarkListPage() {
               <th className="px-3 py-2 text-left">Anon ID</th>
               <th className="px-3 py-2 text-right">Time (min)</th>
               <th className="px-3 py-2 text-right">Messages</th>
+              <th className="px-3 py-2 text-right">Pastes</th>
+              <th className="px-3 py-2 text-right">Off-tab</th>
               {taskNumbers.map((n) => (
                 <th key={`w${n}`} className="px-3 py-2 text-right">T{n} words</th>
               ))}
@@ -102,6 +106,8 @@ export default function MarkListPage() {
                 <td className="px-3 py-2 font-mono text-xs text-uq-accent">{c.anonymousId}</td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums text-uq-2">{c.timeTakenMin ?? "—"}</td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums text-uq-2">{c.interactionCount}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-xs"><PasteSignal i={c.integrity} /></td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-xs"><OffTabSignal i={c.integrity} /></td>
                 {taskNumbers.map((n) => (
                   <td key={`w${n}`} className="px-3 py-2 text-right font-mono tabular-nums text-uq-3">{byTask(n)?.wordCount ?? 0}</td>
                 ))}
