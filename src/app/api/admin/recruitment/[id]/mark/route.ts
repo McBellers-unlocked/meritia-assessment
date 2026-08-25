@@ -5,6 +5,7 @@ import {
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
+import { summarizeIntegrity } from "@/lib/recruit/integrity";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export async function GET(
       submittedAt: true,
       totalScore: true,
       responses: { select: { taskNumber: true, score: true, markedAt: true, wordCount: true } },
+      activityEvents: { select: { eventType: true, metadata: true } },
       _count: { select: { interactions: true } },
     },
   });
@@ -73,6 +75,7 @@ export async function GET(
       perTask,
       totalScore: c.totalScore,
       interactionCount: c._count.interactions,
+      integrity: summarizeIntegrity(c.activityEvents),
       fullyMarked,
       anyMarked,
     };

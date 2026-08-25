@@ -267,6 +267,10 @@ export default function MarkCandidatePage() {
                 </div>
               </section>
 
+              {/* Signals before the trail: the trail can run to dozens of
+                  messages, and the integrity read should not live below it. */}
+              <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
+
               <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
                 <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Investigation trail · Task {activeTask}</div>
                 <div className="flex items-baseline justify-between gap-3 mb-3">
@@ -352,7 +356,9 @@ export default function MarkCandidatePage() {
             </>
           )}
 
-          <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
+          {(activeKind === "email_inbox" || activeKind === "chat") && (
+            <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
+          )}
         </div>
 
         {/* Marking panel */}

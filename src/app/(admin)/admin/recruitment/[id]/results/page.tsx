@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { PasteSignal, OffTabSignal, type IntegritySignals } from "@/components/recruit/IntegrityCells";
 
 interface RankRow {
   candidateId: string;
@@ -19,6 +20,7 @@ interface RankRow {
   task1Words: number;
   task2Words: number;
   candidateMessageCount: number;
+  integrity?: IntegritySignals;
   task1IssuesIdentified: string[];
   task2IssuesIdentified: string[];
   fullyMarked: boolean;
@@ -215,6 +217,8 @@ export default function ResultsPage() {
               <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Total</th>
               <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Time</th>
               <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Msgs</th>
+              <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Pastes</th>
+              <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Off-tab</th>
               <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Status</th>
             </tr>
           </thead>
@@ -240,6 +244,8 @@ export default function ResultsPage() {
                   </td>
                   <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-uq-3">{r.timeTakenMin ?? "—"}m</td>
                   <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-uq-3">{r.candidateMessageCount}</td>
+                  <td className="px-3 py-2 text-right text-xs font-mono tabular-nums"><PasteSignal i={r.integrity} /></td>
+                  <td className="px-3 py-2 text-right text-xs font-mono tabular-nums"><OffTabSignal i={r.integrity} /></td>
                   <td className="px-3 py-2 text-xs">
                     <span className={[
                       "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border",
