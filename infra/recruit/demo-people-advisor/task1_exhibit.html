@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q2 People Pulse — Halcyon Group</title>
+<style>
+  :root{
+    --bg:#F6F7F9;
+    --surface:#FFFFFF;
+    --ink:#0F1419;
+    --muted:#5B6470;
+    --faint:#8A929E;
+    --line:#E6E8EC;
+    --line-soft:#EEF0F3;
+    --accent:#4F46E5;
+    --accent-deep:#3730A3;
+    --accent-wash:#EEEDFB;
+    --down:#B42318;
+    --down-wash:#FBEAE7;
+    --up:#067647;
+    --r:14px;
+    --r-sm:10px;
+    --shadow-sm:0 1px 2px rgba(16,20,25,.05);
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    font-feature-settings:"tnum" 1, "cv01" 1;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 28px 56px;}
+  .mono{font-family:var(--mono);}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;margin-bottom:24px;border-bottom:1px solid var(--line);}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{width:30px;height:30px;border-radius:8px;flex:none;background:linear-gradient(135deg,var(--accent),var(--accent-deep));position:relative;}
+  .brand-mark::after{content:"";position:absolute;inset:8px;border-radius:50%;background:rgba(255,255,255,.92);clip-path:polygon(0 0,100% 0,100% 55%,55% 55%,55% 100%,0 100%);}
+  .brand-name{font-weight:700;font-size:15px;letter-spacing:-.01em;}
+  .brand-name span{color:var(--faint);font-weight:500;}
+  .badge{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-deep);background:var(--accent-wash);padding:5px 10px;border-radius:999px;border:1px solid #DEDCF6;font-weight:600;}
+
+  .titleblock{margin-bottom:26px;}
+  .titleblock h1{font-size:28px;line-height:1.14;letter-spacing:-.02em;font-weight:700;margin:10px 0 8px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:18px;color:var(--muted);font-size:13px;margin-top:4px;}
+  .meta-row b{color:var(--ink);font-weight:600;}
+
+  .kpis{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 20px 18px;box-shadow:var(--shadow-sm);}
+  .kpi.lead{background:linear-gradient(180deg,#FFFFFF,#FBFBFE);border-color:#DEDCF6;position:relative;overflow:hidden;}
+  .kpi.lead::before{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,var(--accent-wash),transparent 70%);}
+  .kpi .label{position:relative;}
+  .kpi .num{font-size:34px;font-weight:700;letter-spacing:-.025em;margin:6px 0 2px;line-height:1;}
+  .kpi.lead .num{font-size:50px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .kpi .sub{font-size:12.5px;color:var(--muted);position:relative;}
+  .kpi .note{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:10px;display:flex;align-items:center;gap:5px;}
+  .dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex:none;}
+
+  .section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow-sm);margin-top:14px;}
+  .section h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:6px 0 2px;}
+  .section .sec-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+  th.num, td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  td{padding:9px 10px;border-bottom:1px solid var(--line-soft);}
+  tr:last-child td{border-bottom:none;}
+  tr.total td{border-top:1px solid var(--line);font-weight:600;background:#FAFAFC;}
+  .delta-down{color:var(--down);font-weight:600;}
+  .delta-up{color:var(--up);}
+  .delta-flat{color:var(--faint);}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:760px){.twocol{grid-template-columns:1fr;}.kpis{grid-template-columns:1fr;}}
+
+  .verbatim{border-left:3px solid var(--line);padding:10px 14px;margin:10px 0;background:#FAFAFC;border-radius:0 var(--r-sm) var(--r-sm) 0;}
+  .verbatim p{margin:0 0 4px;font-size:13.5px;}
+  .verbatim .who{font-family:var(--mono);font-size:11px;color:var(--faint);}
+
+  .notes{font-size:12px;color:var(--muted);}
+  .notes li{margin-bottom:6px;}
+  .footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">Halcyon Group <span>· People &amp; Culture</span></div>
+    </div>
+    <div class="badge">Internal · Q2</div>
+  </div>
+
+  <div class="titleblock">
+    <div class="eyebrow">People Analytics · Quarterly Report</div>
+    <h1>Q2 People Pulse — Group Summary &amp; Exit-Interview Extracts</h1>
+    <div class="meta-row">
+      <div><b>Population:</b> 1,258 staff</div>
+      <div><b>Survey window:</b> 2–13 June</div>
+      <div><b>Prepared by:</b> People Analytics</div>
+      <div><b>Status:</b> Final</div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi lead">
+      <div class="label eyebrow">Engagement index</div>
+      <div class="num">7.4<span style="font-size:22px;color:var(--faint);-webkit-text-fill-color:var(--faint);">/10</span></div>
+      <div class="sub">Above target (7.0) · Sector median 7.2</div>
+      <div class="note"><span class="dot"></span>Q1: 8.0 · headcount-weighted mean, see notes</div>
+    </div>
+    <div class="kpi">
+      <div class="label eyebrow">Participation</div>
+      <div class="num">82%</div>
+      <div class="sub">1,032 of 1,258 responded</div>
+      <div class="note"><span class="dot"></span>+3 pts vs Q1</div>
+    </div>
+    <div class="kpi">
+      <div class="label eyebrow">Voluntary attrition</div>
+      <div class="num">11.2%</div>
+      <div class="sub">Annualised, trailing 12 months · sector range 11–13%</div>
+      <div class="note"><span class="dot"></span>Q2 voluntary leavers: 35</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Engagement by function</h2>
+    <div class="sec-sub">Function scores are means of respondents in that function. Group figure is the headcount-weighted mean.</div>
+    <table>
+      <thead>
+        <tr><th>Function</th><th class="num">Headcount</th><th class="num">Q2 score</th><th class="num">Q1 score</th><th class="num">Change</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Customer Operations</td><td class="num">420</td><td class="num">5.9</td><td class="num">8.1</td><td class="num delta-down">−2.2</td></tr>
+        <tr><td>Supply Chain &amp; Logistics</td><td class="num">310</td><td class="num">8.0</td><td class="num">7.8</td><td class="num delta-up">+0.2</td></tr>
+        <tr><td>Technology</td><td class="num">290</td><td class="num">8.1</td><td class="num">8.0</td><td class="num delta-up">+0.1</td></tr>
+        <tr><td>Finance &amp; Legal</td><td class="num">96</td><td class="num">8.2</td><td class="num">8.0</td><td class="num delta-up">+0.2</td></tr>
+        <tr><td>Marketing &amp; Digital</td><td class="num">84</td><td class="num">8.1</td><td class="num">8.2</td><td class="num delta-flat">−0.1</td></tr>
+        <tr><td>People &amp; Workplace</td><td class="num">58</td><td class="num">8.3</td><td class="num">8.2</td><td class="num delta-up">+0.1</td></tr>
+        <tr class="total"><td>Group (weighted)</td><td class="num">1,258</td><td class="num">7.4</td><td class="num">8.0</td><td class="num delta-down">−0.6</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="twocol">
+    <div class="section" style="margin-top:14px;">
+      <h2>Q2 voluntary leavers — by function</h2>
+      <div class="sec-sub">35 voluntary leavers in the quarter.</div>
+      <table>
+        <thead><tr><th>Function</th><th class="num">Leavers</th></tr></thead>
+        <tbody>
+          <tr><td>Customer Operations</td><td class="num">24</td></tr>
+          <tr><td>Supply Chain &amp; Logistics</td><td class="num">5</td></tr>
+          <tr><td>Technology</td><td class="num">3</td></tr>
+          <tr><td>Marketing &amp; Digital</td><td class="num">2</td></tr>
+          <tr><td>Finance &amp; Legal</td><td class="num">1</td></tr>
+          <tr class="total"><td>Total</td><td class="num">35</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section" style="margin-top:14px;">
+      <h2>Q2 voluntary leavers — by tenure</h2>
+      <div class="sec-sub">Tenure at date of leaving.</div>
+      <table>
+        <thead><tr><th>Tenure band</th><th class="num">Leavers</th></tr></thead>
+        <tbody>
+          <tr><td>Under 1 year</td><td class="num">4</td></tr>
+          <tr><td>1–3 years</td><td class="num">22</td></tr>
+          <tr><td>3–7 years</td><td class="num">7</td></tr>
+          <tr><td>7+ years</td><td class="num">2</td></tr>
+          <tr class="total"><td>Total</td><td class="num">35</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Exit-interview extracts</h2>
+    <div class="sec-sub">12 of 35 Q2 leavers completed an exit interview. Extracts below are a non-random sample of the free-text record.</div>
+
+    <div class="verbatim">
+      <p>“The job itself was fine. What wore me down was the roster. If you were in favour you got the weekends you asked for; if you weren’t, you didn’t. Everyone on nights knows exactly what I mean.”</p>
+      <div class="who">Customer service agent · Customer Operations (night desk) · 2 yrs</div>
+    </div>
+    <div class="verbatim">
+      <p>“I asked twice to come off the night rotation. Both times my shifts got worse the month after. You learn to stop asking.”</p>
+      <div class="who">Senior agent · Customer Operations · 3 yrs</div>
+    </div>
+    <div class="verbatim">
+      <p>“Pay, mostly. I can get fifteen per cent more elsewhere doing the same job.”</p>
+      <div class="who">Analyst · Supply Chain &amp; Logistics · 1 yr</div>
+    </div>
+    <div class="verbatim">
+      <p>“Genuinely sad to go — brilliant team. We’re relocating for my partner’s work, that’s all.”</p>
+      <div class="who">Coordinator · Marketing &amp; Digital · 4 yrs</div>
+    </div>
+    <div class="verbatim">
+      <p>“Weekend and holiday allocation on the night desk depends on who the team lead likes that month. The survey never asks about that.”</p>
+      <div class="who">Agent · Customer Operations (night desk) · 18 months</div>
+    </div>
+    <div class="verbatim">
+      <p>“Learned a lot in three years. Nights are hard, and lately harder. I’d come back to a day role.”</p>
+      <div class="who">Agent · Customer Operations · 3 yrs</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Methodology &amp; notes</h2>
+    <ul class="notes">
+      <li>The engagement index is a composite of six survey items (role clarity, workload, manager support, fairness, confidence in leadership, advocacy), scored 0–10.</li>
+      <li>Function scores are simple means of respondents in that function; the group figure is the headcount-weighted mean across functions.</li>
+      <li>Participation varies by function and working pattern; scores for lower-participation groups carry wider uncertainty.</li>
+      <li>Exit-interview extracts are drawn from a voluntary, non-random sample (12 of 35 Q2 leavers) and are not weighted.</li>
+      <li>Team-level, shift-level and roster-level cuts of the survey and leaver data are available on request via the Halcyon Knowledge System.</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    HALCYON GROUP — INTERNAL. Prepared for the People Director ahead of the Q2 executive meeting.<br>
+    Probity note: Halcyon Group is fictional. All named roles, figures, survey results and verbatim extracts on this page were invented for assessment purposes and do not describe any real organisation or person.
+  </div>
+
+</div>
+</body>
+</html>
