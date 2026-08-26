@@ -8,6 +8,7 @@ import { loadRubricForAssessment } from "@/lib/recruit/rubric";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { isChatTask, isEmailInboxTask } from "@/lib/recruit/types";
 import { analyzeTextReuse, type ReuseResult } from "@/lib/recruit/textReuse";
+import { criteriaForAssessment } from "@/lib/recruit/assessment-versions";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export async function GET(
       toolDeclaration: true,
       toolDeclarationSubmittedAt: true,
       totalScore: true,
-      assessment: { select: { id: true, title: true, scenarioId: true, customScenarioId: true, revealedAt: true, assessmentMode: true, modePolicyVersion: true, defenceEnabled: true, defenceMinutes: true, defenceQuestionCount: true } },
+      assessment: { select: { id: true, title: true, scenarioId: true, customScenarioId: true, assessmentVersionId: true, revealedAt: true, assessmentMode: true, modePolicyVersion: true, defenceEnabled: true, defenceMinutes: true, defenceQuestionCount: true } },
       responses: {
         select: {
           taskNumber: true, content: true, wordCount: true, sentAt: true,
@@ -136,21 +137,11 @@ export async function GET(
     },
   });
 
-  const criterionMappings = c.assessment.customScenarioId
-    ? await prisma.recruitmentScenarioCriterionTask.findMany({
-        where: { criterion: { scenarioId: c.assessment.customScenarioId } },
-        select: {
-          criterionId: true,
-          expectedCandidateEvidence: true,
-          marks: true,
-          criterion: { select: { code: true, name: true, order: true } },
-          task: { select: { number: true } },
-        },
-      })
-    : [];
-  criterionMappings.sort(
-    (left, right) => left.task.number - right.task.number || left.criterion.order - right.criterion.order
-  );
+  const criterionMappings = (await criteriaForAssessment(c.assessment))
+    .flatMap((criterion) => criterion.taskMappings.map((mapping) => ({ criterion, mapping })))
+    .sort(
+      (left, right) => left.mapping.taskNumber - right.mapping.taskNumber || left.criterion.order - right.criterion.order,
+    );
 
   return NextResponse.json({
     candidate: {
@@ -172,12 +163,12 @@ export async function GET(
     assistantShortName: scenario?.assistantShortName ?? null,
     rubric,
     criterionMappings: criterionMappings.map((mapping) => ({
-      criterionId: mapping.criterionId,
+      criterionId: mapping.criterion.id,
       code: mapping.criterion.code,
       name: mapping.criterion.name,
-      taskNumber: mapping.task.number,
-      expectedCandidateEvidence: mapping.expectedCandidateEvidence,
-      maxMarks: mapping.marks,
+      taskNumber: mapping.mapping.taskNumber,
+      expectedCandidateEvidence: mapping.mapping.expectedCandidateEvidence,
+      maxMarks: mapping.mapping.marks,
     })),
     scenarioTasks,
     responses: c.responses,
@@ -203,7 +194,7 @@ export async function POST(
 
   const candidate = await prisma.recruitmentCandidate.findUnique({
     where: { id: params.candidateId },
-    select: { id: true, assessmentId: true, assessment: { select: { customScenarioId: true } } },
+    select: { id: true, assessmentId: true, assessment: { select: { customScenarioId: true, assessmentVersionId: true } } },
   });
   if (!candidate || candidate.assessmentId !== params.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -228,12 +219,12 @@ export async function POST(
     }
   }
 
-  const allowedCriterionMappings = candidate.assessment.customScenarioId
-    ? await prisma.recruitmentScenarioCriterionTask.findMany({
-        where: { criterion: { scenarioId: candidate.assessment.customScenarioId } },
-        select: { criterionId: true, marks: true, task: { select: { number: true } } },
-      })
-    : [];
+  const allowedCriterionMappings = (await criteriaForAssessment(candidate.assessment))
+    .flatMap((criterion) => criterion.taskMappings.map((mapping) => ({
+      criterionId: criterion.id,
+      marks: mapping.marks,
+      taskNumber: mapping.taskNumber,
+    })));
 
   for (const [k, v] of Object.entries(incoming)) {
     const taskNumber = Number(k);
@@ -248,7 +239,7 @@ export async function POST(
       criterionScores = {};
       const allowed = new Map(
         allowedCriterionMappings
-          .filter((mapping) => mapping.task.number === taskNumber && mapping.marks > 0)
+          .filter((mapping) => mapping.taskNumber === taskNumber && mapping.marks > 0)
           .map((mapping) => [mapping.criterionId, mapping.marks])
       );
       for (const [criterionId, rawScore] of Object.entries(v.criterionScores)) {

@@ -30,7 +30,7 @@ interface RankRow {
 }
 
 interface ResultsData {
-  assessment: { id: string; title: string; scenarioId: string; revealedAt: string | null; totalMinutes: number; assessmentMode: AssessmentMode };
+  assessment: { id: string; title: string; scenarioId: string; revealedAt: string | null; totalMinutes: number; assessmentMode: AssessmentMode; assessmentVersion: { scenarioHash: string; label: string } | null };
   revealed: boolean;
   ranking: RankRow[];
   analytics: {
@@ -121,6 +121,9 @@ export default function ResultsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq">Results · {data.assessment.title}</h1>
           <div className="mt-2"><AssessmentModeBadge mode={data.assessment.assessmentMode} /></div>
+          <div className="mt-1 font-mono text-[10px] text-uq-3">
+            {data.assessment.assessmentVersion ? `Frozen version · ${data.assessment.assessmentVersion.scenarioHash}` : "Legacy cohort · no immutable version captured"}
+          </div>
           <div className="text-sm text-uq-3 mt-1">
             {revealed
               ? <span className="text-[color:var(--uq-success-text)] font-medium">Names revealed at {new Date(data.assessment.revealedAt!).toLocaleString()}</span>

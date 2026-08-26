@@ -36,6 +36,7 @@ import {
 } from "../src/lib/recruit/prompt-versions";
 import { BUILDER_MODEL, RUNTIME_MODEL } from "../src/lib/recruit/model-config";
 import { fallbackDefenceQuestions } from "../src/lib/recruit/defence";
+import { analyzeTextReuse } from "../src/lib/recruit/textReuse";
 import {
   SLUG,
   TITLE,
@@ -149,6 +150,28 @@ function validateCandidate(c: DemoCandidate): void {
     if (p.atMin <= 0 || p.atMin >= c.durationMin) fail("paste outside session");
   }
   if (c.marks && (c.marks.score < 0 || c.marks.score > 100)) fail("score out of range");
+}
+
+/** Keep the marked demo useful as a work-provenance walkthrough. */
+function validateMarkedOverlapSpectrum(candidates: DemoCandidate[]): void {
+  const percentages = candidates
+    .filter((candidate) => candidate.marks != null)
+    .map((candidate) => {
+      const visibleAiOutput = candidate.memoTrail
+        .filter((message) => message.actor === "ai")
+        .map((message) => message.content);
+      return Math.round(analyzeTextReuse(candidate.memoHtml, visibleAiOutput).reuseRatio * 100);
+    });
+
+  const hasZero = percentages.some((percentage) => percentage === 0);
+  const hasMinimal = percentages.some((percentage) => percentage > 0 && percentage < 10);
+  const hasModerate = percentages.some((percentage) => percentage >= 10 && percentage < 30);
+  const hasSubstantial = percentages.some((percentage) => percentage >= 30);
+  if (!hasZero || !hasMinimal || !hasModerate || !hasSubstantial) {
+    throw new Error(
+      `marked demo visible-output overlap must include zero, minimal, moderate and substantial examples; found ${percentages.join(", ")}`,
+    );
+  }
 }
 
 function demoPolicyTests(mode: AssessmentMode) {
@@ -358,6 +381,7 @@ async function teardown(): Promise<void> {
 
 async function seed(): Promise<void> {
   DEMO_CANDIDATES.forEach(validateCandidate);
+  validateMarkedOverlapSpectrum(DEMO_CANDIDATES);
 
   const now = new Date();
   const base = new Date(now);
@@ -507,6 +531,8 @@ async function seed(): Promise<void> {
   }
 
   // ---- cohort -------------------------------------------------------------
+  const { getOrCreateAssessmentVersion } = await import("../src/lib/recruit/assessment-versions");
+  const assessmentVersion = await getOrCreateAssessmentVersion(scenario.id, admin.id);
   const assessment = await prisma.recruitmentAssessment.create({
     data: {
       title: COHORT_TITLE,
@@ -522,9 +548,10 @@ async function seed(): Promise<void> {
       defenceEnabled: true,
       defenceQuestionCount: 2,
       defenceMinutes: 5,
+      assessmentVersionId: assessmentVersion.id,
     },
   });
-  console.log(`created cohort ${assessment.id} — "${COHORT_TITLE}"`);
+  console.log(`created cohort ${assessment.id} — "${COHORT_TITLE}" · frozen ${assessmentVersion.scenarioHash.slice(0, 8)}`);
 
   // ---- candidates ---------------------------------------------------------
   const threadKeyChat = `chat-${chatScript.id}`;

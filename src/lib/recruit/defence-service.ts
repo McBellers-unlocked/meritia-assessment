@@ -17,7 +17,7 @@ import { CONTENT_VERSION, DEFENCE_PROMPT_VERSION } from "./prompt-versions";
 
 type AssessmentSnapshot = Pick<
   RecruitmentAssessment,
-  "scenarioId" | "customScenarioId" | "assessmentMode" | "modePolicyVersion" |
+  "scenarioId" | "customScenarioId" | "assessmentVersionId" | "assessmentMode" | "modePolicyVersion" |
   "defenceEnabled" | "defenceQuestionCount" | "defenceMinutes"
 >;
 

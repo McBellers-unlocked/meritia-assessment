@@ -4,14 +4,14 @@
  *
  * Design (see the candidate matrix in the seed script header):
  *   A Aisha Rahman    — star: heavy, disciplined AI use; clean; 88
- *   B Ben Hartley     — solid: moderate AI use; clean; over-shares in chat; 71
+ *   B Ben Hartley     — solid: moderate AI use; minimal visible-output reuse; 71
  *   C Chloe Nakamura  — heaviest AI use, weak synthesis; clean; UNMARKED
- *   D Diego Ferrara   — 2 focus changes and a small paste; 58
+ *   D Diego Ferrara   — 2 focus changes, small paste, moderate output reuse; 58
  *   E Elif Demir      — paste into chat and over-promises; 55
  *   F Felix Grant     — 2,850 pasted characters, 10.5 min away from the tab,
  *                       near-zero AI use, generic memo); UNMARKED
- *   G Grace Osei      — disengaged (thin memo, never opened IM, long
- *                       off-tab stretches); 24
+ *   G Grace Osei      — disengaged (thin memo, substantial visible-output
+ *                       reuse, never opened IM, long off-tab stretches); 24
  *
  * All timestamps are minutes after the candidate's startedAt. Memo HTML uses
  * DOMPurify-safe TipTap tags only. AI-sandbox content is markdown (GFM tables
@@ -319,7 +319,7 @@ By tenure: under 1 yr 4; 1–3 yrs 22; 3–7 yrs 7; 7+ yrs 2.`,
       atMin: 7.2,
       actor: "ai",
       content:
-        "The two largest gaps to the group in Q2 are **fairness** — Customer Operations 4.1 against 7.8 group-wide — and **manager support** — 4.9 against 7.9. The other four items sit 0.5–1.0 below group.",
+        "Item-level data shows the damage is concentrated in fairness (4.1 vs 7.8 group-wide) and manager support (4.9 vs 7.9). The other four items sit 0.5–1.0 below group.",
     },
     {
       atMin: 10.0,
@@ -374,7 +374,7 @@ By tenure: under 1 yr 4; 1–3 yrs 22; 3–7 yrs 7; 7+ yrs 2.`,
       "Sound decomposition — caught the function collapse behind the 7.4 and the attrition concentration, grounded both in item-level data, and found the January rostering change. Stops one layer short: never pursued the shift or roster cuts, so the verbatim pattern went unconnected and the recommendation stays at listening-session altitude. Note the IM exchange: offered the Head of Ops her section before the Director had seen it — worth a coaching conversation about pre-briefing.",
     issueIds: ["average_masks_split", "attrition_concentration"],
   },
-  story: "Solid — 2 of 3 issues, moderate Knowledge System dialogue, no focus changes or paste events, but promised Dana her section pre-exec",
+  story: "Solid — 2 of 3 issues, moderate Knowledge System dialogue, minimal visible-output overlap, no focus changes or paste events, but promised Dana her section pre-exec",
 };
 
 // ---------------------------------------------------------------------------
@@ -587,14 +587,14 @@ const D: DemoCandidate = {
       atMin: 11.2,
       actor: "ai",
       content:
-        "11.2% is the group's annualised voluntary attrition over the trailing 12 months (141 leavers against 1,258 staff). The sector range of 11–13% comes from Meridian Benchmarks' Consumer & Retail Panel and is a group-level comparison; the exhibit applies it group-wide.",
+        "11.2% is the group's annualised voluntary attrition over the trailing 12 months (141 leavers against 1,258 staff). The sector range of 11–13% comes from Meridian Benchmarks' Consumer & Retail Panel and is a group-level comparison; the exhibit applies it group-wide. The trailing attrition rate of 11.2% sits inside the sector range, but a range comparison at group level says nothing about a concentration like this.",
     },
     { atMin: 15.0, actor: "candidate", content: "Show me the exit-interview extracts." },
     {
       atMin: 15.2,
       actor: "ai",
       content:
-        "Six extracts are on the exhibit — three reference rostering or shift allocation on the Customer Operations night desk (from three different leavers), one cites pay (Supply Chain), one relocation (Marketing), one general night-shift fatigue (Customer Operations). 12 of 35 leavers completed an interview; the extracts are a non-random sample.",
+        "Six extracts are on the exhibit — three reference rostering or shift allocation on the Customer Operations night desk (from three different leavers), one cites pay (Supply Chain), one relocation (Marketing), one general night-shift fatigue (Customer Operations). The exit-interview extracts include several unprompted references to rostering and shift allocation in the contact centres, which deserve follow-up. 12 of 35 leavers completed an interview; the extracts are a non-random sample.",
     },
     { atMin: 19.0, actor: "candidate", content: "Does the pulse run every quarter? When was this window?" },
     {
@@ -631,7 +631,7 @@ const D: DemoCandidate = {
       "Correctly isolates the attrition concentration, reads the tenure profile well and costs the problem — but accepts the headline engagement figure at face value, so the function collapse behind the 7.4 goes unexamined and the note opens by reassuring the executive. Two brief tab-aways and one small paste; nothing conclusive, noted for completeness. Chat handling was reasonable: deferred detail without stonewalling, though 'running hot' gave away more than needed pre-exec.",
     issueIds: ["attrition_concentration"],
   },
-  story: "Two short focus changes and a 220-character paste — found attrition, missed the averaging trap",
+  story: "Two short focus changes, a 220-character paste and moderate visible-output overlap — found attrition, missed the averaging trap",
 };
 
 // ---------------------------------------------------------------------------
@@ -806,14 +806,14 @@ const G: DemoCandidate = {
       atMin: 3.2,
       actor: "ai",
       content:
-        "7.4 out of 10 (headcount-weighted), against 8.0 in Q1. The internal target is 7.0; the sector median is 7.2. Per-function breakdowns are available on request.",
+        "Engagement this quarter is 7.4, which is above our target of 7.0 and close to the sector median of 7.2. Participation was strong at 82%, up on last quarter. Per-function breakdowns are available on request.",
     },
     { atMin: 11.0, actor: "candidate", content: "how many people left this quarter" },
     {
       atMin: 11.2,
       actor: "ai",
       content:
-        "35 voluntary leavers in Q2. Breakdowns by function, tenure and shift are available on request.",
+        "Voluntary attrition is 11.2% annualised, which is within the sector range of 11–13%. There were 35 voluntary leavers in the quarter. Breakdowns by function, tenure and shift are available on request.",
     },
   ],
   chatTrail: [],
@@ -823,7 +823,7 @@ const G: DemoCandidate = {
       "Reads the three headline tiles and stops: no decomposition, no engagement with the leaver record or the exit interviews, and the note was never finalised — the submission captured a draft. Two shallow sandbox queries in 28 minutes, the live message from Operations was never opened, and there were three long off-tab stretches totalling nearly ten minutes. Little evidence of genuine engagement with the exercise.",
     issueIds: [],
   },
-  story: "Disengaged — headline-only memo (never sent), ignored the IM entirely, ~9.5 min off-tab",
+  story: "Disengaged — headline-only memo with substantial visible-output overlap (never sent), ignored the IM entirely, ~9.5 min off-tab",
 };
 
 // ---------------------------------------------------------------------------

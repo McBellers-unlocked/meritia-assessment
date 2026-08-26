@@ -16,6 +16,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { prisma } from "@/lib/prisma";
+import {
+  loadAssessmentVersionSnapshot,
+  rubricFromAssessmentSnapshot,
+} from "./assessment-versions";
 
 export interface RubricIssue {
   id: string;
@@ -103,7 +107,12 @@ export interface NormalizedRubric {
 export async function loadRubricForAssessment(a: {
   scenarioId: string;
   customScenarioId: string | null;
+  assessmentVersionId?: string | null;
 }): Promise<NormalizedRubric | null> {
+  if (a.assessmentVersionId) {
+    const snapshot = await loadAssessmentVersionSnapshot(a.assessmentVersionId);
+    if (snapshot) return rubricFromAssessmentSnapshot(snapshot);
+  }
   if (a.customScenarioId) {
     const taskRows = await prisma.recruitmentScenarioTask.findMany({
       where: { scenarioId: a.customScenarioId },

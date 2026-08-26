@@ -58,6 +58,53 @@ enum RecruitmentScenarioReviewDecision {
   APPROVED_WITH_LIMITATIONS
 }
 
+enum RecruitmentPsychometricProgrammeStatus {
+  DRAFT
+  STUDY_READY
+  PILOT_ACTIVE
+  ANALYSIS
+  EVIDENCE_REVIEW
+  ARCHIVED
+}
+
+enum RecruitmentPsychometricEvidenceCategory {
+  CONTENT
+  RESPONSE_PROCESS
+  RATER_RELIABILITY
+  RELATIONS_TO_OTHER_VARIABLES
+  FAIRNESS
+  CONSEQUENCES
+}
+
+enum RecruitmentPsychometricEvidenceStatus {
+  NOT_STARTED
+  PLANNED
+  IN_PROGRESS
+  EVIDENCE_AVAILABLE
+  INSUFFICIENT
+  NOT_APPLICABLE
+}
+
+enum RecruitmentPsychometricConclusion {
+  NOT_EVALUATED
+  INSUFFICIENT_EVIDENCE
+  SUPPORTS_INTENDED_USE
+  SUPPORTS_WITH_LIMITATIONS
+  DOES_NOT_SUPPORT_INTENDED_USE
+}
+
+enum RecruitmentPilotVersionBasis {
+  CAPTURED_AT_CREATION
+  LINKED_BEFORE_PARTICIPATION
+  RETROSPECTIVE_ATTESTATION
+}
+
+enum RecruitmentRaterAssignmentStatus {
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED
+}
+
 // -------------------------------------------------------------------
 // Admin account (NextAuth / Cognito-backed).
 // Candidates do NOT live here — see RecruitmentCandidate.
@@ -70,10 +117,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  demoSession          RecruitmentDemoSession?
-  validationRuns       RecruitmentScenarioValidationRun[]
-  scenarioReviews      RecruitmentScenarioReview[]
-  publicationOverrides RecruitmentScenarioPublicationOverride[]
+  demoSession                   RecruitmentDemoSession?
+  validationRuns                RecruitmentScenarioValidationRun[]
+  scenarioReviews               RecruitmentScenarioReview[]
+  publicationOverrides          RecruitmentScenarioPublicationOverride[]
+  assessmentVersionsCreated     RecruitmentAssessmentVersion[]           @relation("AssessmentVersionCreator")
+  psychometricProgrammesCreated RecruitmentPsychometricProgramme[]       @relation("PsychometricProgrammeCreator")
+  psychometricEvidenceUpdated   RecruitmentPsychometricEvidence[]        @relation("PsychometricEvidenceUpdater")
+  psychometricRaterAssignments  RecruitmentPsychometricRaterAssignment[] @relation("PsychometricRater")
 }
 
 // -------------------------------------------------------------------
@@ -131,9 +182,17 @@ model RecruitmentAssessment {
   defenceQuestionCount Int                       @default(2) @map("defence_question_count")
   defenceMinutes       Int                       @default(5) @map("defence_minutes")
 
-  candidates RecruitmentCandidate[]
+  // Immutable scenario/rubric/exhibit snapshot. New DB-backed cohorts capture
+  // this automatically so later scenario edits cannot change what candidates
+  // or markers see for the cohort.
+  assessmentVersionId String?                       @map("assessment_version_id")
+  assessmentVersion   RecruitmentAssessmentVersion? @relation(fields: [assessmentVersionId], references: [id], onDelete: Restrict)
+
+  candidates             RecruitmentCandidate[]
+  psychometricPilotLinks RecruitmentPsychometricPilotCohort[]
 
   @@index([customScenarioId])
+  @@index([assessmentVersionId])
   @@map("recruitment_assessments")
 }
 
@@ -166,12 +225,13 @@ model RecruitmentCandidate {
   toolDeclaration            Json?     @map("tool_declaration")
   toolDeclarationSubmittedAt DateTime? @map("tool_declaration_submitted_at")
 
-  responses      RecruitmentResponse[]
-  interactions   RecruitmentInteraction[]
-  activityEvents RecruitmentActivityEvent[]
-  emailResponses RecruitmentEmailResponse[]
-  evidenceBoard  RecruitmentCandidateEvidence[]
-  defence        RecruitmentCandidateDefence?
+  responses                    RecruitmentResponse[]
+  interactions                 RecruitmentInteraction[]
+  activityEvents               RecruitmentActivityEvent[]
+  emailResponses               RecruitmentEmailResponse[]
+  evidenceBoard                RecruitmentCandidateEvidence[]
+  defence                      RecruitmentCandidateDefence?
+  psychometricRaterAssignments RecruitmentPsychometricRaterAssignment[]
 
   @@unique([assessmentId, anonymousId])
   @@unique([assessmentId, email])
@@ -193,14 +253,15 @@ model RecruitmentResponse {
   sentAt      DateTime?            @map("sent_at")
 
   // Marker output (Half 2)
-  score            Float?
-  comments         String?   @db.Text
-  issuesIdentified Json?     @map("issues_identified") // string[] of issue IDs the candidate found - analytics only
+  score               Float?
+  comments            String?                         @db.Text
+  issuesIdentified    Json?                           @map("issues_identified") // string[] of issue IDs the candidate found - analytics only
   // Human-entered criterion scores keyed by stable criterion ID. These make
   // descriptive pilot distributions possible without deriving or auto-scoring.
-  criterionScores  Json?     @map("criterion_scores")
-  markedAt         DateTime? @map("marked_at")
-  markedById       String?   @map("marked_by_id")
+  criterionScores     Json?                           @map("criterion_scores")
+  markedAt            DateTime?                       @map("marked_at")
+  markedById          String?                         @map("marked_by_id")
+  psychometricRatings RecruitmentPsychometricRating[]
 
   @@unique([candidateId, taskNumber])
   @@map("recruitment_responses")
@@ -283,15 +344,17 @@ model RecruitmentScenario {
   defenceQuestionCount Int                       @default(2) @map("defence_question_count")
   defenceMinutes       Int                       @default(5) @map("defence_minutes")
 
-  tasks                RecruitmentScenarioTask[]
-  exhibits             RecruitmentScenarioExhibit[]
-  emails               RecruitmentScenarioEmail[]
-  chatScripts          RecruitmentScenarioChatScript[]
-  assessments          RecruitmentAssessment[]
-  criteria             RecruitmentScenarioCriterion[]
-  validationRuns       RecruitmentScenarioValidationRun[]
-  reviews              RecruitmentScenarioReview[]
-  publicationOverrides RecruitmentScenarioPublicationOverride[]
+  tasks                  RecruitmentScenarioTask[]
+  exhibits               RecruitmentScenarioExhibit[]
+  emails                 RecruitmentScenarioEmail[]
+  chatScripts            RecruitmentScenarioChatScript[]
+  assessments            RecruitmentAssessment[]
+  criteria               RecruitmentScenarioCriterion[]
+  validationRuns         RecruitmentScenarioValidationRun[]
+  reviews                RecruitmentScenarioReview[]
+  publicationOverrides   RecruitmentScenarioPublicationOverride[]
+  assessmentVersions     RecruitmentAssessmentVersion[]
+  psychometricProgrammes RecruitmentPsychometricProgramme[]
 
   @@map("recruitment_scenarios")
 }
@@ -512,6 +575,144 @@ model RecruitmentScenarioPublicationOverride {
 
   @@index([scenarioId, createdAt])
   @@map("recruitment_scenario_publication_overrides")
+}
+
+// Immutable, content-addressed assessment version. The JSON snapshot contains
+// the exact scenario, tasks, exhibits, rubrics, criteria and mode policy used
+// for delivery and marking. A changed scenario hash creates a new version.
+model RecruitmentAssessmentVersion {
+  id                String                    @id @default(cuid())
+  scenarioId        String                    @map("scenario_id")
+  scenario          RecruitmentScenario       @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+  scenarioHash      String                    @map("scenario_hash")
+  label             String
+  scenarioSnapshot  Json                      @map("scenario_snapshot")
+  assessmentMode    RecruitmentAssessmentMode @map("assessment_mode")
+  modePolicyVersion String                    @map("mode_policy_version")
+  createdById       String                    @map("created_by_id")
+  createdBy         User                      @relation("AssessmentVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                  @default(now()) @map("created_at")
+
+  assessments            RecruitmentAssessment[]
+  psychometricProgrammes RecruitmentPsychometricProgramme[]
+
+  @@unique([scenarioId, scenarioHash])
+  @@index([scenarioId, createdAt])
+  @@map("recruitment_assessment_versions")
+}
+
+// A validity argument is specific to an intended score interpretation, use,
+// population and immutable assessment version. It is not a generic badge.
+model RecruitmentPsychometricProgramme {
+  id                             String                                 @id @default(cuid())
+  scenarioId                     String                                 @map("scenario_id")
+  scenario                       RecruitmentScenario                    @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+  assessmentVersionId            String                                 @map("assessment_version_id")
+  assessmentVersion              RecruitmentAssessmentVersion           @relation(fields: [assessmentVersionId], references: [id], onDelete: Restrict)
+  name                           String
+  intendedUse                    String                                 @map("intended_use") @db.Text
+  targetPopulation               String                                 @map("target_population") @db.Text
+  constructDefinition            String                                 @map("construct_definition") @db.Text
+  decisionContext                String                                 @map("decision_context") @db.Text
+  status                         RecruitmentPsychometricProgrammeStatus @default(DRAFT)
+  conclusion                     RecruitmentPsychometricConclusion      @default(NOT_EVALUATED)
+  limitations                    String?                                @db.Text
+  independentReviewerName        String?                                @map("independent_reviewer_name")
+  independentReviewerCredentials String?                                @map("independent_reviewer_credentials") @db.Text
+  reviewedAt                     DateTime?                              @map("reviewed_at")
+  createdById                    String                                 @map("created_by_id")
+  createdBy                      User                                   @relation("PsychometricProgrammeCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt                      DateTime                               @default(now()) @map("created_at")
+  updatedAt                      DateTime                               @updatedAt @map("updated_at")
+
+  evidenceRecords  RecruitmentPsychometricEvidence[]
+  pilotCohorts     RecruitmentPsychometricPilotCohort[]
+  raterAssignments RecruitmentPsychometricRaterAssignment[]
+
+  @@index([scenarioId, createdAt])
+  @@index([assessmentVersionId])
+  @@map("recruitment_psychometric_programmes")
+}
+
+model RecruitmentPsychometricEvidence {
+  id                String                                  @id @default(cuid())
+  programmeId       String                                  @map("programme_id")
+  programme         RecruitmentPsychometricProgramme        @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  category          RecruitmentPsychometricEvidenceCategory
+  status            RecruitmentPsychometricEvidenceStatus   @default(NOT_STARTED)
+  summary           String?                                 @db.Text
+  methodology       String?                                 @db.Text
+  sampleDescription String?                                 @map("sample_description") @db.Text
+  findings          String?                                 @db.Text
+  limitations       String?                                 @db.Text
+  updatedById       String                                  @map("updated_by_id")
+  updatedBy         User                                    @relation("PsychometricEvidenceUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                                @default(now()) @map("created_at")
+  updatedAt         DateTime                                @updatedAt @map("updated_at")
+
+  @@unique([programmeId, category])
+  @@index([programmeId, status])
+  @@map("recruitment_psychometric_evidence")
+}
+
+model RecruitmentPsychometricPilotCohort {
+  id                       String                           @id @default(cuid())
+  programmeId              String                           @map("programme_id")
+  programme                RecruitmentPsychometricProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  assessmentId             String                           @map("assessment_id")
+  assessment               RecruitmentAssessment            @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  versionBasis             RecruitmentPilotVersionBasis     @map("version_basis")
+  retrospectiveAttestation String?                          @map("retrospective_attestation") @db.Text
+  includedAt               DateTime                         @default(now()) @map("included_at")
+
+  @@unique([programmeId, assessmentId])
+  @@index([assessmentId])
+  @@map("recruitment_psychometric_pilot_cohorts")
+}
+
+// Independent study ratings are held separately from operational marks. A
+// rater sees anonymous candidate work and the frozen rubric, never another
+// rater's scores or the operational hiring score while their work is open.
+model RecruitmentPsychometricRaterAssignment {
+  id          String                           @id @default(cuid())
+  programmeId String                           @map("programme_id")
+  programme   RecruitmentPsychometricProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  candidateId String                           @map("candidate_id")
+  candidate   RecruitmentCandidate             @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  raterId     String                           @map("rater_id")
+  rater       User                             @relation("PsychometricRater", fields: [raterId], references: [id], onDelete: Restrict)
+  sequence    Int
+  status      RecruitmentRaterAssignmentStatus @default(ASSIGNED)
+  dueAt       DateTime?                        @map("due_at")
+  submittedAt DateTime?                        @map("submitted_at")
+  createdAt   DateTime                         @default(now()) @map("created_at")
+  updatedAt   DateTime                         @updatedAt @map("updated_at")
+
+  ratings RecruitmentPsychometricRating[]
+
+  @@unique([programmeId, candidateId, raterId], map: "psych_rater_assignment_candidate_rater_key")
+  @@index([raterId, status])
+  @@index([programmeId, candidateId], map: "psych_rater_assignment_programme_candidate_idx")
+  @@map("recruitment_psychometric_rater_assignments")
+}
+
+model RecruitmentPsychometricRating {
+  id              String                                 @id @default(cuid())
+  assignmentId    String                                 @map("assignment_id")
+  assignment      RecruitmentPsychometricRaterAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  responseId      String                                 @map("response_id")
+  response        RecruitmentResponse                    @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  taskNumber      Int                                    @map("task_number")
+  score           Float
+  criterionScores Json?                                  @map("criterion_scores")
+  comments        String?                                @db.Text
+  submittedAt     DateTime?                              @map("submitted_at")
+  createdAt       DateTime                               @default(now()) @map("created_at")
+  updatedAt       DateTime                               @updatedAt @map("updated_at")
+
+  @@unique([assignmentId, responseId])
+  @@index([responseId])
+  @@map("recruitment_psychometric_ratings")
 }
 
 // Scripted emails that arrive during an email_inbox task. triggerOffsetSeconds

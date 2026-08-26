@@ -251,6 +251,30 @@ Developing/Competent/Strong responses are test artefacts, not applicants and
 not psychometric evidence. Cohort analytics are explicitly descriptive and
 make no causal or automated selection claim.
 
+### Validation Programme and immutable assessment versions
+
+Validation Lab remains design preflight. A separate admin-only Validation
+Programme manages version-specific empirical studies. Every newly created
+database-authored cohort is linked to a content-addressed immutable assessment
+version; candidate delivery, frozen rubrics and criterion mappings resolve from
+that snapshot even if the editable source scenario later changes.
+
+Each programme states the intended score interpretation/use, target population,
+construct and decision context. It can link version-matched pilot cohorts,
+assign at least two ADMIN raters to anonymous submissions and store independent
+study ratings separately from operational marks. Raters do not receive identity,
+operational scores, dialogue, work-provenance signals or other-rater scores.
+Submitted study ratings are append-only. A balanced common-rater sample produces
+descriptive absolute-agreement ICC, mean absolute difference and within-five-mark
+figures; these remain pilot statistics requiring qualified interpretation.
+
+Evidence is recorded under content, response process, rater reliability,
+relations to other variables, fairness and consequences. A supportive conclusion
+is blocked until every domain has methodology, sample, findings and limitations,
+and the review records an independent reviewer and credentials. This is an
+evidence register and workflow—not automated psychometric validation or legal
+certification.
+
 ### Work provenance and reasoning defence
 
 The marker sees a neutral chronological record: assessment/task events,

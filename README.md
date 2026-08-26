@@ -52,6 +52,19 @@ changes. Publication requires a current completed run, no open blockers and
 recorded subject-matter, assessment-design and accessibility reviews, or an
 audited demonstration override. This is preflight—not psychometric validation.
 
+The separate **Validation Programme** is the study-governance surface for real
+empirical work. Creating a programme freezes a content-addressed assessment
+version containing the scenario, tasks, exhibits, rubrics, criteria and AI
+policy. New DB-authored cohorts capture such a version automatically and both
+candidate delivery and marking read the frozen snapshot. A programme records a
+delimited intended use, target population, construct and decision context;
+links version-matched pilot cohorts; assigns anonymous independent ratings that
+do not alter operational hiring marks; reports descriptive absolute-agreement
+statistics; and maintains six attributed evidence domains. A supportive
+conclusion is blocked until all domains contain study evidence and an
+independent reviewer is identified. The software manages evidence—it does not
+manufacture validity, fairness or legal conclusions.
+
 Configured assessments lock the main work before a two-question written
 reasoning defence. Questions are generated once under a row lock; a model
 timeout or invalid response uses two published deterministic fallbacks. The
@@ -186,6 +199,19 @@ DB and a working Cognito pool.
 8. As a marker, confirm the submission, structured dialogue, evidence actions, defence and neutral provenance timeline are visible while identity remains hidden.
 9. Repeat a reduced path in Copilot Mode (labelled working draft) and Open Agent Mode (tool-use declaration).
 
+### G. Validation Programme study-readiness path
+
+1. Open a published DB scenario → **Validation Programme**.
+2. Define the intended score use, target population, construct and decision context; create the programme. Confirm the frozen version hash is shown.
+3. Create a fresh cohort from that scenario. Confirm the cohort receives an immutable assessment-version reference.
+4. Link the cohort as a pilot. Historical cohorts already in progress must require a detailed retrospective attestation.
+5. Select two ADMIN raters and assign submitted candidates.
+6. As each rater, open the independent-rating link. Confirm identity, operational marks, dialogue, provenance and other-rater scores are absent.
+7. Save a draft, then submit. Confirm submitted study ratings are immutable and do not alter `RecruitmentResponse.score` or candidate ranking.
+8. After a balanced double-rated sample exists, inspect the descriptive ICC, mean absolute difference and within-five-marks rate.
+9. Record methodology, sample, findings and limitations in all six evidence domains. Confirm a supportive review conclusion is blocked while any domain is incomplete.
+10. Attribute the final evidence review to an independent qualified reviewer. Treat the conclusion as version/use/population-specific, never as a universal badge.
+
 Automated checks do not make live model calls:
 
 ```bash
@@ -195,7 +221,7 @@ npm run lint
 npm run build
 ```
 
-### G. Seeded Halcyon demonstration
+### H. Seeded Halcyon demonstration
 
 After migrations and an ADMIN sign-in have created the reviewer account:
 

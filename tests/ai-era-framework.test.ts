@@ -35,6 +35,11 @@ import { analyzeTextReuse } from "../src/lib/recruit/textReuse";
 import { evaluatePublicationReadinessSnapshot } from "../src/lib/recruit/validation/publication-readiness";
 import { blindCandidateIdentity } from "../src/lib/recruit/blind-marking";
 import { candidateOwnedInteractionWhere, candidateOwnedRecordWhere } from "../src/lib/recruit/candidate-record-scope";
+import { DEMO_CANDIDATES } from "../scripts/demo-cohort/candidates";
+import {
+  programmeReadiness,
+  summariseRaterReliability,
+} from "../src/lib/recruit/psychometrics";
 
 const structuredFixture = {
   analysisSummary: "The headline needs to be tested against the function breakdown.",
@@ -262,4 +267,56 @@ test("legacy lexical overlap remains deterministic without becoming a score", ()
   assert.equal(result.reuseRatio, 1);
   const unrelated = analyzeTextReuse("<p>I would first commission a confidential review.</p>", [copied]);
   assert.equal(unrelated.numReusedSentences, 0);
+});
+
+test("marked Halcyon demo spans visible-output overlap without eliminating genuine zeroes", () => {
+  const percentages = DEMO_CANDIDATES
+    .filter((candidate) => candidate.marks != null)
+    .map((candidate) => {
+      const visibleAiOutput = candidate.memoTrail
+        .filter((message) => message.actor === "ai")
+        .map((message) => message.content);
+      return Math.round(analyzeTextReuse(candidate.memoHtml, visibleAiOutput).reuseRatio * 100);
+    })
+    .sort((a, b) => a - b);
+
+  assert.deepEqual(percentages, [0, 0, 7, 14, 44]);
+});
+
+test("validation programme readiness requires a delimited claim, pilot and two raters", () => {
+  const incomplete = programmeReadiness({
+    intendedUse: "",
+    targetPopulation: "UK applicants",
+    constructDefinition: "Evidence-based judgement",
+    decisionContext: "Human-reviewed selection",
+    pilotCohorts: 0,
+    distinctRaters: 1,
+  });
+  assert.equal(incomplete.ready, false);
+  assert.equal(incomplete.gaps.length, 3);
+  const ready = programmeReadiness({
+    intendedUse: "Support structured selection decisions",
+    targetPopulation: "UK applicants",
+    constructDefinition: "Evidence-based judgement",
+    decisionContext: "Human-reviewed selection",
+    pilotCohorts: 1,
+    distinctRaters: 2,
+  });
+  assert.deepEqual(ready, { ready: true, gaps: [] });
+});
+
+test("balanced independent ratings produce descriptive absolute-agreement reliability", () => {
+  const summary = summariseRaterReliability([
+    { candidateId: "a", raterId: "r1", totalScore: 60 },
+    { candidateId: "a", raterId: "r2", totalScore: 60 },
+    { candidateId: "b", raterId: "r1", totalScore: 75 },
+    { candidateId: "b", raterId: "r2", totalScore: 75 },
+    { candidateId: "c", raterId: "r1", totalScore: 90 },
+    { candidateId: "c", raterId: "r2", totalScore: 90 },
+  ]);
+  assert.equal(summary.doubleRatedCandidates, 3);
+  assert.equal(summary.commonRaters, 2);
+  assert.equal(summary.absoluteAgreementIcc, 1);
+  assert.equal(summary.meanAbsoluteDifference, 0);
+  assert.equal(summary.withinFiveMarksRate, 1);
 });
