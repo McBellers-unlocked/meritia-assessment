@@ -1,8 +1,9 @@
 /**
  * Seed the HR-peers demo: a small published DB scenario ("People & Culture
- * Advisor — Q2 People Pulse", slug demo-people-advisor) plus a cohort of 7
- * submitted dummy candidates with varied AI-sandbox usage and neutral work-
- * provenance records, and 3 spare invited tokens for a live walkthrough.
+ * Advisor — Q2 People Pulse", slug demo-people-advisor) plus visible Evidence,
+ * Copilot and Open Agent cohorts. Evidence has 7 submitted dummy candidates
+ * with varied AI-sandbox usage and neutral work-provenance records; every mode
+ * also has 3 spare invited candidates for a live walkthrough.
  *
  *   Candidate matrix: see scripts/demo-cohort/candidates.ts.
  *   Scenario content:  see scripts/demo-cohort/scenario.ts.
@@ -74,6 +75,18 @@ const DEMO_VARIANTS: Array<{ mode: AssessmentMode; slug: string; titleSuffix: st
   { mode: "COPILOT", slug: `${SLUG}-copilot`, titleSuffix: "Copilot Mode" },
   { mode: "OPEN_AGENT", slug: `${SLUG}-open-agent`, titleSuffix: "Open Agent Mode" },
 ];
+const MODE_WALKTHROUGH_CANDIDATES: Record<"COPILOT" | "OPEN_AGENT", Array<{ name: string; email: string }>> = {
+  COPILOT: [
+    { name: "Kavita Rao", email: "kavita.rao@halcyon-demo.example" },
+    { name: "Louis Bernard", email: "louis.bernard@halcyon-demo.example" },
+    { name: "Mariam Okafor", email: "mariam.okafor@halcyon-demo.example" },
+  ],
+  OPEN_AGENT: [
+    { name: "Naomi Price", email: "naomi.price@halcyon-demo.example" },
+    { name: "Omar Haddad", email: "omar.haddad@halcyon-demo.example" },
+    { name: "Priya Shah", email: "priya.shah@halcyon-demo.example" },
+  ],
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -494,6 +507,7 @@ async function seed(): Promise<void> {
   const baseFramework = await addFrameworkDemoData({ scenarioId: scenario.id, memoTaskId: memoTask.id, chatTaskId: chatTask.id, mode: "EVIDENCE", reviewerId: admin.id });
   console.log(`created scenario ${scenario.id} (${SLUG}) - Evidence Mode, validated demonstration data`);
 
+  const scenarioIdsByMode = new Map<AssessmentMode, string>([["EVIDENCE", scenario.id]]);
   const variantBuilders: string[] = [`${DEMO_VARIANTS[0].titleSuffix}: ${BASE_URL}/admin/recruitment/scenarios/${scenario.id}`];
   for (const variant of DEMO_VARIANTS.slice(1)) {
     const clonedScenario = await prisma.recruitmentScenario.create({
@@ -554,6 +568,7 @@ async function seed(): Promise<void> {
       mode: variant.mode,
       reviewerId: admin.id,
     });
+    scenarioIdsByMode.set(variant.mode, clonedScenario.id);
     variantBuilders.push(`${variant.titleSuffix}: ${BASE_URL}/admin/recruitment/scenarios/${clonedScenario.id}`);
     console.log(`created scenario ${clonedScenario.id} (${variant.slug}) - ${variant.titleSuffix}, validated demonstration data`);
   }
@@ -852,6 +867,59 @@ async function seed(): Promise<void> {
     spareLines.push(`  ${sp.name.padEnd(16)} ${BASE_URL}/assess/${SLUG}?token=${token}`);
   }
 
+  const cohortSummaries: Array<{ label: string; assessmentId: string; inviteLines: string[] }> = [
+    { label: "Evidence Mode", assessmentId: assessment.id, inviteLines: spareLines },
+  ];
+  for (const variant of DEMO_VARIANTS.slice(1)) {
+    const variantScenarioId = scenarioIdsByMode.get(variant.mode);
+    if (!variantScenarioId) throw new Error(`missing seeded scenario for ${variant.titleSuffix}`);
+    const variantVersion = await getOrCreateAssessmentVersion(variantScenarioId, admin.id);
+    const variantAssessment = await prisma.recruitmentAssessment.create({
+      data: {
+        title: `${COHORT_TITLE} — ${variant.titleSuffix}`,
+        scenarioSlug: variant.slug,
+        scenarioId: variant.slug,
+        customScenarioId: variantScenarioId,
+        totalMinutes: TOTAL_MINUTES,
+        openDate: new Date(base.getTime() - 24 * 3_600_000),
+        closeDate: new Date(now.getTime() + 14 * 24 * 3_600_000),
+        createdById: admin.id,
+        assessmentMode: variant.mode,
+        modePolicyVersion: ASSESSMENT_MODE_POLICY_VERSION,
+        defenceEnabled: true,
+        defenceQuestionCount: 2,
+        defenceMinutes: 5,
+        assessmentVersionId: variantVersion.id,
+      },
+    });
+    const walkthroughCandidates = MODE_WALKTHROUGH_CANDIDATES[variant.mode as "COPILOT" | "OPEN_AGENT"];
+    const inviteLines: string[] = [];
+    for (let candidateIndex = 0; candidateIndex < walkthroughCandidates.length; candidateIndex++) {
+      const walkthrough = walkthroughCandidates[candidateIndex];
+      const token = await mintToken();
+      await prisma.recruitmentCandidate.create({
+        data: {
+          assessmentId: variantAssessment.id,
+          name: walkthrough.name,
+          email: walkthrough.email,
+          token,
+          anonymousId: indexToAnonymousId(candidateIndex),
+          status: "invited",
+        },
+      });
+      inviteLines.push(`  ${walkthrough.name.padEnd(16)} ${BASE_URL}/assess/${variant.slug}?token=${token}`);
+    }
+    cohortSummaries.push({
+      label: variant.titleSuffix,
+      assessmentId: variantAssessment.id,
+      inviteLines,
+    });
+    console.log(
+      `created cohort ${variantAssessment.id} — "${variantAssessment.title}" · ` +
+        `${inviteLines.length} walkthrough invitations · frozen ${variantVersion.scenarioHash.slice(0, 8)}`,
+    );
+  }
+
   // ---- post-seed verification --------------------------------------------
   console.log("\nverification:");
   let ok = true;
@@ -918,6 +986,15 @@ async function seed(): Promise<void> {
       id: true,
       slug: true,
       assessmentMode: true,
+      assessments: {
+        where: { title: { startsWith: COHORT_TITLE } },
+        select: {
+          id: true,
+          assessmentMode: true,
+          assessmentVersionId: true,
+          candidates: { select: { status: true } },
+        },
+      },
       criteria: { select: { taskMappings: { select: { id: true } } } },
       validationRuns: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, scenarioHash: true, scenarioSnapshot: true, findings: true, syntheticProfiles: true, policyTests: true } },
       reviews: { select: { reviewType: true } },
@@ -937,11 +1014,24 @@ async function seed(): Promise<void> {
     if (!Array.isArray(run?.syntheticProfiles) || run.syntheticProfiles.length !== 3) variantProblems.push("synthetic profiles missing");
     if (!Array.isArray(run?.policyTests) || run.policyTests.length < 3) variantProblems.push("policy tests missing");
     if (!row || new Set(row.reviews.map((review) => review.reviewType)).size !== 3) variantProblems.push("human reviews missing");
+    const variantCohort = row?.assessments[0];
+    const submittedCount = variantCohort?.candidates.filter((candidate) => candidate.status === "submitted").length ?? 0;
+    const invitedCount = variantCohort?.candidates.filter((candidate) => candidate.status === "invited").length ?? 0;
+    const expectedSubmitted = variant.mode === "EVIDENCE" ? DEMO_CANDIDATES.length : 0;
+    if (!variantCohort || row?.assessments.length !== 1) variantProblems.push("visible demo cohort missing or duplicated");
+    if (variantCohort?.assessmentMode !== variant.mode) variantProblems.push("cohort mode mismatch");
+    if (!variantCohort?.assessmentVersionId) variantProblems.push("cohort frozen version missing");
+    if (submittedCount !== expectedSubmitted || invitedCount !== 3) {
+      variantProblems.push(`cohort candidate counts are ${submittedCount} submitted / ${invitedCount} invited`);
+    }
     if (variantProblems.length) {
       ok = false;
       console.log(`  FAIL ${variant.titleSuffix}: ${variantProblems.join("; ")}`);
     } else {
-      console.log(`  pass ${variant.titleSuffix} (current preflight, blueprint and human reviews)`);
+      console.log(
+        `  pass ${variant.titleSuffix} (visible cohort, ${submittedCount} submitted / ${invitedCount} invited, ` +
+          "current preflight, blueprint and human reviews)",
+      );
     }
   }
   if (!ok) throw new Error("post-seed verification failed - see above");
@@ -951,9 +1041,10 @@ async function seed(): Promise<void> {
 ============================================================
 DEMO COHORT READY
 ============================================================
-Cohort:    ${BASE_URL}/admin/recruitment/${assessment.id}
-Marking:   ${BASE_URL}/admin/recruitment/${assessment.id}/mark
-Results:   ${BASE_URL}/admin/recruitment/${assessment.id}/results
+Cohorts:
+${cohortSummaries.map((cohort) => `  ${cohort.label.padEnd(16)} ${BASE_URL}/admin/recruitment/${cohort.assessmentId}`).join("\n")}
+Evidence marking: ${BASE_URL}/admin/recruitment/${assessment.id}/mark
+Evidence results: ${BASE_URL}/admin/recruitment/${assessment.id}/results
 Builders:
 ${variantBuilders.map((line) => `  ${line}`).join("\n")}
 
@@ -966,9 +1057,9 @@ Candidate F (high paste volume, substantial time away and very limited Knowledge
 Work-provenance records are fictional contextual demonstration data. They are
 not proof of misconduct and are not an undisclosed scoring criterion.
 
-SPARE INVITES for the live candidate walkthrough (single-use — starting
-one burns it; rehearse on at most one and keep the rest fresh):
-${spareLines.join("\n")}
+SPARE INVITES BY MODE for live candidate walkthroughs (single-use — starting
+one burns it; rehearse on at most one per mode and keep the rest fresh):
+${cohortSummaries.map((cohort) => `${cohort.label}:\n${cohort.inviteLines.join("\n")}`).join("\n")}
 
 Do NOT press "Reveal candidates" unless you want names shown permanently.
 Teardown after the demo: npx tsx scripts/seed-demo-cohort.ts --teardown

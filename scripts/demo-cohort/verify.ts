@@ -207,6 +207,10 @@ async function main() {
       criteria: { include: { taskMappings: true } },
       validationRuns: { orderBy: { createdAt: "desc" }, take: 1 },
       reviews: { orderBy: { createdAt: "asc" } },
+      assessments: {
+        where: { title: { startsWith: COHORT_TITLE } },
+        include: { candidates: { select: { status: true } } },
+      },
     },
   });
 
@@ -244,11 +248,22 @@ async function main() {
     for (const required of ["SUBJECT_MATTER", "ASSESSMENT_DESIGN", "ACCESSIBILITY"] as const) {
       if (!reviewTypes.has(required)) problems.push(`${required} review is missing`);
     }
+    const variantCohort = variant.assessments[0];
+    const submittedCount = variantCohort?.candidates.filter((candidate) => candidate.status === "submitted").length ?? 0;
+    const invitedCount = variantCohort?.candidates.filter((candidate) => candidate.status === "invited").length ?? 0;
+    const expectedSubmitted = expected.mode === "EVIDENCE" ? 7 : 0;
+    if (!variantCohort || variant.assessments.length !== 1) problems.push("visible demo cohort is missing or duplicated");
+    if (variantCohort?.assessmentMode !== expected.mode) problems.push("cohort mode does not match scenario mode");
+    if (!variantCohort?.assessmentVersionId) problems.push("cohort has no frozen assessment version");
+    if (submittedCount !== expectedSubmitted || invitedCount !== 3) {
+      problems.push(`cohort has ${submittedCount} submitted / ${invitedCount} invited candidates`);
+    }
 
     if (problems.length) throw new Error(`${expected.label}: ${problems.join("; ")}`);
     console.log(
       `  pass ${expected.label}: current preflight, ${variant.criteria.length} criteria / ` +
-        `${mappings.length} mappings, 3 human reviews`
+        `${mappings.length} mappings, 3 human reviews, visible cohort ` +
+        `(${submittedCount} submitted / ${invitedCount} invited)`
     );
   }
 
