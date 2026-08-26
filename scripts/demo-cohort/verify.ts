@@ -10,6 +10,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 import { PrismaClient } from "@prisma/client";
 import { getScenarioContentHash } from "../../src/lib/recruit/scenario-content-hash";
+import { analyzeTextReuse } from "../../src/lib/recruit/textReuse";
 import { SLUG, COHORT_TITLE } from "./scenario";
 
 const prisma = new PrismaClient();
@@ -94,15 +95,24 @@ async function main() {
   console.log(`candidates: ${submitted.length} submitted (marking list), ${invited.length} invited (spares)\n`);
 
   const header =
-    "anon         time  score  msgs(all/cand)  memo(words,sent)  tab1 tiles: pastes/chars · tab-aways · off-tab  chat";
+    "anon         time  score  overlap  msgs(all/cand)  memo(words,sent)  tab1 tiles: pastes/chars · tab-aways · off-tab  chat";
   console.log(header);
   console.log("-".repeat(header.length));
+  const markedOverlapPercentages: number[] = [];
   for (const c of submitted) {
     const timeMin =
       c.startedAt && c.submittedAt ? Math.round((c.submittedAt.getTime() - c.startedAt.getTime()) / 60_000) : null;
     const candMsgs = c.interactions.filter((i) => i.actor === "candidate").length;
     const chatMsgs = c.interactions.filter((i) => i.taskNumber === 2).length;
     const resp = c.responses.find((r) => r.taskNumber === 1);
+    const overlap = analyzeTextReuse(
+      resp?.content ?? "",
+      c.interactions
+        .filter((interaction) => interaction.taskNumber === 1 && interaction.actor === "ai")
+        .map((interaction) => interaction.content),
+    );
+    const overlapPercentage = Math.round(overlap.reuseRatio * 100);
+    if (resp?.markedAt) markedOverlapPercentages.push(overlapPercentage);
 
     // Reviewer tab-1 event filter: taskNumber === 1 || taskNumber === null
     const tab1 = c.activityEvents.filter((e) => e.taskNumber === 1 || e.taskNumber === null);
@@ -124,6 +134,7 @@ async function main() {
 
     console.log(
       `${c.anonymousId.padEnd(12)} ${String(timeMin + "m").padEnd(5)} ${String(c.totalScore ?? "—").padEnd(6)} ` +
+        `${String(overlapPercentage + "%").padEnd(8)} ` +
         `${String(c.interactions.length + "/" + candMsgs).padEnd(15)} ` +
         `${String((resp?.wordCount ?? 0) + "w" + (resp?.sentAt ? ",sent" : ",draft")).padEnd(17)} ` +
         `${pastes.length}/${pasteChars.toLocaleString().padEnd(6)} · ${String(hiddenCount).padEnd(2)} · ${offTab.padEnd(8)} ${chatState}`
@@ -165,6 +176,19 @@ async function main() {
       throw new Error(`${c.anonymousId}: ${candidateProblems.join("; ")}`);
     }
   }
+
+  const overlapBands = {
+    zero: markedOverlapPercentages.some((percentage) => percentage === 0),
+    minimal: markedOverlapPercentages.some((percentage) => percentage > 0 && percentage < 10),
+    moderate: markedOverlapPercentages.some((percentage) => percentage >= 10 && percentage < 30),
+    substantial: markedOverlapPercentages.some((percentage) => percentage >= 30),
+  };
+  if (Object.values(overlapBands).some((present) => !present)) {
+    throw new Error(
+      `marked visible-output overlap spectrum is incomplete: ${JSON.stringify(overlapBands)}; values ${markedOverlapPercentages.join(", ")}`,
+    );
+  }
+  console.log(`marked visible-output overlap spectrum: ${markedOverlapPercentages.join("%, ")}%`);
 
   console.log(`\nspares (invited, excluded from marking list): ${invited.map((c) => `${c.anonymousId} ${c.token}`).join(", ")}`);
 

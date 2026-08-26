@@ -35,6 +35,7 @@ import { analyzeTextReuse } from "../src/lib/recruit/textReuse";
 import { evaluatePublicationReadinessSnapshot } from "../src/lib/recruit/validation/publication-readiness";
 import { blindCandidateIdentity } from "../src/lib/recruit/blind-marking";
 import { candidateOwnedInteractionWhere, candidateOwnedRecordWhere } from "../src/lib/recruit/candidate-record-scope";
+import { DEMO_CANDIDATES } from "../scripts/demo-cohort/candidates";
 
 const structuredFixture = {
   analysisSummary: "The headline needs to be tested against the function breakdown.",
@@ -262,4 +263,18 @@ test("legacy lexical overlap remains deterministic without becoming a score", ()
   assert.equal(result.reuseRatio, 1);
   const unrelated = analyzeTextReuse("<p>I would first commission a confidential review.</p>", [copied]);
   assert.equal(unrelated.numReusedSentences, 0);
+});
+
+test("marked Halcyon demo spans visible-output overlap without eliminating genuine zeroes", () => {
+  const percentages = DEMO_CANDIDATES
+    .filter((candidate) => candidate.marks != null)
+    .map((candidate) => {
+      const visibleAiOutput = candidate.memoTrail
+        .filter((message) => message.actor === "ai")
+        .map((message) => message.content);
+      return Math.round(analyzeTextReuse(candidate.memoHtml, visibleAiOutput).reuseRatio * 100);
+    })
+    .sort((a, b) => a - b);
+
+  assert.deepEqual(percentages, [0, 0, 7, 14, 44]);
 });
