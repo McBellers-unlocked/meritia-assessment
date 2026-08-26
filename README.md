@@ -232,13 +232,14 @@ npx tsx scripts/seed-demo-cohort.ts
 This idempotently recreates three fictional, clearly labelled scenario
 variants—Evidence, Copilot and Open Agent—with current demonstration preflight
 runs, synthetic Developing/Competent/Strong design artefacts, policy tests,
-blueprint mappings and human-review records. The Evidence variant also receives
-the `DEMO - People & Culture Advisor (Halcyon Group)` cohort with marked and
-unmarked candidates spanning rich-to-minimal Knowledge System dialogue,
-minimal-to-high paste activity and no-to-substantial time away, plus evidence
-actions and completed defences. The script prints the builder, marker and spare
-candidate links and verifies all new relationships. Remove only these demo rows
-with `npx tsx scripts/seed-demo-cohort.ts --teardown`.
+blueprint mappings, human-review records and a visible cohort for each mode.
+The Evidence cohort includes marked and unmarked candidates spanning rich-to-
+minimal Knowledge System dialogue, minimal-to-high paste activity and no-to-
+substantial time away, plus evidence actions and completed defences. Evidence,
+Copilot and Open Agent each include three fresh live-walkthrough invitations.
+The script prints the cohort, builder, marker and spare-candidate links and
+verifies all new relationships. Remove only these demo rows with
+`npx tsx scripts/seed-demo-cohort.ts --teardown`.
 
 ---
 
