@@ -168,7 +168,6 @@ export default function AssessmentView({
   const [chatError, setChatError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [briefOpen, setBriefOpen] = useState(true);
   const [exhibitFullscreen, setExhibitFullscreen] = useState(false);
   const submittedRef = useRef(false);
   const chatScroller = useRef<HTMLDivElement | null>(null);
@@ -177,13 +176,16 @@ export default function AssessmentView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [interactions, sending, activeTask]);
 
-  /* ------ tabbed layout + persistent IDSC sidebar ------ */
-  // Candidates pick a view tab (Exhibit | Memo) to focus on. The IDSC
-  // Knowledge System sits in a permanent right-edge sidebar — open by default
-  // so it's discoverable, collapsible to a 48px rail when they want more
-  // room for writing. Tab + collapse state persist in localStorage (v3).
-  const [activeView, setActiveView] = useState<"exhibit" | "memo" | "split">("exhibit");
-  const [idscCollapsed, setIdscCollapsed] = useState(false);
+  /* ------ document-first workspace ------ */
+  // The memo is the permanent centre of the workspace. Sources and the AI are
+  // supporting drawers: on ordinary laptop screens opening one closes the
+  // other, while very wide screens can pin both. Layout preferences persist.
+  const [sourceOpen, setSourceOpen] = useState(true);
+  const [sourceTab, setSourceTab] = useState<"brief" | "exhibit" | "evidence">("exhibit");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [wideWorkspace, setWideWorkspace] = useState(false);
+  const [sourceWidth, setSourceWidth] = useState(410);
+  const [layoutReady, setLayoutReady] = useState(false);
   const [hasUnreadAI, setHasUnreadAI] = useState(false);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -245,43 +247,88 @@ export default function AssessmentView({
     };
   }, [logActivity, flushActivity]);
 
-  // Hydrate + persist layout prefs. v3 schema replaces v2 (which described a
-  // resizable two-panel layout); now just two pieces of state — the active
-  // view tab and whether the IDSC sidebar is collapsed.
+  // Hydrate and persist the document-first layout. A separate key means old
+  // Exhibit/Split/Memo preferences cannot force the new workspace into a
+  // cramped initial state.
   useEffect(() => {
+    const media = window.matchMedia("(min-width: 1680px)");
+    const updateWide = () => setWideWorkspace(media.matches);
+    updateWide();
+    media.addEventListener("change", updateWide);
+    let nextSourceOpen = true;
+    let nextAiOpen = false;
+    let nextSourceTab: "brief" | "exhibit" | "evidence" = "exhibit";
+    let nextSourceWidth = 410;
     try {
-      const raw = localStorage.getItem("fam-layout-v3");
+      const raw = localStorage.getItem("fam-layout-v4");
       if (raw) {
         const p = JSON.parse(raw);
-        if (p.activeView === "exhibit" || p.activeView === "memo" || p.activeView === "split") setActiveView(p.activeView);
-        if (typeof p.idscCollapsed === "boolean") setIdscCollapsed(p.idscCollapsed);
-        return;
+        if (typeof p.sourceOpen === "boolean") nextSourceOpen = p.sourceOpen;
+        if (p.sourceTab === "brief" || p.sourceTab === "exhibit" || p.sourceTab === "evidence") nextSourceTab = p.sourceTab;
+        if (typeof p.aiOpen === "boolean") nextAiOpen = p.aiOpen;
+        if (typeof p.sourceWidth === "number") nextSourceWidth = Math.max(320, Math.min(520, p.sourceWidth));
       }
     } catch { /* ignore */ }
-    // First visit: collapse IDSC by default on narrow viewports so a
-    // full-width sidebar doesn't cover the assessment on mobile.
-    if (typeof window !== "undefined" && window.innerWidth < 1024) {
-      setIdscCollapsed(true);
+    if (!media.matches && nextSourceOpen && nextAiOpen) nextSourceOpen = false;
+    if (window.innerWidth < 1280) {
+      nextSourceOpen = false;
+      nextAiOpen = false;
     }
+    setSourceOpen(nextSourceOpen);
+    setAiOpen(nextAiOpen);
+    setSourceTab(nextSourceTab);
+    setSourceWidth(nextSourceWidth);
+    setLayoutReady(true);
+    return () => media.removeEventListener("change", updateWide);
   }, []);
   useEffect(() => {
+    if (!layoutReady) return;
     try {
-      localStorage.setItem("fam-layout-v3", JSON.stringify({ activeView, idscCollapsed }));
+      localStorage.setItem("fam-layout-v4", JSON.stringify({ sourceOpen, sourceTab, aiOpen, sourceWidth }));
     } catch { /* ignore */ }
-  }, [activeView, idscCollapsed]);
-
-  // Toggle the IDSC sidebar; expanding clears the unread badge and focuses
-  // the input so candidates can type immediately.
-  const toggleIdsc = useCallback(() => {
-    setIdscCollapsed((c) => !c);
-  }, []);
+  }, [layoutReady, sourceOpen, sourceTab, aiOpen, sourceWidth]);
   useEffect(() => {
-    if (!idscCollapsed) {
+    if (!wideWorkspace && sourceOpen && aiOpen) setSourceOpen(false);
+  }, [wideWorkspace, sourceOpen, aiOpen]);
+
+  const toggleSources = useCallback(() => {
+    setSourceOpen((open) => {
+      const next = !open;
+      if (next && !wideWorkspace) setAiOpen(false);
+      return next;
+    });
+  }, [wideWorkspace]);
+
+  // Expanding AI clears the unread badge and gives the question box focus.
+  const toggleAi = useCallback(() => {
+    setAiOpen((open) => {
+      const next = !open;
+      if (next && !wideWorkspace) setSourceOpen(false);
+      return next;
+    });
+  }, [wideWorkspace]);
+
+  const beginSourceResize = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const startX = event.clientX;
+    const startWidth = sourceWidth;
+    const onMove = (move: PointerEvent) => {
+      setSourceWidth(Math.max(320, Math.min(520, startWidth + move.clientX - startX)));
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", stop);
+  }, [sourceWidth]);
+
+  useEffect(() => {
+    if (aiOpen) {
       setHasUnreadAI(false);
       const id = window.setTimeout(() => chatInputRef.current?.focus(), 140);
       return () => window.clearTimeout(id);
     }
-  }, [idscCollapsed]);
+  }, [aiOpen]);
 
   // Cmd/Ctrl+J toggles the sidebar — same shortcut as the previous drawer
   // and the VSCode terminal convention.
@@ -289,22 +336,22 @@ export default function AssessmentView({
     const onKey = (ev: KeyboardEvent) => {
       if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "j") {
         ev.preventDefault();
-        toggleIdsc();
+        toggleAi();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [toggleIdsc]);
+  }, [toggleAi]);
 
   // Flash the rail when an AI reply arrives while the sidebar is collapsed.
   const prevAiCountRef = useRef(initial.interactions.filter((i) => i.actor === "ai").length);
   useEffect(() => {
     const aiCount = interactions.filter((i) => i.actor === "ai").length;
-    if (aiCount > prevAiCountRef.current && idscCollapsed) {
+    if (aiCount > prevAiCountRef.current && !aiOpen) {
       setHasUnreadAI(true);
     }
     prevAiCountRef.current = aiCount;
-  }, [interactions, idscCollapsed]);
+  }, [interactions, aiOpen]);
 
   /* ------ chat ------ */
   const sendMessage = useCallback(async () => {
@@ -378,13 +425,15 @@ export default function AssessmentView({
 
   const openEvidenceSource = useCallback(async (taskNumber: number, sourceId: string | null, evidenceCardId?: string) => {
     setActiveTask(taskNumber);
-    setExhibitFullscreen(true);
+    setSourceTab("exhibit");
+    setSourceOpen(true);
+    if (!wideWorkspace) setAiOpen(false);
     await fetch("/api/assess/evidence", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, action: "source_opened", taskNumber, sourceId, evidenceCardId }),
     });
-  }, [token]);
+  }, [token, wideWorkspace]);
 
   /* ------ memo autosave (debounced + 30s force) ------ */
   const saveMemo = useCallback(async (taskNumber: number, content: string) => {
@@ -545,314 +594,227 @@ export default function AssessmentView({
         </div>
       </header>
 
-      {/* Layout body.
-          - Main column: a [Exhibit] / [Memo] tab bar above whichever view is
-            active. Candidates focus on one at a time; a "Peek at exhibit"
-            button on the Memo tab opens the existing fullscreen exhibit modal
-            so they can quickly check source data without losing their place.
-          - IDSC Knowledge System: a permanent right-edge sidebar, open by
-            default so it's discoverable. Collapses to a 48px rail (the same
-            shape the previous design used for the chat rail). */}
-      <div className="flex-1 min-h-0 flex overflow-hidden relative">
-        <main
-          className={`flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden transition-[padding] duration-200 ${
-            idscCollapsed ? "pr-12" : "pr-0 lg:pr-[420px]"
-          }`}
-        >
-          {/* View switch — a pill segmented control. Split renders the source
-              exhibit and the memo editor side-by-side so candidates can read
-              while they write (the #1 navigation need on an analytical task). */}
-          <div className="bg-uq-bg2 border-b border-uq-faint flex-shrink-0 flex items-center px-3 py-2">
-            <div className="inline-flex items-center gap-1 rounded-lg bg-uq-elev2 p-1">
-              <ViewTab
-                active={activeView === "exhibit"}
-                onClick={() => setActiveView("exhibit")}
-                label="Exhibit"
-                sublabel={activeTaskCfg.exhibitTitle}
-              />
-              <ViewTab
-                active={activeView === "split"}
-                onClick={() => setActiveView("split")}
-                label="Split"
-                sublabel="Exhibit + memo, side by side"
-              />
-              <ViewTab
-                active={activeView === "memo"}
-                onClick={() => setActiveView("memo")}
-                label="Memo"
-                sublabel={`${wordCounts[activeTask]} ${wordCounts[activeTask] === 1 ? "word" : "words"}${memoSaving[activeTask] ? " · saving…" : ""}`}
-                warn={wordCounts[activeTask] === 0}
-              />
-            </div>
-          </div>
+      {/* Document-first workspace: the memo never disappears. Sources and AI
+          are supporting drawers; on standard screens only one is pinned at a
+          time so the writing surface keeps a comfortable measure. */}
+      <div className="flex-1 min-h-0 flex overflow-hidden relative bg-uq-bg2">
+        {(sourceOpen || aiOpen) && (
+          <button
+            type="button"
+            className="absolute inset-0 z-20 bg-[#16181D]/25 backdrop-blur-[1px] xl:hidden"
+            onClick={() => { setSourceOpen(false); setAiOpen(false); }}
+            aria-label="Close supporting panel"
+          />
+        )}
 
-          {/* Brief — rendered as the in-world email it is (from the Chief of
-              MS Division). Shared across every view so the task framing is
-              always one click away, never hidden inside the memo. */}
-          {(() => {
-            const brief = parseBriefEmail(activeTaskCfg.briefMarkdown);
-            const sender = brief.from ?? "Task brief";
-            return (
-              <div className="border-b border-uq-faint bg-uq-elev1 flex-shrink-0">
-                <button
-                  onClick={() => setBriefOpen((v) => !v)}
-                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-uq-elev2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                  aria-expanded={briefOpen}
-                >
-                  <span
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0 shadow-uq-e1"
-                    style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
-                    aria-hidden
-                  >
-                    {brief.from ? initialsFrom(brief.from) : (
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-uq truncate">{sender}</span>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3 flex-shrink-0 hidden sm:inline">Brief · Task {activeTask}</span>
-                    </span>
-                    <span className="block text-xs text-uq-2 truncate">{brief.subject ?? activeTaskCfg.title}</span>
-                  </span>
-                  {brief.sent && (
-                    <span className="font-mono text-[10px] text-uq-3 flex-shrink-0 hidden md:inline whitespace-nowrap">{brief.sent}</span>
-                  )}
-                  <span className="font-mono text-[11px] text-uq-3 flex-shrink-0">{briefOpen ? "Hide" : "Show"}</span>
-                </button>
-                {briefOpen && (
-                  <div className="px-4 pb-4 max-h-72 overflow-y-auto uq-fade-rise">
-                    <div className="text-xs space-y-0.5 pb-2">
-                      {brief.from && <div className="text-uq-3"><span className="inline-block w-11 align-top">From</span><span className="text-uq-2">{brief.from}</span></div>}
-                      {brief.to && <div className="text-uq-3"><span className="inline-block w-11 align-top">To</span><span className="text-uq-2">{brief.to}</span></div>}
-                      {brief.cc && <div className="text-uq-3"><span className="inline-block w-11 align-top">Cc</span><span className="text-uq-2">{brief.cc}</span></div>}
-                      {brief.sent && <div className="text-uq-3"><span className="inline-block w-11 align-top">Sent</span><span className="text-uq-2">{brief.sent}</span></div>}
-                    </div>
-                    {brief.subject && (
-                      <div className="border-t border-uq-faint pt-2 pb-1">
-                        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-3">Subject</div>
-                        <div className="text-base font-semibold tracking-[-0.005em] text-uq">{brief.subject}</div>
-                      </div>
-                    )}
-                    <div className="border-t border-uq-faint pt-3 mt-1 text-sm text-uq-2 leading-relaxed">
-                      <MarkdownView>{brief.body}</MarkdownView>
-                    </div>
-                  </div>
-                )}
+        {sourceOpen && (
+          <aside
+            className="absolute inset-y-0 left-0 z-30 flex w-[92vw] max-w-[460px] flex-col border-r border-uq bg-uq-elev1 shadow-uq-pop xl:relative xl:z-auto xl:max-w-none xl:w-[var(--source-width)] xl:flex-shrink-0 xl:shadow-none"
+            style={{ "--source-width": `${sourceWidth}px` } as React.CSSProperties}
+            aria-label="Assessment sources"
+          >
+            <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-uq-faint bg-uq-glass-subtle px-3 py-2">
+              <div className="inline-flex min-w-0 items-center gap-1 rounded-lg bg-uq-elev2 p-1">
+                <ViewTab active={sourceTab === "brief"} onClick={() => setSourceTab("brief")} label="Brief" />
+                <ViewTab active={sourceTab === "exhibit"} onClick={() => setSourceTab("exhibit")} label="Exhibit" />
+                <ViewTab
+                  active={sourceTab === "evidence"}
+                  onClick={() => setSourceTab("evidence")}
+                  label={`Evidence ${evidenceBoard.filter((item) => item.taskNumber === activeTask).length}`}
+                />
               </div>
-            );
-          })()}
-
-          {/* Active content — one pane, or both side-by-side in Split (stacks
-              on narrow screens). Sections are keyed so the memo editor instance
-              survives toggling the exhibit on/off in Split. */}
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-            {(activeView === "exhibit" || activeView === "split") && (
-              <section
-                key="exhibit-pane"
-                className={`bg-uq-elev1 uq-fade-rise flex flex-col min-h-0 overflow-hidden flex-1 ${
-                  activeView === "split" ? "border-b lg:border-b-0 lg:border-r border-uq" : ""
-                }`}
+              <button
+                type="button"
+                onClick={toggleSources}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-xl text-uq-3 transition-colors hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                aria-label="Close sources"
+                title="Close sources"
               >
-                <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-3">
+                ×
+              </button>
+            </div>
+
+            {sourceTab === "brief" && (() => {
+              const brief = parseBriefEmail(activeTaskCfg.briefMarkdown);
+              return (
+                <div className="flex-1 overflow-y-auto p-5 uq-fade-rise">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Task brief · Task {activeTask}</div>
+                  <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em] text-uq">{brief.subject ?? activeTaskCfg.title}</h2>
+                  <div className="mt-4 space-y-1 border-y border-uq-faint py-3 text-xs">
+                    {brief.from && <div className="grid grid-cols-[3rem_1fr] gap-2"><span className="text-uq-3">From</span><span className="text-uq-2">{brief.from}</span></div>}
+                    {brief.to && <div className="grid grid-cols-[3rem_1fr] gap-2"><span className="text-uq-3">To</span><span className="text-uq-2">{brief.to}</span></div>}
+                    {brief.cc && <div className="grid grid-cols-[3rem_1fr] gap-2"><span className="text-uq-3">Cc</span><span className="text-uq-2">{brief.cc}</span></div>}
+                    {brief.sent && <div className="grid grid-cols-[3rem_1fr] gap-2"><span className="text-uq-3">Sent</span><span className="text-uq-2">{brief.sent}</span></div>}
+                  </div>
+                  <div className="mt-4 text-sm leading-relaxed text-uq-2"><MarkdownView>{brief.body}</MarkdownView></div>
+                </div>
+              );
+            })()}
+
+            {sourceTab === "exhibit" && (
+              <div className="flex flex-1 min-h-0 flex-col uq-fade-rise">
+                <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-uq-faint px-4 py-2.5">
                   <div className="min-w-0">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                      Exhibit · Task {activeTask}
-                    </div>
-                    <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                      {activeTaskCfg.exhibitTitle}
-                    </div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Exhibit · Task {activeTask}</div>
+                    <div className="truncate text-sm font-semibold text-uq">{activeTaskCfg.exhibitTitle}</div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setExhibitFullscreen(true)}
-                    className="px-3 py-1.5 rounded-md border border-uq-strong text-uq-2 text-xs font-medium transition-colors hover:border-uq-accent hover:bg-uq-elev2 hover:text-uq flex-shrink-0 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                    title="Open exhibit full screen"
+                    className="flex-shrink-0 rounded-md border border-uq-strong px-2.5 py-1.5 text-xs font-medium text-uq-2 transition-colors hover:border-uq-accent hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
                   >
                     ⤢ Expand
                   </button>
                 </div>
-                <iframe
-                  srcDoc={activeTaskCfg.exhibitHtml}
-                  sandbox=""
-                  className="flex-1 w-full border-0 bg-white"
-                  title={activeTaskCfg.exhibitTitle}
-                />
-              </section>
+                <iframe srcDoc={activeTaskCfg.exhibitHtml} sandbox="" className="flex-1 w-full border-0 bg-white" title={activeTaskCfg.exhibitTitle} />
+              </div>
             )}
-            {(activeView === "memo" || activeView === "split") && (
-              <section
-                key="memo-pane"
-                className="bg-uq-elev1 uq-fade-rise flex flex-col min-h-0 overflow-hidden flex-1"
-              >
-                {/* Memo header — title + (single-view only) Peek at exhibit. */}
-                <div className="px-4 py-2 border-b border-uq-faint bg-uq-glass-subtle backdrop-blur-md flex-shrink-0 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                      Your deliverable · Task {activeTask}
-                    </div>
-                    <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                      {activeTaskCfg.deliverableLabel}
-                    </div>
-                  </div>
-                  {activeView !== "split" && (
-                    <button
-                      type="button"
-                      onClick={() => setExhibitFullscreen(true)}
-                      className="px-3 py-1.5 rounded-md border border-uq-strong text-uq-2 text-xs font-medium transition-colors hover:border-uq-accent hover:bg-uq-elev2 hover:text-uq flex-shrink-0 inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                      title="Open the exhibit full screen — close it to return to the memo"
-                      aria-label="Peek at exhibit"
-                    >
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Peek at exhibit
-                    </button>
-                  )}
-                </div>
 
-                <MemoEditor
-                  key={activeTask}
-                  initialContent={memos[activeTask] || ""}
-                  placeholder={activeTaskCfg.deliverablePlaceholder}
-                  onChange={(html) => setMemos((prev) => ({ ...prev, [activeTask]: html }))}
-                  onPasteCapture={(charCount) => logActivity("paste", { target: "memo", charCount })}
+            {sourceTab === "evidence" && (
+              <div className="flex-1 overflow-y-auto uq-fade-rise">
+                <CandidateEvidenceBoard
+                  embedded
+                  items={evidenceBoard.filter((item) => item.taskNumber === activeTask)}
+                  onDisposition={(id, disposition) => void updateEvidenceDisposition(id, disposition)}
+                  onRemove={(id) => void removeEvidence(id)}
+                  onOpenSource={(item) => void openEvidenceSource(item.taskNumber, item.sourceId, item.evidenceCardId)}
                 />
-
-                <div className="px-4 py-2 border-t border-uq-faint bg-uq-glass-subtle text-xs text-uq-3 flex items-center justify-between gap-3 flex-shrink-0">
-                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                    <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
-                    <span className="font-mono tabular-nums">
-                      {memoSaving[activeTask]
-                        ? "Saving…"
-                        : savedAt[activeTask]
-                        ? `Saved ${new Date(savedAt[activeTask]!).toLocaleTimeString()}`
-                        : "Not yet saved"}
-                    </span>
-                    {memoSentAt[activeTask] && (
-                      <span className="font-mono text-[color:var(--uq-success-text)] whitespace-nowrap">✓ Sent {new Date(memoSentAt[activeTask]!).toLocaleTimeString()}</span>
-                    )}
-                  </div>
-                  {(() => {
-                    const hasNext = !!tasks.find((t) => t.number > activeTask);
-                    const sent = !!memoSentAt[activeTask];
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => void sendMemo(activeTask)}
-                        disabled={sendingMemo === activeTask || (wordCounts[activeTask] ?? 0) === 0}
-                        className="px-3 py-1.5 rounded-md bg-uq-accent text-[color:var(--uq-text-on-accent)] text-xs font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] flex-shrink-0"
-                        title={hasNext ? "Send this memo and move to the next" : "Send this memo"}
-                      >
-                        {sendingMemo === activeTask
-                          ? "Sending…"
-                          : sent
-                          ? (hasNext ? "Re-send & next →" : "Re-send")
-                          : (hasNext ? "Send & next →" : "Send memo")}
-                      </button>
-                    );
-                  })()}
-                </div>
-                {sendError && (
-                  <div className="px-4 py-1.5 text-xs text-uq-danger-text bg-uq-danger-soft border-t border-uq-danger-line flex-shrink-0">{sendError}</div>
-                )}
-              </section>
+              </div>
             )}
-          </div>
-        </main>
 
-        {/* IDSC Knowledge System — always anchored to the right edge.
-            Collapsed: 48px rail (mirrors the previous chat-rail pattern).
-            Expanded: 420px panel on lg+, full-width overlay on smaller. */}
-        {idscCollapsed ? (
-          <button
-            type="button"
-            onClick={toggleIdsc}
-            className="absolute right-0 top-0 bottom-0 w-12 flex flex-col items-center justify-between py-3 text-uq-2 transition-colors border-l border-uq z-10 bg-uq-glass-strong backdrop-blur-xl hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-            aria-label={`Expand ${assistantShort} AI assistant (Ctrl/Cmd+J)`}
-            aria-expanded={false}
-            title={`${assistantShort} AI assistant — Ctrl/Cmd+J`}
-          >
-            <div className="flex flex-col items-center gap-1.5">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                aria-hidden
+            <button
+              type="button"
+              onPointerDown={beginSourceResize}
+              className="absolute -right-1 top-0 hidden h-full w-2 cursor-col-resize touch-none xl:block"
+              aria-label="Resize sources panel"
+              title="Drag to resize sources"
+            />
+          </aside>
+        )}
+
+        <main className="flex flex-1 min-w-0 flex-col min-h-0 overflow-hidden bg-uq-elev1">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-uq-faint bg-uq-bg2 px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSources}
+                aria-pressed={sourceOpen}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${sourceOpen ? "border-uq-accent bg-uq-accent-soft text-uq" : "border-uq-strong bg-uq-elev1 text-uq-2 hover:border-uq-accent hover:text-uq"}`}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.26-.97L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-uq-accent">Ask AI</span>
-            </div>
-            <div className="flex-1 flex items-center justify-center px-1">
-              <span
-                className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-2 whitespace-nowrap"
-                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                Sources
+              </button>
+              <button
+                type="button"
+                onClick={toggleAi}
+                aria-pressed={aiOpen}
+                className={`relative rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${aiOpen ? "border-uq-accent bg-uq-accent-soft text-uq" : "border-uq-strong bg-uq-elev1 text-uq-2 hover:border-uq-accent hover:text-uq"}`}
+                title={`${assistantShort} AI assistant · Ctrl/Cmd+J`}
               >
-                {assistantShort} · AI ASSISTANT
-              </span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <span className="font-mono text-[10px] tabular-nums text-uq-2">
-                {trailForActive.length}
-              </span>
-              {hasUnreadAI && (
-                <span
-                  className="w-2 h-2 rounded-full bg-uq-accent animate-uq-pulse-glow"
-                  aria-label="New AI reply"
-                  title="New reply"
-                />
+                Ask AI <span className="font-mono text-uq-3">{trailForActive.length}</span>
+                {hasUnreadAI && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-uq-accent" aria-label="New AI reply" />}
+              </button>
+              {(sourceOpen || aiOpen) && (
+                <button
+                  type="button"
+                  onClick={() => { setSourceOpen(false); setAiOpen(false); }}
+                  className="hidden rounded-lg px-3 py-1.5 text-xs font-medium text-uq-3 transition-colors hover:bg-uq-elev2 hover:text-uq sm:inline-flex focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                >
+                  Focus writing
+                </button>
               )}
             </div>
-          </button>
-        ) : (
-          <aside
-            className="absolute right-0 top-0 bottom-0 bg-uq-glass-strong backdrop-blur-xl border-l border-uq flex flex-col z-10 w-full lg:w-[420px] shadow-uq-glass lg:shadow-uq-glass"
-            aria-label={`${assistantShort} AI assistant chat`}
-          >
-            <div className="px-4 py-2.5 border-b border-uq-faint bg-uq-glass-subtle flex-shrink-0 flex items-center justify-between gap-3">
-              <div className="min-w-0 flex items-center gap-2.5">
-                <span
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-uq-e1"
-                  style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
-                  aria-hidden
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-white/90" />
-                </span>
-                <div className="min-w-0">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">
-                    AI Assistant · Task {activeTask}
-                  </div>
-                  <div className="text-sm font-semibold tracking-[-0.005em] text-uq truncate">
-                    {assistantName}
-                  </div>
-                </div>
+            <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3 lg:inline">Memo always stays open</span>
+          </div>
+
+          {(() => {
+            const brief = parseBriefEmail(activeTaskCfg.briefMarkdown);
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  setSourceTab("brief");
+                  setSourceOpen(true);
+                  if (!wideWorkspace) setAiOpen(false);
+                }}
+                className="flex w-full flex-shrink-0 items-center gap-3 border-b border-uq-faint bg-uq-glass-subtle px-4 py-2 text-left transition-colors hover:bg-uq-elev2 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+              >
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-uq-accent">Brief</span>
+                <span className="min-w-0 flex-1 truncate text-xs text-uq-2"><strong className="font-semibold text-uq">{brief.from ?? "Task brief"}</strong> · {brief.subject ?? activeTaskCfg.title}</span>
+                <span className="flex-shrink-0 text-xs font-medium text-uq-accent">View →</span>
+              </button>
+            );
+          })()}
+
+          <section className="flex flex-1 min-h-0 flex-col overflow-hidden bg-uq-elev1">
+            <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-uq-faint bg-uq-glass-subtle px-4 py-2.5">
+              <div className="min-w-0">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Your deliverable · Task {activeTask}</div>
+                <div className="truncate text-sm font-semibold tracking-[-0.005em] text-uq">{activeTaskCfg.deliverableLabel}</div>
               </div>
               <button
                 type="button"
-                onClick={toggleIdsc}
-                className="text-uq-3 hover:text-uq w-8 h-8 rounded-md hover:bg-uq-elev2 flex items-center justify-center flex-shrink-0 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
-                aria-label={`Collapse ${assistantShort} sidebar (Ctrl/Cmd+J)`}
-                title="Collapse — Ctrl/Cmd+J"
+                onClick={() => {
+                  setSourceTab("exhibit");
+                  setSourceOpen(true);
+                  if (!wideWorkspace) setAiOpen(false);
+                }}
+                className="flex-shrink-0 rounded-md border border-uq-strong px-3 py-1.5 text-xs font-medium text-uq-2 transition-colors hover:border-uq-accent hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
               >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                </svg>
+                View exhibit
               </button>
             </div>
 
-            <div ref={chatScroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
-              {trailForActive.length === 0 && (
-                <div className="text-xs text-uq-3 italic">
-                  Ask the {assistantShort} AI anything. Be specific — request source documents, underlying data,
-                  or detail on a particular item. It won&apos;t write your answer or tell you what to conclude — the
-                  analysis and the writing are yours. Every question you ask forms part of the assessment.
+            <MemoEditor
+              key={activeTask}
+              initialContent={memos[activeTask] || ""}
+              placeholder={activeTaskCfg.deliverablePlaceholder}
+              onChange={(html) => setMemos((prev) => ({ ...prev, [activeTask]: html }))}
+              onPasteCapture={(charCount) => logActivity("paste", { target: "memo", charCount })}
+            />
+
+            <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-uq-faint bg-uq-glass-subtle px-4 py-2 text-xs text-uq-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <span className="font-mono tabular-nums text-uq-2">{wordCounts[activeTask]} words</span>
+                <span className="font-mono tabular-nums">{memoSaving[activeTask] ? "Saving…" : savedAt[activeTask] ? `Saved ${new Date(savedAt[activeTask]!).toLocaleTimeString()}` : "Not yet saved"}</span>
+                {memoSentAt[activeTask] && <span className="whitespace-nowrap font-mono text-[color:var(--uq-success-text)]">✓ Sent {new Date(memoSentAt[activeTask]!).toLocaleTimeString()}</span>}
+              </div>
+              {(() => {
+                const hasNext = !!tasks.find((t) => t.number > activeTask);
+                const sent = !!memoSentAt[activeTask];
+                return (
+                  <button
+                    type="button"
+                    onClick={() => void sendMemo(activeTask)}
+                    disabled={sendingMemo === activeTask || (wordCounts[activeTask] ?? 0) === 0}
+                    className="flex-shrink-0 rounded-md bg-uq-accent px-3 py-1.5 text-xs font-medium text-[color:var(--uq-text-on-accent)] shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:cursor-not-allowed disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
+                  >
+                    {sendingMemo === activeTask ? "Sending…" : sent ? (hasNext ? "Re-send & next →" : "Re-send") : (hasNext ? "Send & next →" : "Send memo")}
+                  </button>
+                );
+              })()}
+            </div>
+            {sendError && <div className="flex-shrink-0 border-t border-uq-danger-line bg-uq-danger-soft px-4 py-1.5 text-xs text-uq-danger-text">{sendError}</div>}
+          </section>
+        </main>
+
+        {aiOpen && (
+          <aside
+            className="absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l border-uq bg-uq-glass-strong shadow-uq-pop sm:w-[420px] xl:relative xl:z-auto xl:w-[400px] xl:flex-shrink-0 xl:shadow-none"
+            aria-label={`${assistantShort} AI assistant chat`}
+          >
+            <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-uq-faint bg-uq-glass-subtle px-4 py-2.5">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full shadow-uq-e1" style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }} aria-hidden><span className="h-2.5 w-2.5 rounded-full bg-white/90" /></span>
+                <div className="min-w-0">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">AI Assistant · Task {activeTask}</div>
+                  <div className="truncate text-sm font-semibold text-uq">{assistantName}</div>
                 </div>
-              )}
+              </div>
+              <button type="button" onClick={toggleAi} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-xl text-uq-3 transition-colors hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]" aria-label={`Close ${assistantShort} AI assistant`} title="Close AI assistant · Ctrl/Cmd+J">×</button>
+            </div>
+
+            <div ref={chatScroller} className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-3">
+              {trailForActive.length === 0 && <div className="text-xs italic text-uq-3">Ask the {assistantShort} AI anything. Be specific — request source documents, underlying data, or detail on a particular item. Every question forms part of the assessment.</div>}
               {trailForActive.map((i) => (
                 <ChatBubble
                   key={i.id}
@@ -862,72 +824,32 @@ export default function AssessmentView({
                   onOpenSource={(sourceId) => void openEvidenceSource(i.taskNumber, sourceId)}
                 />
               ))}
-              {sending && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span
-                    className="w-5 h-5 rounded-full flex-shrink-0 shadow-uq-e1"
-                    style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }}
-                    aria-hidden
-                  />
-                  <span className="uq-shimmer-text font-medium">{assistantShort} is thinking…</span>
-                </div>
-              )}
+              {sending && <div className="flex items-center gap-2 text-xs"><span className="h-5 w-5 flex-shrink-0 rounded-full shadow-uq-e1" style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }} aria-hidden /><span className="uq-shimmer-text font-medium">{assistantShort} is thinking…</span></div>}
             </div>
 
-            <CandidateEvidenceBoard
-              items={evidenceBoard.filter((item) => item.taskNumber === activeTask)}
-              onDisposition={(id, disposition) => void updateEvidenceDisposition(id, disposition)}
-              onRemove={(id) => void removeEvidence(id)}
-              onOpenSource={(item) => void openEvidenceSource(item.taskNumber, item.sourceId, item.evidenceCardId)}
-            />
+            {chatError && <div className="border-t border-uq-danger-line bg-uq-danger-soft px-4 py-2 text-xs text-uq-danger-text">{chatError}</div>}
 
-            {chatError && (
-              <div className="px-4 py-2 border-t border-uq-danger-line bg-uq-danger-soft text-uq-danger-text text-xs">{chatError}</div>
-            )}
-
-            <div className="border-t border-uq-faint p-3 flex-shrink-0">
-              <p className="mb-2 text-[11px] leading-relaxed text-uq-3">AI-powered · This system may be inaccurate. Check important conclusions against the source exhibits.</p>
+            <div className="flex-shrink-0 border-t border-uq-faint p-3">
+              <p className="mb-2 text-[11px] leading-relaxed text-uq-3">AI-powered · Check important conclusions against the source exhibits.</p>
               <textarea
                 ref={chatInputRef}
                 value={chatInputs[activeTask] || ""}
                 onChange={(e) => setChatInputs((prev) => ({ ...prev, [activeTask]: e.target.value }))}
-                onPaste={(e) => {
-                  const txt = e.clipboardData.getData("text") ?? "";
-                  if (txt.length > 0) logActivity("paste", { target: "chat", charCount: txt.length });
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    void sendMessage();
-                  }
-                }}
+                onPaste={(e) => { const txt = e.clipboardData.getData("text") ?? ""; if (txt.length > 0) logActivity("paste", { target: "chat", charCount: txt.length }); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void sendMessage(); } }}
                 placeholder={`Ask the ${assistantName}… (Ctrl/Cmd ⏎ to send)`}
-                className="w-full h-20 text-sm rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1 resize-none"
+                className="h-20 w-full resize-none rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:border-uq-accent focus:bg-uq-elev1 focus:outline-none focus:shadow-[var(--uq-glow-soft)]"
                 maxLength={CHAT_MAX_CHARS}
                 disabled={sending}
               />
               {(() => {
                 const len = (chatInputs[activeTask] || "").length;
-                const nearLimit = len >= CHAT_MAX_CHARS * 0.9;
                 const atLimit = len >= CHAT_MAX_CHARS;
-                const counterClass = atLimit
-                  ? "font-mono text-uq-danger-text font-medium tabular-nums"
-                  : nearLimit
-                  ? "font-mono text-uq-warn-text font-medium tabular-nums"
-                  : "font-mono text-uq-3 tabular-nums";
+                const nearLimit = len >= CHAT_MAX_CHARS * 0.9;
                 return (
                   <div className="mt-1.5 flex items-center justify-between text-xs">
-                    <span className={counterClass}>
-                      {len.toLocaleString()} / {CHAT_MAX_CHARS.toLocaleString()}
-                      {atLimit && <span className="ml-1.5 font-normal">character limit reached</span>}
-                    </span>
-                    <button
-                      onClick={() => void sendMessage()}
-                      disabled={!(chatInputs[activeTask] || "").trim() || sending}
-                      className="px-3 py-1.5 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-xs font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed"
-                    >
-                      {sending ? "Sending…" : "Send"}
-                    </button>
+                    <span className={`font-mono tabular-nums ${atLimit ? "font-medium text-uq-danger-text" : nearLimit ? "font-medium text-uq-warn-text" : "text-uq-3"}`}>{len.toLocaleString()} / {CHAT_MAX_CHARS.toLocaleString()}</span>
+                    <button onClick={() => void sendMessage()} disabled={!(chatInputs[activeTask] || "").trim() || sending} className="rounded-lg bg-uq-accent px-3 py-1.5 text-xs font-medium text-[color:var(--uq-text-on-accent)] shadow-uq-glow-soft transition-all hover:bg-uq-accent-hover disabled:cursor-not-allowed disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none">{sending ? "Sending…" : "Send"}</button>
                   </div>
                 );
               })()}
