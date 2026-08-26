@@ -77,6 +77,7 @@ interface MarkData {
 // The IPAC Knowledge System's brand mark (mirrors the candidate-facing AI orb
 // in AssessmentView) — so the marker recognises the same speaker the candidate saw.
 const ORB_GRADIENT = "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))";
+type ReviewView = "response" | "integrity" | "dialogue" | "defence";
 
 export default function MarkCandidatePage() {
   const params = useParams<{ id: string; candidateId: string }>();
@@ -85,6 +86,7 @@ export default function MarkCandidatePage() {
   const [data, setData] = useState<MarkData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<number>(1);
+  const [reviewView, setReviewView] = useState<ReviewView>("response");
 
   // Per-task marking state — keyed by task number, populated from the
   // server load. Empty until data arrives; all reads use a ?? fallback so
@@ -226,7 +228,7 @@ export default function MarkCandidatePage() {
   );
 
   return (
-    <div className="min-h-screen text-uq flex flex-col">
+    <div className="h-[calc(100vh-4rem)] overflow-hidden text-uq flex flex-col">
       {/* Header */}
       <header className="bg-uq-glass-strong backdrop-blur-xl border-b border-uq shadow-[0_1px_0_0_var(--uq-inset-hi)_inset] flex-shrink-0 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-3">
@@ -247,12 +249,12 @@ export default function MarkCandidatePage() {
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-6 pb-2">
+        <div className="max-w-7xl mx-auto px-6 pb-2 flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex gap-1 rounded-lg bg-uq-elev2 p-1">
             {taskNums.map((n) => (
               <button
                 key={n}
-                onClick={() => setActiveTask(n)}
+                onClick={() => { setActiveTask(n); setReviewView("response"); }}
                 className={[
                   "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]",
                   activeTask === n
@@ -265,6 +267,14 @@ export default function MarkCandidatePage() {
               </button>
             ))}
           </div>
+          {activeKind === "memo_ai" && (
+            <nav className="inline-flex items-center gap-1 rounded-lg border border-uq-faint bg-uq-elev1 p-1" aria-label="Review material">
+              <ReviewTab active={reviewView === "response"} onClick={() => setReviewView("response")} label="Response" />
+              <ReviewTab active={reviewView === "integrity"} onClick={() => setReviewView("integrity")} label="Evidence & integrity" />
+              <ReviewTab active={reviewView === "dialogue"} onClick={() => setReviewView("dialogue")} label={`AI dialogue · ${candidateMsgCount}`} />
+              {data.defence && <ReviewTab active={reviewView === "defence"} onClick={() => setReviewView("defence")} label="Defence" />}
+            </nav>
+          )}
         </div>
       </header>
 
@@ -285,35 +295,43 @@ export default function MarkCandidatePage() {
             />
           ) : (
             <>
-              <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
-                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Memo · Task {activeTask}</div>
-                <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">{rubricTask?.title ?? activeScenarioTask?.title}</div>
-                {responseForActive && responseForActive.content ? (
-                  <div
-                    className="memo-rendered"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(responseForActive.content) }}
-                  />
-                ) : (
-                  <div className="text-sm text-uq-3 italic">No memo submitted for this task.</div>
-                )}
-                <div className="mt-3 font-mono text-xs tabular-nums text-uq-3 flex items-center gap-2">
-                  <span>{responseForActive?.wordCount ?? 0} words</span>
-                  {responseForActive?.sentAt && (
-                    <span className="text-[color:var(--uq-success-text)]">· sent {new Date(responseForActive.sentAt).toLocaleTimeString()}</span>
+              {reviewView === "response" && (
+                <section className="mx-auto w-full max-w-4xl rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-6">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Candidate response · Task {activeTask}</div>
+                  <div className="text-lg font-semibold tracking-[-0.005em] text-uq mb-4">{rubricTask?.title ?? activeScenarioTask?.title}</div>
+                  {responseForActive && responseForActive.content ? (
+                    <div
+                      className="memo-rendered"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(responseForActive.content) }}
+                    />
+                  ) : (
+                    <div className="text-sm text-uq-3 italic">No memo submitted for this task.</div>
                   )}
-                </div>
-              </section>
-
-              {/* Provenance before the trail: the trail can run to dozens of
-                  messages, so the contextual summary should remain visible. */}
-              {activeTask === taskNums[0] && data.defence && (
-                <DefenceSection defence={data.defence} declaration={data.candidate.toolDeclaration} declarationAt={data.candidate.toolDeclarationSubmittedAt} />
+                  <div className="mt-5 border-t border-uq-faint pt-3 font-mono text-xs tabular-nums text-uq-3 flex items-center gap-2">
+                    <span>{responseForActive?.wordCount ?? 0} words</span>
+                    {responseForActive?.sentAt && (
+                      <span className="text-[color:var(--uq-success-text)]">· sent {new Date(responseForActive.sentAt).toLocaleTimeString()}</span>
+                    )}
+                  </div>
+                </section>
               )}
-              <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
 
-              <WorkProvenanceTimeline events={data.activityEvents} interactions={data.interactions} evidence={data.evidenceBoard} taskNumber={activeTask} />
+              {reviewView === "integrity" && (
+                <>
+                  <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
+                  <WorkProvenanceTimeline events={data.activityEvents} interactions={data.interactions} evidence={data.evidenceBoard} taskNumber={activeTask} />
+                </>
+              )}
 
-              <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
+              {reviewView === "defence" && (
+                data.defence ? (
+                  <DefenceSection defence={data.defence} declaration={data.candidate.toolDeclaration} declarationAt={data.candidate.toolDeclarationSubmittedAt} />
+                ) : (
+                  <section className="rounded-xl border border-uq bg-uq-elev1 p-5 text-sm italic text-uq-3">No defence was configured for this assessment.</section>
+                )
+              )}
+
+              {reviewView === "dialogue" && <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
                 <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Knowledge System interaction · Task {activeTask}</div>
                 <div className="flex items-baseline justify-between gap-3 mb-3">
                   <div className="text-base font-semibold tracking-[-0.005em] text-uq">
@@ -394,7 +412,7 @@ export default function MarkCandidatePage() {
                     });
                   })()}
                 </div>
-              </section>
+              </section>}
             </>
           )}
 
@@ -589,6 +607,21 @@ function Box({ loading, error }: { loading?: boolean; error?: string }) {
       {loading && <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-uq-3 animate-uq-pulse-glow">Loading…</div>}
       {error && <div className="rounded-lg border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)] text-sm px-3 py-2 animate-uq-rise">{error}</div>}
     </div>
+  );
+}
+
+function ReviewTab({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+        active ? "bg-uq-elev2 text-uq shadow-uq-e1" : "text-uq-2 hover:bg-uq-elev2 hover:text-uq"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 

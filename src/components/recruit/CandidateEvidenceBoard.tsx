@@ -16,18 +16,26 @@ export default function CandidateEvidenceBoard({
   onDisposition,
   onRemove,
   onOpenSource,
+  embedded = false,
 }: {
   items: EvidenceBoardItem[];
   onDisposition: (id: string, disposition: EvidenceBoardItem["candidateDisposition"]) => void;
   onRemove: (id: string) => void;
   onOpenSource: (item: EvidenceBoardItem) => void;
+  embedded?: boolean;
 }) {
   return (
-    <details className="border-t border-uq-faint bg-uq-glass-subtle" open={items.length > 0}>
-      <summary className="cursor-pointer px-4 py-2 text-xs font-semibold text-uq">
+    <details className={embedded ? "bg-uq-elev1" : "border-t border-uq-faint bg-uq-glass-subtle"} open={embedded || items.length > 0}>
+      <summary className={embedded ? "sr-only" : "cursor-pointer px-4 py-2 text-xs font-semibold text-uq"}>
         Evidence board <span className="font-mono font-normal text-uq-3">({items.length})</span>
       </summary>
-      <div className="max-h-52 space-y-2 overflow-y-auto px-4 pb-3">
+      <div className={embedded ? "space-y-3 p-4" : "max-h-52 space-y-2 overflow-y-auto px-4 pb-3"}>
+        {embedded && (
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Evidence board</div>
+            <p className="mt-1 text-xs leading-relaxed text-uq-3">Save evidence from the AI, then check it against the exhibit before relying on it.</p>
+          </div>
+        )}
         {items.length === 0 && <p className="text-xs text-uq-3">Save evidence cards here, then check or reject them as you work.</p>}
         {items.map((item) => (
           <article key={item.id} className="rounded-lg border border-uq bg-uq-elev1 p-2.5 text-xs">
