@@ -355,6 +355,23 @@ async function teardown(): Promise<void> {
   const demoSlugs = DEMO_VARIANTS.map((variant) => variant.slug);
   if (demoSlugs.some((slug) => RESERVED.includes(slug))) throw new Error("refusing to touch a reserved demo slug");
 
+  const scenarios = await prisma.recruitmentScenario.findMany({
+    where: { slug: { in: demoSlugs } },
+    select: { id: true, slug: true },
+  });
+  const scenarioIds = scenarios.map((scenario) => scenario.id);
+
+  // Programmes own pilot links and independent assignments. Remove this
+  // demo-only study data before deleting the cohorts it may reference.
+  if (scenarioIds.length > 0) {
+    const programmes = await prisma.recruitmentPsychometricProgramme.deleteMany({
+      where: { scenarioId: { in: scenarioIds } },
+    });
+    if (programmes.count > 0) {
+      console.log(`deleted ${programmes.count} demo validation programme(s), cascaded study data`);
+    }
+  }
+
   // Assessments first: scenario delete would SetNull customScenarioId and
   // strand the cohort. Assessment delete cascades candidates -> responses /
   // interactions / activity events.
@@ -367,7 +384,18 @@ async function teardown(): Promise<void> {
     console.log(`deleted demo cohort ${a.id} (${a._count.candidates} candidates, cascaded)`);
   }
 
-  const scenarios = await prisma.recruitmentScenario.findMany({ where: { slug: { in: demoSlugs } }, select: { id: true, slug: true } });
+  // Frozen versions restrict scenario deletion and deliberately survive normal
+  // cohort deletion. They are safe to remove here because this teardown is
+  // explicitly scoped to the disposable Halcyon demo scenarios.
+  if (scenarioIds.length > 0) {
+    const versions = await prisma.recruitmentAssessmentVersion.deleteMany({
+      where: { scenarioId: { in: scenarioIds } },
+    });
+    if (versions.count > 0) {
+      console.log(`deleted ${versions.count} demo assessment version(s)`);
+    }
+  }
+
   for (const scenario of scenarios) {
     await prisma.recruitmentScenario.delete({ where: { id: scenario.id } });
     console.log(`deleted demo scenario ${scenario.id} (slug ${scenario.slug}, cascaded framework data)`);
