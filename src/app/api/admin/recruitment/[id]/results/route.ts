@@ -8,6 +8,7 @@ import { allIssuesNormalized, loadRubricForAssessment } from "@/lib/recruit/rubr
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { summarizeIntegrity } from "@/lib/recruit/integrity";
 import { blindCandidateIdentity } from "@/lib/recruit/blind-marking";
+import { criteriaForAssessment } from "@/lib/recruit/assessment-versions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,10 @@ export async function GET(
   const denied = await assertAssessmentAccess(auth, params.id);
   if (denied) return denied;
 
-  const a = await prisma.recruitmentAssessment.findUnique({ where: { id: params.id } });
+  const a = await prisma.recruitmentAssessment.findUnique({
+    where: { id: params.id },
+    include: { assessmentVersion: { select: { scenarioHash: true, label: true } } },
+  });
   if (!a) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const revealed = a.revealedAt != null;
 
@@ -40,18 +44,7 @@ export async function GET(
     const nums = (scenario?.tasks ?? []).map((t) => t.number).sort((x, y) => x - y);
     return nums.length > 0 ? nums : [1, 2];
   })();
-  const scenarioCriteria = a.customScenarioId
-    ? await prisma.recruitmentScenarioCriterion.findMany({
-        where: { scenarioId: a.customScenarioId },
-        orderBy: { order: "asc" },
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          taskMappings: { select: { marks: true } },
-        },
-      })
-    : [];
+  const scenarioCriteria = await criteriaForAssessment(a);
 
   const candidates = await prisma.recruitmentCandidate.findMany({
     where: { assessmentId: a.id },
@@ -213,6 +206,7 @@ export async function GET(
       id: a.id, title: a.title, scenarioId: a.scenarioId,
       revealedAt: a.revealedAt, totalMinutes: a.totalMinutes,
       assessmentMode: a.assessmentMode,
+      assessmentVersion: a.assessmentVersion,
     },
     revealed,
     ranking,

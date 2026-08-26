@@ -531,6 +531,8 @@ async function seed(): Promise<void> {
   }
 
   // ---- cohort -------------------------------------------------------------
+  const { getOrCreateAssessmentVersion } = await import("../src/lib/recruit/assessment-versions");
+  const assessmentVersion = await getOrCreateAssessmentVersion(scenario.id, admin.id);
   const assessment = await prisma.recruitmentAssessment.create({
     data: {
       title: COHORT_TITLE,
@@ -546,9 +548,10 @@ async function seed(): Promise<void> {
       defenceEnabled: true,
       defenceQuestionCount: 2,
       defenceMinutes: 5,
+      assessmentVersionId: assessmentVersion.id,
     },
   });
-  console.log(`created cohort ${assessment.id} — "${COHORT_TITLE}"`);
+  console.log(`created cohort ${assessment.id} — "${COHORT_TITLE}" · frozen ${assessmentVersion.scenarioHash.slice(0, 8)}`);
 
   // ---- candidates ---------------------------------------------------------
   const threadKeyChat = `chat-${chatScript.id}`;

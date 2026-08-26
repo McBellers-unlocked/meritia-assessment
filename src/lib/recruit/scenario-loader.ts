@@ -6,8 +6,9 @@
  * don't need to care about the source.
  *
  * Resolution order:
- *   1. If assessment.customScenarioId is set, load the DB scenario.
- *   2. Otherwise, fall back to the code-based registry (getRecruitScenarioById).
+ *   1. If assessment.assessmentVersionId is set, load its immutable snapshot.
+ *   2. If assessment.customScenarioId is set, load the live DB scenario.
+ *   3. Otherwise, fall back to the code-based registry (getRecruitScenarioById).
  *
  * This keeps the legacy FAM scenario working unchanged during the rollout.
  */
@@ -21,40 +22,49 @@ import type {
 } from "./types";
 import type { RecruitmentAssessment } from "@prisma/client";
 import { ASSESSMENT_MODE_POLICY_VERSION, resolveAssessmentMode } from "./assessment-modes";
+import {
+  loadAssessmentVersionSnapshot,
+  type AssessmentVersionSnapshot,
+} from "./assessment-versions";
 
 export async function getScenarioForAssessment(
   assessment: Pick<RecruitmentAssessment, "scenarioId" | "customScenarioId"> &
     Partial<
       Pick<
         RecruitmentAssessment,
-        "assessmentMode" | "modePolicyVersion" | "defenceEnabled" | "defenceQuestionCount" | "defenceMinutes"
+        "assessmentVersionId" | "assessmentMode" | "modePolicyVersion" | "defenceEnabled" | "defenceQuestionCount" | "defenceMinutes"
       >
     >
 ): Promise<RecruitScenarioConfig | null> {
+  if (assessment.assessmentVersionId) {
+    const snapshot = await loadAssessmentVersionSnapshot(assessment.assessmentVersionId);
+    if (snapshot) return applyCohortPolicy(materialiseScenarioSnapshot(snapshot), assessment);
+  }
   if (assessment.customScenarioId) {
     const scenario = await getDbScenarioById(assessment.customScenarioId);
-    return scenario
-      ? {
-          ...scenario,
-          assessmentMode: resolveAssessmentMode(assessment.assessmentMode),
-          modePolicyVersion: assessment.modePolicyVersion || ASSESSMENT_MODE_POLICY_VERSION,
-          defenceEnabled: assessment.defenceEnabled ?? false,
-          defenceQuestionCount: assessment.defenceQuestionCount ?? 2,
-          defenceMinutes: assessment.defenceMinutes ?? 5,
-        }
-      : null;
+    return scenario ? applyCohortPolicy(scenario, assessment) : null;
   }
   const legacy = getRecruitScenarioById(assessment.scenarioId);
-  return legacy
-    ? {
-        ...legacy,
-        assessmentMode: resolveAssessmentMode(assessment.assessmentMode),
-        modePolicyVersion: assessment.modePolicyVersion || ASSESSMENT_MODE_POLICY_VERSION,
-        defenceEnabled: assessment.defenceEnabled ?? false,
-        defenceQuestionCount: assessment.defenceQuestionCount ?? 2,
-        defenceMinutes: assessment.defenceMinutes ?? 5,
-      }
-    : null;
+  return legacy ? applyCohortPolicy(legacy, assessment) : null;
+}
+
+function applyCohortPolicy(
+  scenario: RecruitScenarioConfig,
+  assessment: Partial<
+    Pick<
+      RecruitmentAssessment,
+      "assessmentMode" | "modePolicyVersion" | "defenceEnabled" | "defenceQuestionCount" | "defenceMinutes"
+    >
+  >,
+): RecruitScenarioConfig {
+  return {
+    ...scenario,
+    assessmentMode: resolveAssessmentMode(assessment.assessmentMode),
+    modePolicyVersion: assessment.modePolicyVersion || ASSESSMENT_MODE_POLICY_VERSION,
+    defenceEnabled: assessment.defenceEnabled ?? false,
+    defenceQuestionCount: assessment.defenceQuestionCount ?? 2,
+    defenceMinutes: assessment.defenceMinutes ?? 5,
+  };
 }
 
 /**
@@ -149,6 +159,101 @@ function materialiseScenario(row: DbScenarioRow): RecruitScenarioConfig {
     assistantName: brand.name ?? undefined,
     assistantShortName: brand.short ?? undefined,
     tasks: row.tasks.map(materialiseTask),
+  };
+}
+
+/** Materialise the immutable JSON shape captured by scenario-content-hash.ts. */
+export function materialiseScenarioSnapshot(
+  snapshot: AssessmentVersionSnapshot,
+): RecruitScenarioConfig {
+  const brand = deriveAssistantBrand(snapshot.organisation);
+  const exhibits = new Map(snapshot.exhibits.map((exhibit) => [exhibit.id, exhibit]));
+  return {
+    scenarioId: snapshot.id,
+    slug: snapshot.slug,
+    title: snapshot.title,
+    organisation: snapshot.organisation,
+    positionTitle: snapshot.positionTitle,
+    defaultTotalMinutes: snapshot.defaultTotalMinutes,
+    assessmentMode: resolveAssessmentMode(snapshot.assessmentMode),
+    modePolicyVersion: snapshot.modePolicyVersion,
+    defenceEnabled: snapshot.defenceEnabled,
+    defenceQuestionCount: snapshot.defenceQuestionCount,
+    defenceMinutes: snapshot.defenceMinutes,
+    source: "db",
+    assistantName: brand.name ?? undefined,
+    assistantShortName: brand.short ?? undefined,
+    tasks: snapshot.tasks.map((task) => {
+      const kind = task.kind as TaskKind;
+      if (kind === "memo_ai") {
+        const exhibit = task.exhibitId ? exhibits.get(task.exhibitId) : null;
+        return {
+          taskId: task.id,
+          number: task.number,
+          kind: "memo_ai" as const,
+          title: task.title,
+          briefMarkdown: task.briefMarkdown,
+          totalMarks: task.totalMarks,
+          systemPrompt: task.systemPrompt ?? "",
+          exhibitHtml: exhibit?.html ?? "",
+          exhibitTitle: exhibit?.title ?? "",
+          exhibitSourceId: exhibit?.sourceId ?? exhibit?.id ?? `task-${task.number}-exhibit`,
+          deliverableLabel: task.deliverableLabel ?? "Deliverable",
+          deliverablePlaceholder: task.deliverablePlaceholder ?? "",
+        };
+      }
+      if (kind === "email_inbox") {
+        return {
+          taskId: task.id,
+          number: task.number,
+          kind: "email_inbox" as const,
+          title: task.title,
+          briefMarkdown: task.briefMarkdown,
+          totalMarks: task.totalMarks,
+          emails: task.emails.map((email) => ({
+            id: email.id,
+            orderIndex: email.orderIndex,
+            triggerOffsetSeconds: email.triggerOffsetSeconds,
+            senderName: email.senderName,
+            senderEmail: email.senderEmail,
+            subject: email.subject,
+            bodyHtml: email.bodyHtml,
+            expectedAction: email.expectedAction as "reply" | "ignore" | "flag" | "forward",
+            markerNotes: email.markerNotes,
+          })),
+        };
+      }
+      const script = task.chatScripts[0];
+      return {
+        taskId: task.id,
+        number: task.number,
+        kind: "chat" as const,
+        title: task.title,
+        briefMarkdown: task.briefMarkdown,
+        totalMarks: task.totalMarks,
+        script: script
+          ? {
+              id: script.id,
+              triggerOffsetSeconds: script.triggerOffsetSeconds,
+              personaName: script.personaName,
+              personaRole: script.personaRole,
+              openerMessage: script.openerMessage,
+              systemPrompt: script.systemPrompt,
+              maxTurns: script.maxTurns,
+              expectedOutcomes: script.expectedOutcomes,
+            }
+          : {
+              id: "",
+              triggerOffsetSeconds: 0,
+              personaName: "",
+              personaRole: "",
+              openerMessage: "",
+              systemPrompt: "",
+              maxTurns: 8,
+              expectedOutcomes: null,
+            },
+      };
+    }),
   };
 }
 

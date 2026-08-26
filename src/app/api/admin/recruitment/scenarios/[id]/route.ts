@@ -143,12 +143,13 @@ export async function DELETE(
   const denied = await assertScenarioAccess(auth, params.id);
   if (denied) return denied;
 
-  const inUse = await prisma.recruitmentAssessment.count({
-    where: { customScenarioId: params.id },
-  });
-  if (inUse > 0) {
+  const [assessmentCount, programmeCount] = await Promise.all([
+    prisma.recruitmentAssessment.count({ where: { customScenarioId: params.id } }),
+    prisma.recruitmentPsychometricProgramme.count({ where: { scenarioId: params.id } }),
+  ]);
+  if (assessmentCount > 0 || programmeCount > 0) {
     return NextResponse.json(
-      { error: `cannot delete: ${inUse} assessment(s) reference this scenario. Archive it instead.` },
+      { error: `cannot delete: ${assessmentCount} assessment(s) and ${programmeCount} validation programme(s) reference this scenario. Archive it instead.` },
       { status: 409 }
     );
   }

@@ -10,6 +10,7 @@ import MemoTaskEditor from "@/components/admin/recruit/MemoTaskEditor";
 import EmailTaskEditor from "@/components/admin/recruit/EmailTaskEditor";
 import ChatTaskEditor from "@/components/admin/recruit/ChatTaskEditor";
 import ValidationLabOverview from "@/components/admin/recruit/ValidationLabOverview";
+import PsychometricValidationProgramme from "@/components/admin/recruit/PsychometricValidationProgramme";
 import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
 import type {
   EditorScenario,
@@ -18,19 +19,20 @@ import type {
 } from "@/components/admin/recruit/scenarioEditorTypes";
 
 /**
- * Tabbed scenario editor: Overview | Tasks | Exhibits | Validation Lab | Publish.
+ * Tabbed scenario editor: Overview | Tasks | Exhibits | Validation Lab |
+ * Validation Programme | Publish.
  * Loads the scenario once on mount, then re-fetches after any mutation so
  * child components always see the authoritative server state (task lists,
  * nested emails, chat scripts).
  */
 export default function ScenarioEditorPage() {
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const params = useParams<{ id: string }>();
 
   const [scenario, setScenario] = useState<EditorScenario | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "tasks" | "exhibits" | "validation" | "publish">("overview");
+  const [tab, setTab] = useState<"overview" | "tasks" | "exhibits" | "validation" | "psychometrics" | "publish">("overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function ScenarioEditorPage() {
 
   if (error) return <div className="max-w-4xl mx-auto p-8"><ErrorBox error={error} /></div>;
   if (!scenario) return <div className="max-w-4xl mx-auto p-8 text-sm text-uq-3"><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-uq-3 animate-pulse">Loading…</span></div>;
+  const isFullAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 animate-uq-rise">
@@ -89,6 +92,7 @@ export default function ScenarioEditorPage() {
         <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")}>Tasks ({scenario.tasks.length})</TabButton>
         <TabButton active={tab === "exhibits"} onClick={() => setTab("exhibits")}>Exhibits ({scenario.exhibits.length})</TabButton>
         <TabButton active={tab === "validation"} onClick={() => setTab("validation")}>Validation Lab</TabButton>
+        {isFullAdmin && <TabButton active={tab === "psychometrics"} onClick={() => setTab("psychometrics")}>Validation Programme</TabButton>}
         <TabButton active={tab === "publish"} onClick={() => setTab("publish")}>Publish</TabButton>
       </nav>
 
@@ -109,6 +113,9 @@ export default function ScenarioEditorPage() {
         )}
         {tab === "validation" && (
           <ValidationLabOverview scenario={scenario} onScenarioChanged={reload} />
+        )}
+        {tab === "psychometrics" && isFullAdmin && (
+          <PsychometricValidationProgramme scenario={scenario} />
         )}
         {tab === "publish" && (
           <PublishTab scenario={scenario} onChanged={reload} />

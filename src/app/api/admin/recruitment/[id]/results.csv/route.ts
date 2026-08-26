@@ -24,7 +24,10 @@ export async function GET(
   const denied = await assertAssessmentAccess(auth, params.id);
   if (denied) return denied;
 
-  const a = await prisma.recruitmentAssessment.findUnique({ where: { id: params.id } });
+  const a = await prisma.recruitmentAssessment.findUnique({
+    where: { id: params.id },
+    include: { assessmentVersion: { select: { scenarioHash: true, label: true } } },
+  });
   if (!a) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const revealed = a.revealedAt != null;
 
@@ -44,7 +47,7 @@ export async function GET(
     `"${String(v ?? "").replace(/"/g, '""')}"`;
 
   const headers = [
-    "rank", "anonymous_id", "name", "email", "status", "assessment_mode",
+    "rank", "anonymous_id", "name", "email", "status", "assessment_mode", "assessment_version_hash",
     "total_score", "task1_score", "task2_score",
     "task1_words", "task2_words",
     "candidate_messages",
@@ -67,6 +70,7 @@ export async function GET(
       escape(revealed ? c.email : ""),
       escape(c.status),
       escape(a.assessmentMode),
+      escape(a.assessmentVersion?.scenarioHash ?? "legacy-unversioned"),
       escape(c.totalScore ?? ""),
       escape(t1?.score ?? ""),
       escape(t2?.score ?? ""),

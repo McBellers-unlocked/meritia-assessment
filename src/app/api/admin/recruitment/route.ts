@@ -8,6 +8,7 @@ import {
 import { getRecruitScenarioById } from "@/lib/recruit/fam-p4-2026";
 import { getDbScenarioById } from "@/lib/recruit/scenario-loader";
 import { buildCohortPolicySnapshot } from "@/lib/recruit/assessment-modes";
+import { getOrCreateAssessmentVersion } from "@/lib/recruit/assessment-versions";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
   let defenceEnabled = false;
   let defenceQuestionCount = 2;
   let defenceMinutes = 5;
+  let assessmentVersionId: string | null = null;
 
   if (customScenarioId) {
     // DEMO users can only build cohorts on top of scenarios they
@@ -101,6 +103,8 @@ export async function POST(request: NextRequest) {
     defenceEnabled = snapshot.defenceEnabled;
     defenceQuestionCount = snapshot.defenceQuestionCount;
     defenceMinutes = snapshot.defenceMinutes;
+    const version = await getOrCreateAssessmentVersion(customScenarioId, auth.userId);
+    assessmentVersionId = version.id;
   } else {
     // Built-in code-based scenarios are off-limits to DEMO sessions —
     // they aren't owned by any user and would let a demo prospect run
@@ -141,6 +145,7 @@ export async function POST(request: NextRequest) {
       defenceEnabled,
       defenceQuestionCount,
       defenceMinutes,
+      assessmentVersionId,
     },
   });
   return NextResponse.json({ assessment: created });

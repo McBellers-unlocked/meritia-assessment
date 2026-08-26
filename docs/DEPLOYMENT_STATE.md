@@ -77,6 +77,15 @@ environment variable is required: the worker reuses `DATABASE_URL` and
 current queue fallback). Verify the Lambda timeout remains five minutes and
 that its SQS visibility timeout exceeds the function timeout.
 
+### Validation Programme deployment requirement
+
+Apply `prisma/migrations/20260826120000_psychometric_validation_programme_v1`
+before deploying the Validation Programme UI. The migration is additive and
+does not rewrite existing answers or operational marks. Historical cohorts keep
+a null assessment-version reference until explicitly linked; new database-backed
+cohorts capture a frozen version automatically. No Lambda change or new
+environment variable is required for this migration.
+
 ## Custom domains
 
 Canonical: `https://www.uniqassess.org`. DNS hosted in AWS Route 53
