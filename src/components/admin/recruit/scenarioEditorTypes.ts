@@ -65,6 +65,9 @@ export interface EditorScenario {
   defenceEnabled: boolean;
   defenceQuestionCount: number;
   defenceMinutes: number;
+  roleEvidenceRecord: Record<string, unknown> | null;
+  roleEvidenceReviewedById: string | null;
+  roleEvidenceReviewedAt: string | null;
   status: EditorStatus;
   publishedAt: string | null;
   tasks: EditorTask[];
@@ -72,7 +75,7 @@ export interface EditorScenario {
   _count: { assessments: number };
   criteria?: Array<{
     id: string; code: string; name: string; description: string; sourceRequirement: string | null;
-    observableBehaviours: string[]; order: number;
+    observableBehaviours: string[]; roleEvidence: Record<string, unknown> | null; order: number;
     taskMappings: Array<{ id: string; taskId: string; expectedCandidateEvidence: string; rubricElementIds: string[]; marks: number; task: { id: string; number: number; title: string } }>;
   }>;
   validationRuns?: Array<Record<string, unknown>>;

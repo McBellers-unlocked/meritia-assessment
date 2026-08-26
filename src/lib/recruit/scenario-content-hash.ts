@@ -43,11 +43,14 @@ export async function loadScenarioContentSnapshot(scenarioId: string) {
       defenceEnabled: true,
       defenceQuestionCount: true,
       defenceMinutes: true,
+      roleEvidenceRecord: true,
+      roleEvidenceReviewedById: true,
+      roleEvidenceReviewedAt: true,
       criteria: {
         orderBy: { order: "asc" },
         select: {
           id: true, code: true, name: true, description: true,
-          sourceRequirement: true, observableBehaviours: true, order: true,
+          sourceRequirement: true, observableBehaviours: true, roleEvidence: true, order: true,
           taskMappings: {
             orderBy: { taskId: "asc" },
             select: { taskId: true, expectedCandidateEvidence: true, rubricElementIds: true, marks: true },

@@ -133,6 +133,7 @@ export default function FromItuPickerPage() {
       organisation: "ITU",
       filename: `ITU posting · ${detail.externalId}`,
       sourceLink: detail.link,
+      sourceKind: "ITU",
     };
     try {
       sessionStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(handoff));

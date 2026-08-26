@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireScenarioBuilder } from "@/lib/admin-auth";
 import { ASSESSMENT_MODE_POLICY_VERSION, defaultDefenceEnabled, isAssessmentMode } from "@/lib/recruit/assessment-modes";
 import { makeSourceId } from "@/lib/recruit/source-verification";
+import {
+  ROLE_EVIDENCE_DISCLAIMER,
+  ROLE_EVIDENCE_REVIEW_VERSION,
+  normaliseRoleEvidenceReview,
+  normaliseRoleEvidenceSourceKind,
+  roleEvidenceReadiness,
+  roleEvidenceWarnings,
+  type RoleEvidenceReview,
+} from "@/lib/recruit/role-evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +61,17 @@ export async function POST(request: NextRequest) {
   const tasksInput = Array.isArray(body.tasks) ? body.tasks : [];
   const assessmentMode = isAssessmentMode(body.assessmentMode) ? body.assessmentMode : "EVIDENCE";
   const defenceEnabled = body.defenceEnabled === undefined ? defaultDefenceEnabled(assessmentMode) : Boolean(body.defenceEnabled);
-  const criteriaInput = Array.isArray(body.criteria) ? body.criteria.map(String).map((v: string) => v.trim()).filter(Boolean) : [];
+  const rawCriteria: unknown[] = Array.isArray(body.criteria) ? body.criteria : [];
+  const criteriaInput: RoleEvidenceReview[] = rawCriteria
+    .map(normaliseRoleEvidenceReview)
+    .filter((value): value is RoleEvidenceReview => value !== null);
   const criteriaByTask = Array.isArray(body.criteriaByTask) ? body.criteriaByTask : [];
+  const roleEvidenceSource = body.roleEvidenceSource && typeof body.roleEvidenceSource === "object"
+    ? body.roleEvidenceSource as Record<string, unknown>
+    : {};
+  const sourceKind = normaliseRoleEvidenceSourceKind(roleEvidenceSource.sourceKind);
+  const sourceLabel = String(roleEvidenceSource.sourceLabel ?? "Job description").trim().slice(0, 500) || "Job description";
+  const sourceLink = String(roleEvidenceSource.sourceLink ?? "").trim().slice(0, 2_000) || null;
 
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
   if (!slug || !SLUG_RE.test(slug)) {
@@ -86,6 +105,20 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (rawCriteria.length < 1 || rawCriteria.length > 6 || criteriaInput.length !== rawCriteria.length) {
+    return NextResponse.json(
+      { error: "criteria must contain 1–6 complete Role Evidence Review records" },
+      { status: 400 },
+    );
+  }
+  const roleEvidenceReadinessResult = roleEvidenceReadiness(criteriaInput);
+  if (!roleEvidenceReadinessResult.ready) {
+    return NextResponse.json(
+      { error: roleEvidenceReadinessResult.blockers[0] || "Role Evidence Review is incomplete" },
+      { status: 400 },
+    );
+  }
+  const retainedCriteria = criteriaInput.filter((criterion) => criterion.decision === "KEEP");
 
   // Validate every task before any DB write.
   const tasks: Array<{
@@ -172,6 +205,24 @@ export async function POST(request: NextRequest) {
   // `-2`, `-3`, ... rather than failing the save and forcing the user
   // back to edit the slug field.
   const finalSlug = await ensureUniqueSlug(slug);
+  const reviewedAt = new Date();
+  const reviewerName = String(auth.session.user.name || auth.session.user.email || "Current reviewer").slice(0, 500);
+  const roleEvidenceRecord = {
+    version: ROLE_EVIDENCE_REVIEW_VERSION,
+    sourceKind,
+    sourceLabel,
+    sourceLink,
+    assessmentMode,
+    disclaimer: ROLE_EVIDENCE_DISCLAIMER,
+    reviewedAt: reviewedAt.toISOString(),
+    reviewedBy: { id: auth.userId, name: reviewerName },
+    criteria: criteriaInput,
+    warnings: criteriaInput.flatMap((criterion) => roleEvidenceWarnings(criterion, assessmentMode).map((warning) => ({
+      reviewId: criterion.reviewId,
+      criterion: criterion.criterion,
+      ...warning,
+    }))),
+  };
 
   // One transaction: scenario header, exhibits, tasks (each linked to its
   // exhibit by id). If anything fails, the whole thing rolls back.
@@ -184,6 +235,9 @@ export async function POST(request: NextRequest) {
         positionTitle,
         defaultTotalMinutes,
         jdSourceText: jdText,
+        roleEvidenceRecord: roleEvidenceRecord as unknown as Prisma.InputJsonValue,
+        roleEvidenceReviewedById: auth.userId,
+        roleEvidenceReviewedAt: reviewedAt,
         assessmentMode,
         modePolicyVersion: ASSESSMENT_MODE_POLICY_VERSION,
         defenceEnabled,
@@ -228,16 +282,18 @@ export async function POST(request: NextRequest) {
     // Persist extracted requirements as stable criteria. The generation
     // wizard supplies its per-task buckets so the initial blueprint is useful
     // immediately rather than leaving criteria transient in browser state.
-    for (let criterionIndex = 0; criterionIndex < criteriaInput.length; criterionIndex++) {
-      const criterionText = criteriaInput[criterionIndex];
+    for (let criterionIndex = 0; criterionIndex < retainedCriteria.length; criterionIndex++) {
+      const roleEvidence = retainedCriteria[criterionIndex];
+      const criterionText = roleEvidence.criterion;
       const criterion = await tx.recruitmentScenarioCriterion.create({
         data: {
           scenarioId: scenario.id,
           code: `CRIT-${String(criterionIndex + 1).padStart(2, "0")}`,
           name: criterionText.slice(0, 160),
           description: criterionText,
-          sourceRequirement: criterionText,
-          observableBehaviours: [`Produces task evidence that directly demonstrates: ${criterionText}`],
+          sourceRequirement: roleEvidence.sourceRequirement,
+          observableBehaviours: roleEvidence.observableBehaviours,
+          roleEvidence: roleEvidence as unknown as Prisma.InputJsonValue,
           order: criterionIndex,
         },
       });
@@ -259,7 +315,7 @@ export async function POST(request: NextRequest) {
           data: {
             criterionId: criterion.id,
             taskId: task.id,
-            expectedCandidateEvidence: `Observable evidence addressing: ${criterionText}`,
+            expectedCandidateEvidence: roleEvidence.expectedCandidateEvidence,
             rubricElementIds: Object.keys(rubric),
             marks: distributedMarks,
           },

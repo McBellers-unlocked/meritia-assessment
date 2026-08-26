@@ -40,6 +40,14 @@ import {
   programmeReadiness,
   summariseRaterReliability,
 } from "../src/lib/recruit/psychometrics";
+import {
+  ROLE_EVIDENCE_DISCLAIMER,
+  createRoleEvidenceReview,
+  normaliseRoleEvidenceReview,
+  normaliseRoleEvidenceSourceKind,
+  roleEvidenceReadiness,
+  roleEvidenceWarnings,
+} from "../src/lib/recruit/role-evidence";
 
 const structuredFixture = {
   analysisSummary: "The headline needs to be tested against the function breakdown.",
@@ -267,6 +275,39 @@ test("legacy lexical overlap remains deterministic without becoming a score", ()
   assert.equal(result.reuseRatio, 1);
   const unrelated = analyzeTextReuse("<p>I would first commission a confidential review.</p>", [copied]);
   assert.equal(unrelated.numReusedSentences, 0);
+});
+
+test("role evidence proposals require accountable human confirmation", () => {
+  const review = createRoleEvidenceReview({
+    criterion: "Advise managers on complex employee relations cases",
+    origin: "ESSENTIAL",
+    index: 0,
+    assessmentMode: "EVIDENCE",
+  });
+  assert.equal(review.entryRequirement, "REQUIRED_AT_ENTRY");
+  assert.equal(review.importance, "CORE");
+  assert.equal(review.aiCondition, "EVIDENCE");
+  assert.equal(roleEvidenceReadiness([review]).ready, false);
+  const confirmed = { ...review, confirmed: true };
+  assert.equal(roleEvidenceReadiness([confirmed]).ready, true);
+  assert.match(ROLE_EVIDENCE_DISCLAIMER, /not a completed job analysis or psychometric validation/i);
+});
+
+test("role evidence warnings expose design trade-offs and inputs are normalised", () => {
+  const review = {
+    ...createRoleEvidenceReview({ criterion: "Prepare internal guidance", origin: "DESIRABLE", index: 1, assessmentMode: "COPILOT" }),
+    entryRequirement: "LEARNABLE_AFTER_APPOINTMENT" as const,
+    observability: "NOT_OBSERVABLE" as const,
+    aiCondition: "OPEN_AGENT" as const,
+    confirmed: true,
+  };
+  const messages = roleEvidenceWarnings(review, "COPILOT").map((warning) => warning.message).join(" ");
+  assert.match(messages, /learnable after appointment/i);
+  assert.match(messages, /not observable/i);
+  assert.match(messages, /does not match/i);
+  assert.deepEqual(normaliseRoleEvidenceReview({ ...review, observableBehaviours: ["  Behaviour one  "] })?.observableBehaviours, ["Behaviour one"]);
+  assert.equal(normaliseRoleEvidenceSourceKind("WIPO"), "WIPO");
+  assert.equal(normaliseRoleEvidenceSourceKind("unknown"), "UPLOADED_JD");
 });
 
 test("marked Halcyon demo spans visible-output overlap without eliminating genuine zeroes", () => {
