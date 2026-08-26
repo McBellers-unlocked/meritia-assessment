@@ -44,7 +44,7 @@ export async function GET(
     `"${String(v ?? "").replace(/"/g, '""')}"`;
 
   const headers = [
-    "rank", "anonymous_id", "name", "email", "status",
+    "rank", "anonymous_id", "name", "email", "status", "assessment_mode",
     "total_score", "task1_score", "task2_score",
     "task1_words", "task2_words",
     "candidate_messages",
@@ -66,6 +66,7 @@ export async function GET(
       escape(revealed ? c.name : ""),
       escape(revealed ? c.email : ""),
       escape(c.status),
+      escape(a.assessmentMode),
       escape(c.totalScore ?? ""),
       escape(t1?.score ?? ""),
       escape(t2?.score ?? ""),

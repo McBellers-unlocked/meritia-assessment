@@ -1,5 +1,5 @@
 /**
- * Integrity-signal aggregation over a candidate's activity events, shared by
+ * Legacy-named work-provenance aggregation over candidate activity events, shared by
  * the marking-list and results APIs (the per-candidate marking screen derives
  * the same numbers client-side in its ActivitySection). Advisory only — these
  * signals inform the marker's judgement and are never scored automatically.

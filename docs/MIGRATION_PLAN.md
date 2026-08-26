@@ -211,6 +211,20 @@ the Meritia platform brand.
 
 See `README.md` for configuration and first-run steps.
 
+### Post-carve-out schema migration: AI-era framework v1
+
+The first versioned application migration is
+`prisma/migrations/20260825120000_ai_era_assessment_framework_v1/migration.sql`.
+It adds declared mode snapshots, structured interaction provenance, evidence
+boards, defences, stable assessment criteria/blueprints, Validation Lab runs,
+human reviews and publication overrides. The migration is additive and assigns
+safe historical defaults (Evidence Mode; defence disabled). Apply it with
+`npx prisma migrate deploy`; do not replace it with `db push` in production.
+
+The companion worker deployment extends the existing SQS/Lambda consumer with
+the idempotent `scenario-validation-v1` message type. It introduces no new
+environment variables.
+
 ### Open TODOs (prioritised)
 
 - [ ] Replace placeholder brand assets in `public/` (favicon, apple-touch-icon, og-image)

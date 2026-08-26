@@ -57,7 +57,25 @@ Environment variables set on the app (values redacted):
 | Backups | 7-day retention |
 | Public access | Yes (pilot) |
 | Security group | `meritia-db-sg` / `sg-03b479bc7cdb73da9` — inbound 5432 from `0.0.0.0/0` |
-| Schema | Applied via `npx prisma db push` on first deploy |
+| Schema | Initial schema used `db push`; versioned upgrades now use `npx prisma migrate deploy` |
+
+### AI-era framework v1 deployment requirement
+
+Before deploying the framework UI, apply
+`prisma/migrations/20260825120000_ai_era_assessment_framework_v1` with
+`npx prisma migrate deploy`. The migration is additive: historical scenarios
+and cohorts resolve to Evidence Mode, defence remains disabled for existing
+assessments, and historical interactions continue to render from their text
+content. It also adds nullable human criterion-score storage and immutable
+Validation Lab input snapshots; no existing candidate answer is rewritten.
+
+Rebuild and deploy `lambda/task-generator` in the same release. The existing
+`meritia-task-generation-queue` now carries the original `{ jobId }` messages
+and `{ jobType: "scenario-validation-v1", validationRunId }` messages. No new
+environment variable is required: the worker reuses `DATABASE_URL` and
+`ANTHROPIC_API_KEY`; the app reuses `SQS_TASK_QUEUE_URL` when configured (or its
+current queue fallback). Verify the Lambda timeout remains five minutes and
+that its SQS visibility timeout exceeds the function timeout.
 
 ## Custom domains
 

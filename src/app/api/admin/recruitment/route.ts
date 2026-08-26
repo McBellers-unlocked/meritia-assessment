@@ -7,6 +7,7 @@ import {
 } from "@/lib/admin-auth";
 import { getRecruitScenarioById } from "@/lib/recruit/fam-p4-2026";
 import { getDbScenarioById } from "@/lib/recruit/scenario-loader";
+import { buildCohortPolicySnapshot } from "@/lib/recruit/assessment-modes";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,11 @@ export async function POST(request: NextRequest) {
   let resolvedScenarioId = "";
   let defaultMinutes = 90;
   let resolvedCustomId: string | null = null;
+  let assessmentMode: "EVIDENCE" | "COPILOT" | "OPEN_AGENT" = "EVIDENCE";
+  let modePolicyVersion = "1";
+  let defenceEnabled = false;
+  let defenceQuestionCount = 2;
+  let defenceMinutes = 5;
 
   if (customScenarioId) {
     // DEMO users can only build cohorts on top of scenarios they
@@ -89,6 +95,12 @@ export async function POST(request: NextRequest) {
     resolvedScenarioId = dbScenario.scenarioId;
     defaultMinutes = dbScenario.defaultTotalMinutes;
     resolvedCustomId = customScenarioId;
+    const snapshot = buildCohortPolicySnapshot(row);
+    assessmentMode = snapshot.assessmentMode;
+    modePolicyVersion = snapshot.modePolicyVersion;
+    defenceEnabled = snapshot.defenceEnabled;
+    defenceQuestionCount = snapshot.defenceQuestionCount;
+    defenceMinutes = snapshot.defenceMinutes;
   } else {
     // Built-in code-based scenarios are off-limits to DEMO sessions —
     // they aren't owned by any user and would let a demo prospect run
@@ -124,6 +136,11 @@ export async function POST(request: NextRequest) {
       openDate,
       closeDate,
       createdById: auth.session.user.id,
+      assessmentMode,
+      modePolicyVersion,
+      defenceEnabled,
+      defenceQuestionCount,
+      defenceMinutes,
     },
   });
   return NextResponse.json({ assessment: created });

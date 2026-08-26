@@ -1,6 +1,6 @@
 /**
  * Read-only sanity check for the seeded demo cohort. Recomputes exactly what
- * the reviewer UI derives at render time (integrity tiles, message counts,
+ * the reviewer UI derives at render time (work-provenance totals, message counts,
  * rubric normalisation, AI branding) so the demo can be checked from the
  * terminal without opening the admin UI.
  *
@@ -9,9 +9,15 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 import { PrismaClient } from "@prisma/client";
+import { getScenarioContentHash } from "../../src/lib/recruit/scenario-content-hash";
 import { SLUG, COHORT_TITLE } from "./scenario";
 
 const prisma = new PrismaClient();
+const DEMO_VARIANTS = [
+  { slug: SLUG, mode: "EVIDENCE", label: "Evidence Mode" },
+  { slug: `${SLUG}-copilot`, mode: "COPILOT", label: "Copilot Mode" },
+  { slug: `${SLUG}-open-agent`, mode: "OPEN_AGENT", label: "Open Agent Mode" },
+] as const;
 
 async function main() {
   const scenario = await prisma.recruitmentScenario.findUnique({
@@ -66,6 +72,11 @@ async function main() {
     `\ncohort ${assessment.id}: ${assessment.totalMinutes} min, open ${assessment.openDate.toISOString().slice(0, 10)} → close ${assessment.closeDate.toISOString().slice(0, 10)}, revealed: ${assessment.revealedAt ? "YES !!" : "no (blind)"}`
   );
 
+  console.log(
+    `  policy snapshot: ${assessment.assessmentMode}, policy v${assessment.modePolicyVersion}, ` +
+      `defence ${assessment.defenceEnabled ? `${assessment.defenceQuestionCount} questions / ${assessment.defenceMinutes} min` : "off"}`
+  );
+
   const candidates = await prisma.recruitmentCandidate.findMany({
     where: { assessmentId: assessment.id },
     orderBy: { anonymousId: "asc" },
@@ -73,6 +84,8 @@ async function main() {
       responses: true,
       interactions: { orderBy: { sequenceNum: "asc" } },
       activityEvents: { orderBy: { occurredAt: "asc" } },
+      evidenceBoard: { orderBy: { createdAt: "asc" } },
+      defence: true,
     },
   });
 
@@ -115,6 +128,42 @@ async function main() {
         `${String((resp?.wordCount ?? 0) + "w" + (resp?.sentAt ? ",sent" : ",draft")).padEnd(17)} ` +
         `${pastes.length}/${pasteChars.toLocaleString().padEnd(6)} · ${String(hiddenCount).padEnd(2)} · ${offTab.padEnd(8)} ${chatState}`
     );
+    const structuredAi = c.interactions.filter(
+      (interaction) => interaction.actor === "ai" && interaction.structuredPayload != null
+    );
+    const candidateProblems: string[] = [];
+    if (!c.workLockedAt || !c.submittedAt || c.workLockedAt > c.submittedAt) {
+      candidateProblems.push("main work was not locked before final submission");
+    }
+    if (!c.defence?.submittedAt) candidateProblems.push("defence is not submitted");
+    if (!Array.isArray(c.defence?.questions) || c.defence.questions.length !== 2) {
+      candidateProblems.push("defence does not contain exactly two questions");
+    }
+    if (!Array.isArray(c.defence?.answers) || c.defence.answers.length !== 2) {
+      candidateProblems.push("defence does not contain exactly two answers");
+    }
+    if (structuredAi.length < 1) candidateProblems.push("no structured evidence response");
+    if (c.evidenceBoard.length < 1) candidateProblems.push("evidence board is empty");
+    if (c.evidenceBoard.some((evidence) => !evidence.interactionId || !evidence.sourceId)) {
+      candidateProblems.push("evidence lineage is incomplete");
+    }
+    for (const requiredEvent of ["evidence_saved", "defence_started", "defence_submitted", "final_submission"]) {
+      if (!c.activityEvents.some((event) => event.eventType === requiredEvent)) {
+        candidateProblems.push(`${requiredEvent} provenance event is missing`);
+      }
+    }
+    if (
+      resp?.markedAt &&
+      (!resp.criterionScores ||
+        typeof resp.criterionScores !== "object" ||
+        Array.isArray(resp.criterionScores) ||
+        Object.keys(resp.criterionScores).length !== 2)
+    ) {
+      candidateProblems.push("human criterion scores are missing from a marked response");
+    }
+    if (candidateProblems.length) {
+      throw new Error(`${c.anonymousId}: ${candidateProblems.join("; ")}`);
+    }
   }
 
   console.log(`\nspares (invited, excluded from marking list): ${invited.map((c) => `${c.anonymousId} ${c.token}`).join(", ")}`);
@@ -125,6 +174,66 @@ async function main() {
     .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
     .map((c) => `${c.anonymousId} ${c.totalScore}`);
   console.log(`ranking: ${ranked.join("  |  ")}  (+${submitted.filter((c) => c.totalScore == null).length} unmarked)`);
+
+  console.log("\nAI-era framework relationships:");
+  const variants = await prisma.recruitmentScenario.findMany({
+    where: { slug: { in: DEMO_VARIANTS.map((variant) => variant.slug) } },
+    include: {
+      exhibits: true,
+      criteria: { include: { taskMappings: true } },
+      validationRuns: { orderBy: { createdAt: "desc" }, take: 1 },
+      reviews: { orderBy: { createdAt: "asc" } },
+    },
+  });
+
+  for (const expected of DEMO_VARIANTS) {
+    const variant = variants.find((item) => item.slug === expected.slug);
+    if (!variant) throw new Error(`${expected.label}: scenario is missing`);
+    const problems: string[] = [];
+    const currentHash = await getScenarioContentHash(variant.id);
+    const latestRun = variant.validationRuns[0];
+    const findings = Array.isArray(latestRun?.findings)
+      ? (latestRun.findings as Array<Record<string, unknown>>)
+      : [];
+    const reviewTypes = new Set(variant.reviews.map((review) => review.reviewType));
+    const mappings = variant.criteria.flatMap((criterion) => criterion.taskMappings);
+    const mappingMarks = mappings.reduce((sum, mapping) => sum + mapping.marks, 0);
+
+    if (variant.assessmentMode !== expected.mode) problems.push(`mode is ${variant.assessmentMode}`);
+    if (!variant.defenceEnabled || variant.defenceQuestionCount !== 2) problems.push("defence configuration is incomplete");
+    if (!variant.exhibits.some((exhibit) => exhibit.sourceId)) problems.push("stable exhibit source ID is missing");
+    if (variant.criteria.length !== 3) problems.push(`expected 3 criteria, found ${variant.criteria.length}`);
+    if (variant.criteria.some((criterion) => criterion.taskMappings.length === 0)) problems.push("unmapped criterion found");
+    if (mappingMarks !== 100) problems.push(`criterion mapping marks total ${mappingMarks}, expected 100`);
+    if (!latestRun || latestRun.status !== "COMPLETED") problems.push("completed preflight is missing");
+    if (!currentHash || latestRun?.scenarioHash !== currentHash) problems.push("latest preflight is stale");
+    if (!latestRun?.scenarioSnapshot) problems.push("immutable validation input snapshot is missing");
+    if (!Array.isArray(latestRun?.syntheticProfiles) || latestRun.syntheticProfiles.length !== 3) {
+      problems.push("Developing/Competent/Strong synthetic profiles are missing");
+    }
+    if (!Array.isArray(latestRun?.policyTests) || latestRun.policyTests.length < 3) {
+      problems.push("Knowledge System policy tests are missing");
+    }
+    if (!findings.some((finding) => finding.severity === "blocker" && finding.disposition === "resolved")) {
+      problems.push("human-resolved demonstration blocker is missing");
+    }
+    for (const required of ["SUBJECT_MATTER", "ASSESSMENT_DESIGN", "ACCESSIBILITY"] as const) {
+      if (!reviewTypes.has(required)) problems.push(`${required} review is missing`);
+    }
+
+    if (problems.length) throw new Error(`${expected.label}: ${problems.join("; ")}`);
+    console.log(
+      `  pass ${expected.label}: current preflight, ${variant.criteria.length} criteria / ` +
+        `${mappings.length} mappings, 3 human reviews`
+    );
+  }
+
+  const dispositions = new Set(
+    submitted.flatMap((candidate) => candidate.evidenceBoard.map((card) => card.candidateDisposition))
+  );
+  console.log(
+    `  pass candidate evidence + defence: ${submitted.length} locked submissions, dispositions ${Array.from(dispositions).sort().join(", ")}`
+  );
 }
 
 main()

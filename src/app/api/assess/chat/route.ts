@@ -7,6 +7,10 @@ import { loadCandidate, verifySessionCookie } from "@/lib/recruit/candidate-auth
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { isChatTask, isMemoAiTask } from "@/lib/recruit/types";
 import { RUNTIME_MODEL as MODEL, RUNTIME_MAX_TOKENS as MAX_TOKENS } from "@/lib/recruit/model-config";
+import { buildKnowledgePolicy } from "@/lib/recruit/assessment-modes";
+import { CONTENT_VERSION, KNOWLEDGE_POLICY_VERSION, KNOWLEDGE_RESPONSE_SCHEMA_VERSION } from "@/lib/recruit/prompt-versions";
+import { KNOWLEDGE_RESPONSE_TOOL, knowledgeResponseToText, parseKnowledgeSystemResponse } from "@/lib/recruit/knowledge-response-schema";
+import { buildSourceContext, htmlToPlainText, validateKnowledgeSources, type KnowledgeSource } from "@/lib/recruit/source-verification";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -83,8 +87,25 @@ export async function POST(request: NextRequest) {
     // email_inbox tasks never call /api/assess/chat.
     let systemPrompt: string;
     let maxTurns: number | null = null;
+    let knowledgeSources: KnowledgeSource[] = [];
+    let structuredKnowledge = false;
     if (isMemoAiTask(taskCfg)) {
-      systemPrompt = taskCfg.systemPrompt;
+      structuredKnowledge = true;
+      knowledgeSources = [{
+        id: taskCfg.exhibitSourceId ?? `${scenario.scenarioId}-task-${taskNumber}-exhibit`,
+        title: taskCfg.exhibitTitle,
+        text: htmlToPlainText(taskCfg.exhibitHtml),
+        html: taskCfg.exhibitHtml,
+      }];
+      systemPrompt = `${buildKnowledgePolicy(result.assessment.assessmentMode)}
+
+SCENARIO-SPECIFIC KNOWLEDGE AND INSTRUCTIONS
+${taskCfg.systemPrompt}
+
+AVAILABLE SOURCES
+${buildSourceContext(knowledgeSources)}
+
+Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direct-evidence excerpts must be copied from the corresponding source text. Use basis=inference and no source when a statement is professional inference.`;
     } else if (isChatTask(taskCfg)) {
       systemPrompt = buildPersonaSystemPrompt(taskCfg.script.systemPrompt, scenario, taskCfg.script.openerMessage);
       maxTurns = taskCfg.script.maxTurns;
@@ -123,6 +144,9 @@ export async function POST(request: NextRequest) {
         actor: "candidate",
         content: message,
         metadata: { threadKey: effectiveThreadKey },
+        assessmentMode: result.assessment.assessmentMode,
+        promptPolicyVersion: KNOWLEDGE_POLICY_VERSION,
+        contentVersion: CONTENT_VERSION,
       },
     });
 
@@ -184,6 +208,12 @@ export async function POST(request: NextRequest) {
           max_tokens: MAX_TOKENS,
           system: systemBlocks,
           messages,
+          ...(structuredKnowledge
+            ? {
+                tools: [KNOWLEDGE_RESPONSE_TOOL as unknown as Anthropic.Tool],
+                tool_choice: { type: "tool" as const, name: KNOWLEDGE_RESPONSE_TOOL.name },
+              }
+            : {}),
         });
         break;
       } catch (e) {
@@ -193,11 +223,33 @@ export async function POST(request: NextRequest) {
       }
     }
     if (!resp) throw lastErr ?? new Error("Anthropic call failed");
-    const text = resp.content
+    const plainText = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("\n")
       .trim();
+    let structuredPayload: ReturnType<typeof validateKnowledgeSources> | null = null;
+    let sourceValidation: unknown = null;
+    let text = plainText;
+    if (structuredKnowledge) {
+      const toolBlock = resp.content.find(
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === KNOWLEDGE_RESPONSE_TOOL.name
+      );
+      const parsed = parseKnowledgeSystemResponse(toolBlock?.input, result.assessment.assessmentMode);
+      if (parsed.ok) {
+        structuredPayload = validateKnowledgeSources(parsed.value, knowledgeSources);
+        sourceValidation = structuredPayload.evidenceCards.map((card) => ({
+          evidenceCardId: card.id,
+          sourceId: card.sourceId,
+          status: card.verificationStatus,
+          note: card.verificationNote,
+        }));
+        text = knowledgeResponseToText(structuredPayload);
+      } else {
+        text = plainText || "I could not format that response safely. Please rephrase the question or check the exhibit directly.";
+        sourceValidation = { parseError: parsed.error };
+      }
+    }
 
     await prisma.recruitmentInteraction.create({
       data: {
@@ -206,6 +258,13 @@ export async function POST(request: NextRequest) {
         actor: "ai",
         content: text,
         tokenCount: resp.usage.output_tokens,
+        structuredPayload: structuredPayload ?? undefined,
+        schemaVersion: structuredPayload ? KNOWLEDGE_RESPONSE_SCHEMA_VERSION : null,
+        model: MODEL,
+        promptPolicyVersion: structuredKnowledge ? KNOWLEDGE_POLICY_VERSION : "persona-chat-v1",
+        assessmentMode: result.assessment.assessmentMode,
+        sourceValidation: sourceValidation ?? undefined,
+        contentVersion: CONTENT_VERSION,
         metadata: {
           model: MODEL,
           threadKey: effectiveThreadKey,
@@ -227,10 +286,10 @@ export async function POST(request: NextRequest) {
           }
         : { candidateId: result.candidate.id, taskNumber },
       orderBy: { sequenceNum: "asc" },
-      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true },
+      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true },
     });
 
-    return NextResponse.json({ reply: text, trail: fullTrail });
+    return NextResponse.json({ reply: text, structured: structuredPayload, trail: fullTrail });
   } catch (e) {
     console.error("[assess chat]", e);
     const status = (e as { status?: number })?.status;

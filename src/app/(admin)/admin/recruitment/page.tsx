@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
+import type { AssessmentMode } from "@/lib/recruit/assessment-modes";
 
 interface AssessmentRow {
   id: string;
@@ -14,6 +16,7 @@ interface AssessmentRow {
   openDate: string;
   closeDate: string;
   revealedAt: string | null;
+  assessmentMode: AssessmentMode;
   candidateCount: number;
   counts: { invited: number; started: number; submitted: number; expired: number };
 }
@@ -28,6 +31,7 @@ interface ScenarioOption {
   scenarioId: string;          // used when source="legacy"
   customScenarioId?: string;   // used when source="custom"
   label: string;
+  assessmentMode?: AssessmentMode;
 }
 
 function deriveTitleFromLabel(label: string): string {
@@ -107,12 +111,13 @@ export default function AdminRecruitmentList() {
         const res = await fetch("/api/admin/recruitment/scenarios?status=published", { cache: "no-store" });
         if (!res.ok) return;
         const body = await res.json();
-        const custom: ScenarioOption[] = body.scenarios.map((s: { id: string; title: string; slug: string; positionTitle: string }) => ({
+        const custom: ScenarioOption[] = body.scenarios.map((s: { id: string; title: string; slug: string; positionTitle: string; assessmentMode: AssessmentMode }) => ({
           source: "custom" as const,
           key: `custom:${s.id}`,
           scenarioId: s.slug,                // mirror only; server derives from customScenarioId
           customScenarioId: s.id,
           label: `${s.title} (custom)`,
+          assessmentMode: s.assessmentMode,
         }));
         setScenarioOptions([...LEGACY_OPTIONS, ...custom]);
       } catch {
@@ -178,6 +183,14 @@ export default function AdminRecruitmentList() {
             <span className="text-xs text-uq-3 mt-1 block">
               Need a new scenario? <Link href="/admin/recruitment/scenarios" className="text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md">Open the scenario builder</Link>.
             </span>
+            {scenarioOptions.find((option) => option.key === scenarioKey)?.source === "legacy" && (
+              <span className="mt-2 block rounded-md border border-uq-faint bg-uq-elev2 p-2 text-xs leading-relaxed text-uq-3">
+                Read-only legacy scenario: it remains supported with the historical Evidence Mode policy. Full Validation Lab editing, mode selection and defence configuration require a database-authored scenario.
+              </span>
+            )}
+            {scenarioOptions.find((option) => option.key === scenarioKey)?.assessmentMode && (
+              <span className="mt-2 block"><AssessmentModeBadge mode={scenarioOptions.find((option) => option.key === scenarioKey)?.assessmentMode} /></span>
+            )}
           </label>
           <label className="block text-sm">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Open date</span>
@@ -226,7 +239,10 @@ export default function AdminRecruitmentList() {
                 <tr key={a.id} className="border-t border-uq-faint transition-colors hover:bg-uq-elev2">
                   <td className="px-4 py-2">
                     <div className="font-medium text-uq">{a.title}</div>
-                    <div className="text-xs text-uq-3">{a.scenarioSlug} · {a.totalMinutes} min</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-uq-3">{a.scenarioSlug} · {a.totalMinutes} min</span>
+                      <AssessmentModeBadge mode={a.assessmentMode} />
+                    </div>
                   </td>
                   <td className="px-4 py-2 text-xs text-uq-3">
                     {new Date(a.openDate).toLocaleDateString()} → {new Date(a.closeDate).toLocaleDateString()}

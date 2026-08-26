@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { PasteSignal, OffTabSignal, type IntegritySignals } from "@/components/recruit/IntegrityCells";
+import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
+import type { AssessmentMode } from "@/lib/recruit/assessment-modes";
 
 interface RankRow {
   candidateId: string;
@@ -20,6 +22,7 @@ interface RankRow {
   task1Words: number;
   task2Words: number;
   candidateMessageCount: number;
+  defenceCompleted: boolean;
   integrity?: IntegritySignals;
   task1IssuesIdentified: string[];
   task2IssuesIdentified: string[];
@@ -27,21 +30,34 @@ interface RankRow {
 }
 
 interface ResultsData {
-  assessment: { id: string; title: string; scenarioId: string; revealedAt: string | null; totalMinutes: number };
+  assessment: { id: string; title: string; scenarioId: string; revealedAt: string | null; totalMinutes: number; assessmentMode: AssessmentMode };
   revealed: boolean;
   ranking: RankRow[];
   analytics: {
+    invitedCount: number;
     submittedCount: number;
+    completionRate: number | null;
     scoredCount: number;
     fullyMarkedCount: number;
     averageTotal: number | null;
     averageTask1: number | null;
     averageTask2: number | null;
     averageTimeMin: number | null;
+    medianTimeMin: number | null;
+    minTimeMin: number | null;
+    maxTimeMin: number | null;
     averageMessages: number | null;
+    defenceRequired: boolean;
+    defenceCompletedCount: number;
+    technicalFailureCount: number;
+    technicalRecoveryCount: number;
     messageCountScoreCorrelation: number | null;
     histogram: { bucket: string; count: number }[];
     issueAnalytics: { id: string; title: string; maxMarks: number | null; identifiedCount: number; identifiedRate: number | null }[];
+    criterionScoreDistributions: Array<{
+      criterionId: string; code: string; name: string; maxMarks: number; scoredCount: number;
+      average: number | null; median: number | null; minimum: number | null; maximum: number | null;
+    }>;
   };
 }
 
@@ -56,7 +72,7 @@ export default function ResultsPage() {
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/recruitment/${params.id}/results`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -64,8 +80,8 @@ export default function ResultsPage() {
     } catch (e) {
       setError((e as Error).message);
     }
-  };
-  useEffect(() => { void reload(); }, [params.id]);
+  }, [params.id]);
+  useEffect(() => { void reload(); }, [reload]);
 
   const reveal = async () => {
     setRevealing(true);
@@ -104,6 +120,7 @@ export default function ResultsPage() {
       <div className="flex items-start justify-between mt-2 gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq">Results · {data.assessment.title}</h1>
+          <div className="mt-2"><AssessmentModeBadge mode={data.assessment.assessmentMode} /></div>
           <div className="text-sm text-uq-3 mt-1">
             {revealed
               ? <span className="text-[color:var(--uq-success-text)] font-medium">Names revealed at {new Date(data.assessment.revealedAt!).toLocaleString()}</span>
@@ -138,13 +155,26 @@ export default function ResultsPage() {
         <KPI label="Avg messages" value={data.analytics.averageMessages != null ? data.analytics.averageMessages.toFixed(1) : "—"} />
       </div>
 
+      <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
+        <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Descriptive pilot diagnostics</h2>
+        <p className="mt-1 text-xs leading-relaxed text-uq-3">
+          Operational observations for assessment review only. These figures do not establish validity, causation or a candidate recommendation.
+        </p>
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Diagnostic label="Completion" value={data.analytics.completionRate == null ? "—" : `${Math.round(data.analytics.completionRate * 100)}% (${data.analytics.submittedCount}/${data.analytics.invitedCount})`} />
+          <Diagnostic label="Time median / range" value={data.analytics.medianTimeMin == null ? "—" : `${Math.round(data.analytics.medianTimeMin)} min · ${data.analytics.minTimeMin}–${data.analytics.maxTimeMin} min`} />
+          <Diagnostic label="Defence completed" value={data.analytics.defenceRequired ? `${data.analytics.defenceCompletedCount}/${data.analytics.submittedCount}` : "Not configured"} />
+          <Diagnostic label="Technical events" value={`${data.analytics.technicalFailureCount} failure · ${data.analytics.technicalRecoveryCount} recovery`} />
+        </dl>
+      </section>
+
       <section className="mt-8 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
         <div className="flex items-baseline justify-between">
           <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Score distribution</h2>
           <div className="text-xs text-uq-3">
             Avg Task 1: <span className="font-mono tabular-nums">{data.analytics.averageTask1?.toFixed(1) ?? "—"}</span> ·
             Avg Task 2: <span className="font-mono tabular-nums">{data.analytics.averageTask2?.toFixed(1) ?? "—"}</span> ·
-            Messages↔Score r: <span className="font-mono tabular-nums">{data.analytics.messageCountScoreCorrelation?.toFixed(2) ?? "—"}</span>
+            Descriptive pilot diagnostics only — no automated selection recommendation
           </div>
         </div>
         <div className="mt-4 flex items-end gap-1 h-32">
@@ -160,6 +190,45 @@ export default function ResultsPage() {
           ))}
         </div>
       </section>
+
+      {data.analytics.criterionScoreDistributions.some((criterion) => criterion.scoredCount > 0) && (
+        <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
+          <h2 className="text-base font-semibold tracking-[-0.005em] text-uq">Criterion-level score distribution</h2>
+          <p className="mt-1 text-xs leading-relaxed text-uq-3">
+            Human-entered criterion scores for fully marked submissions. Descriptive pilot evidence only; no automated inference or candidate recommendation.
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="font-mono text-[11px] uppercase tracking-[0.14em] text-uq-3">
+                <tr>
+                  <th className="py-1 text-left">Criterion</th>
+                  <th className="py-1 text-right">Scored</th>
+                  <th className="py-1 text-right">Average</th>
+                  <th className="py-1 text-right">Median</th>
+                  <th className="py-1 text-right">Range</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.analytics.criterionScoreDistributions.map((criterion) => (
+                  <tr key={criterion.criterionId} className="border-t border-uq-faint">
+                    <td className="py-2 pr-3 text-uq">
+                      <span className="font-mono text-xs text-uq-accent">{criterion.code}</span>
+                      <span className="ml-2 font-medium">{criterion.name}</span>
+                      <span className="ml-1 text-xs text-uq-3">/{criterion.maxMarks}</span>
+                    </td>
+                    <td className="py-2 text-right font-mono tabular-nums text-uq-2">{criterion.scoredCount}</td>
+                    <td className="py-2 text-right font-mono tabular-nums text-uq-2">{criterion.average?.toFixed(1) ?? "-"}</td>
+                    <td className="py-2 text-right font-mono tabular-nums text-uq-2">{criterion.median?.toFixed(1) ?? "-"}</td>
+                    <td className="py-2 text-right font-mono tabular-nums text-uq-2">
+                      {criterion.minimum == null ? "-" : `${criterion.minimum}-${criterion.maximum}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {data.analytics.issueAnalytics.length > 0 && (
         <section className="mt-6 rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-5">
@@ -217,8 +286,8 @@ export default function ResultsPage() {
               <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Total</th>
               <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Time</th>
               <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Msgs</th>
-              <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Pastes</th>
-              <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Off-tab</th>
+              <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Paste activity</th>
+              <th className="px-3 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Focus changes</th>
               <th className="px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Status</th>
             </tr>
           </thead>
@@ -314,6 +383,15 @@ function KPI({ label, value, accent }: { label: string; value: number | string; 
     <div className={`rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass border-l-2 ${accentColour} p-3`}>
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">{label}</div>
       <div className="text-2xl font-semibold font-mono tabular-nums text-uq">{value}</div>
+    </div>
+  );
+}
+
+function Diagnostic({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-uq-faint bg-uq-elev2 p-3">
+      <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-uq-3">{label}</dt>
+      <dd className="mt-1 text-sm font-medium text-uq">{value}</dd>
     </div>
   );
 }

@@ -20,7 +20,7 @@ type IncomingEvent = {
 };
 
 /**
- * Append integrity/activity events for a candidate session. Body:
+ * Append work-provenance/activity events for a candidate session. Body:
  *   { token, events: [{ type, taskNumber?, metadata?, occurredAt? }] }
  *
  * Clients buffer events (paste, visibilitychange) and flush in small batches.

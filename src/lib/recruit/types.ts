@@ -51,6 +51,8 @@ export interface RecruitChatScriptConfig {
  * types carry their scripted content in kind-specific fields.
  */
 export interface RecruitTaskConfigBase {
+  /** DB task id when database-authored; null for legacy code scenarios. */
+  taskId?: string | null;
   number: number;
   kind: TaskKind;
   title: string;
@@ -63,6 +65,7 @@ export interface RecruitMemoAiTaskConfig extends RecruitTaskConfigBase {
   systemPrompt: string;
   exhibitHtml: string;
   exhibitTitle: string;
+  exhibitSourceId?: string;
   deliverableLabel: string;
   deliverablePlaceholder: string;
 }
@@ -89,6 +92,11 @@ export interface RecruitScenarioConfig {
   organisation: string;
   positionTitle: string;
   defaultTotalMinutes: number;
+  assessmentMode?: import("./assessment-modes").AssessmentMode;
+  modePolicyVersion?: string;
+  defenceEnabled?: boolean;
+  defenceQuestionCount?: number;
+  defenceMinutes?: number;
   /**
    * Branding for the in-assessment AI panel. The candidate UI falls back to
    * the IDSC defaults when these are absent, so existing scenarios are

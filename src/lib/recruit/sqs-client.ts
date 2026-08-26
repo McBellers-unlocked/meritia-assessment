@@ -42,3 +42,14 @@ export async function enqueueGenerationJob(jobId: string): Promise<void> {
     })
   );
 }
+
+/** Reuse the established long-running worker queue with an explicit job type. */
+export async function enqueueValidationRun(validationRunId: string): Promise<void> {
+  const queueUrl = process.env.SQS_TASK_QUEUE_URL || FALLBACK_QUEUE_URL;
+  await getClient().send(
+    new SendMessageCommand({
+      QueueUrl: queueUrl,
+      MessageBody: JSON.stringify({ jobType: "scenario-validation-v1", validationRunId }),
+    })
+  );
+}

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
+import type { AssessmentMode } from "@/lib/recruit/assessment-modes";
 
 interface DashboardData {
   assessment: {
@@ -15,6 +17,11 @@ interface DashboardData {
     openDate: string;
     closeDate: string;
     revealedAt: string | null;
+    assessmentMode: AssessmentMode;
+    modePolicyVersion: string;
+    defenceEnabled: boolean;
+    defenceQuestionCount: number;
+    defenceMinutes: number;
   };
   counts: { invited: number; started: number; submitted: number; expired: number };
   notStarted: { id: string; name: string; email: string }[];
@@ -62,12 +69,19 @@ export default function AssessmentDashboardPage() {
         <Link href="/admin/recruitment" className="font-mono text-[11px] uppercase tracking-[0.14em] text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md">← All assessments</Link>
       </div>
       <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq mt-2">{data.assessment.title}</h1>
+      <div className="mt-2"><AssessmentModeBadge mode={data.assessment.assessmentMode} /></div>
       <div className="text-sm text-uq-3 mt-1">
         Scenario <code className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">{data.assessment.scenarioId}</code>
         · {data.assessment.totalMinutes} min per candidate
         · Open {new Date(data.assessment.openDate).toLocaleString()}
         → Close {new Date(data.assessment.closeDate).toLocaleString()}
       </div>
+      <p className="mt-2 text-xs text-uq-3">
+        Cohort policy snapshot v{data.assessment.modePolicyVersion}
+        {data.assessment.defenceEnabled
+          ? ` · ${data.assessment.defenceQuestionCount}-question defence (${data.assessment.defenceMinutes} min)`
+          : " · defence disabled"}
+      </p>
 
       <div className="grid sm:grid-cols-5 gap-3 mt-6">
         <KPI label="Invited" value={totalCandidates} />

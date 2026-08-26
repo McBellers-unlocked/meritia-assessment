@@ -20,13 +20,15 @@ if command -v zip >/dev/null 2>&1; then
   zip -r ../task-generator.zip \
       index.mjs \
       prompt.mjs \
+      validation-prompt.mjs \
+      model-config.mjs \
       package.json \
       node_modules \
       > /dev/null
 elif command -v powershell.exe >/dev/null 2>&1; then
-  # Windows fallback — bash-on-Windows ships without `zip`.
+  # Windows fallback - bash-on-Windows ships without `zip`.
   powershell.exe -NoProfile -Command \
-    "Compress-Archive -Path index.mjs,prompt.mjs,package.json,node_modules -DestinationPath ../task-generator.zip -Force"
+    "Compress-Archive -Path index.mjs,prompt.mjs,validation-prompt.mjs,model-config.mjs,package.json,node_modules -DestinationPath ../task-generator.zip -Force"
 else
   echo "Error: need either 'zip' or PowerShell to package the Lambda." >&2
   exit 1

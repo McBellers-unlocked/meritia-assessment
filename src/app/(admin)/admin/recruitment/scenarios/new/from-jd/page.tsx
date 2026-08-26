@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { consumeSseResultStream } from "@/lib/recruit/sse-client";
+import { ASSESSMENT_MODES, getAssessmentModePolicy, type AssessmentMode } from "@/lib/recruit/assessment-modes";
 
 interface GeneratedTaskDraft {
   title: string;
@@ -103,6 +104,7 @@ export default function GenerateFromJdPage() {
   const [organisation, setOrganisation] = useState(DEFAULT_ORG);
   const [positionTitle, setPositionTitle] = useState("");
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
+  const [assessmentMode, setAssessmentMode] = useState<AssessmentMode>("EVIDENCE");
   // Set when this flow was started from a WIPO posting — used to show
   // a "Source: WIPO posting →" link on the configure step.
   const [sourceLink, setSourceLink] = useState<string | null>(null);
@@ -467,8 +469,11 @@ export default function GenerateFromJdPage() {
           organisation: organisation.trim(),
           positionTitle: positionTitle.trim(),
           defaultTotalMinutes: Number(defaultTotalMinutes) || 90,
+          assessmentMode,
           jdText,
           tasks: tasks.filter(Boolean),
+          criteria: orderedSelectedCriteria,
+          criteriaByTask: taskCriteriaBuckets,
         }),
       });
       const body = await res.json();
@@ -554,6 +559,8 @@ export default function GenerateFromJdPage() {
           setPositionTitle={setPositionTitle}
           defaultTotalMinutes={defaultTotalMinutes}
           setDefaultTotalMinutes={setDefaultTotalMinutes}
+          assessmentMode={assessmentMode}
+          setAssessmentMode={setAssessmentMode}
           generatedTaskCount={generatedTaskCount}
           selectedCount={selectedCount}
           canSubmit={Boolean(canConfigure) && selectedCount > 0}
@@ -1184,6 +1191,8 @@ function ConfigureStep({
   setPositionTitle,
   defaultTotalMinutes,
   setDefaultTotalMinutes,
+  assessmentMode,
+  setAssessmentMode,
   generatedTaskCount,
   selectedCount,
   canSubmit,
@@ -1203,6 +1212,8 @@ function ConfigureStep({
   setPositionTitle: (v: string) => void;
   defaultTotalMinutes: string;
   setDefaultTotalMinutes: (v: string) => void;
+  assessmentMode: AssessmentMode;
+  setAssessmentMode: (v: AssessmentMode) => void;
   generatedTaskCount: number;
   selectedCount: number;
   canSubmit: boolean;
@@ -1307,6 +1318,38 @@ function ConfigureStep({
             className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 text-sm text-uq placeholder:text-uq-3 transition-shadow duration-150 focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)] focus:bg-uq-elev1"
           />
         </label>
+        <fieldset className="sm:col-span-2">
+          <legend className="text-sm text-uq-2">Assessment mode</legend>
+          <div className="mt-2 grid gap-3 lg:grid-cols-3">
+            {ASSESSMENT_MODES.map((mode) => {
+              const policy = getAssessmentModePolicy(mode);
+              const selected = assessmentMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setAssessmentMode(mode)}
+                  className={`rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
+                    selected
+                      ? "border-uq-accent bg-uq-accent-soft"
+                      : "border-uq bg-uq-glass-subtle hover:border-uq-accent"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-uq">
+                    {policy.label}
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-uq-2">
+                    {policy.shortDescription}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="mt-2 block text-xs text-uq-3">
+            The selected policy is copied into each cohort when it is created.
+          </span>
+        </fieldset>
         <div className="block text-sm">
           <span className="text-uq-2">Tasks to generate</span>
           <div className="mt-1 px-3 py-2 text-sm bg-uq-elev2 border border-uq-faint rounded-md text-uq-2">

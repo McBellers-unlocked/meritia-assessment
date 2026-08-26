@@ -4,6 +4,7 @@ import {
   assertScenarioAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
+import { isAssessmentMode, ASSESSMENT_MODE_POLICY_VERSION } from "@/lib/recruit/assessment-modes";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,12 @@ export async function GET(
         },
       },
       exhibits: { orderBy: { title: "asc" } },
+      criteria: {
+        orderBy: { order: "asc" },
+        include: { taskMappings: { include: { task: { select: { id: true, number: true, title: true } } } } },
+      },
+      validationRuns: { orderBy: { createdAt: "desc" }, take: 10 },
+      reviews: { orderBy: { createdAt: "desc" } },
       _count: { select: { assessments: true } },
     },
   });
@@ -93,6 +100,24 @@ export async function PATCH(
       return NextResponse.json({ error: "defaultTotalMinutes must be between 5 and 480" }, { status: 400 });
     }
     data.defaultTotalMinutes = v;
+  }
+  if (body.assessmentMode !== undefined) {
+    if (!isAssessmentMode(body.assessmentMode)) {
+      return NextResponse.json({ error: "assessmentMode must be EVIDENCE, COPILOT or OPEN_AGENT" }, { status: 400 });
+    }
+    data.assessmentMode = body.assessmentMode;
+    data.modePolicyVersion = ASSESSMENT_MODE_POLICY_VERSION;
+  }
+  if (body.defenceEnabled !== undefined) data.defenceEnabled = Boolean(body.defenceEnabled);
+  if (body.defenceQuestionCount !== undefined && Number(body.defenceQuestionCount) !== 2) {
+    return NextResponse.json({ error: "this release supports exactly two defence questions" }, { status: 400 });
+  }
+  if (body.defenceMinutes !== undefined) {
+    const minutes = Number(body.defenceMinutes);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 30) {
+      return NextResponse.json({ error: "defenceMinutes must be between 1 and 30" }, { status: 400 });
+    }
+    data.defenceMinutes = minutes;
   }
 
   // Status changes flow through /publish and /archive endpoints — do not

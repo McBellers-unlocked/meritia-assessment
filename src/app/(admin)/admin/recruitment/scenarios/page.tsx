@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
 
 interface ScenarioRow {
   id: string;
@@ -17,6 +18,7 @@ interface ScenarioRow {
   updatedAt: string;
   taskCount: number;
   assessmentCount: number;
+  assessmentMode: "EVIDENCE" | "COPILOT" | "OPEN_AGENT";
 }
 
 export default function ScenariosListPage() {
@@ -113,6 +115,7 @@ export default function ScenariosListPage() {
               <tr className="border-b border-uq-faint">
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Title</th>
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Status</th>
+                <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Mode</th>
                 <th className="px-4 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Tasks</th>
                 <th className="px-4 py-2 text-right font-mono text-[11px] uppercase tracking-[0.14em]">Cohorts</th>
                 <th className="px-4 py-2 text-left font-mono text-[11px] uppercase tracking-[0.14em]">Updated</th>
@@ -131,6 +134,7 @@ export default function ScenariosListPage() {
                   <td className="px-4 py-2">
                     <StatusBadge status={s.status} />
                   </td>
+                  <td className="px-4 py-2"><AssessmentModeBadge mode={s.assessmentMode} /></td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums text-uq-2">{s.taskCount}</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums text-uq-2">{s.assessmentCount}</td>
                   <td className="px-4 py-2 text-xs text-uq-3">{new Date(s.updatedAt).toLocaleDateString()}</td>

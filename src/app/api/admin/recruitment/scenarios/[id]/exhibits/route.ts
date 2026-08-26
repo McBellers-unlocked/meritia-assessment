@@ -4,6 +4,7 @@ import {
   assertScenarioAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
+import { makeSourceId } from "@/lib/recruit/source-verification";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +42,9 @@ export async function POST(
     );
   }
 
+  const exhibitCount = await prisma.recruitmentScenarioExhibit.count({ where: { scenarioId: params.id } });
   const exhibit = await prisma.recruitmentScenarioExhibit.create({
-    data: { scenarioId: params.id, title, html },
+    data: { scenarioId: params.id, title, html, sourceId: makeSourceId(title, exhibitCount + 1) },
   });
   await prisma.recruitmentScenario.update({
     where: { id: params.id },

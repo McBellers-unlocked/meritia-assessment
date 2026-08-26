@@ -9,6 +9,7 @@ export type EditorTaskKind = "memo_ai" | "email_inbox" | "chat";
 
 export interface EditorExhibit {
   id: string;
+  sourceId: string | null;
   title: string;
   html: string;
 }
@@ -59,9 +60,21 @@ export interface EditorScenario {
   organisation: string;
   positionTitle: string;
   defaultTotalMinutes: number;
+  assessmentMode: "EVIDENCE" | "COPILOT" | "OPEN_AGENT";
+  modePolicyVersion: string;
+  defenceEnabled: boolean;
+  defenceQuestionCount: number;
+  defenceMinutes: number;
   status: EditorStatus;
   publishedAt: string | null;
   tasks: EditorTask[];
   exhibits: EditorExhibit[];
   _count: { assessments: number };
+  criteria?: Array<{
+    id: string; code: string; name: string; description: string; sourceRequirement: string | null;
+    observableBehaviours: string[]; order: number;
+    taskMappings: Array<{ id: string; taskId: string; expectedCandidateEvidence: string; rubricElementIds: string[]; marks: number; task: { id: string; number: number; title: string } }>;
+  }>;
+  validationRuns?: Array<Record<string, unknown>>;
+  reviews?: Array<Record<string, unknown>>;
 }

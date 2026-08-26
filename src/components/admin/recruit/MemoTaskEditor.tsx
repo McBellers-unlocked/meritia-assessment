@@ -43,6 +43,9 @@ export default function MemoTaskEditor({
     setDeliverablePlaceholder(task.deliverablePlaceholder ?? "");
     setSavedAt(null);
     setError(null);
+    // Intentionally reinitialise only when selecting a different task; parent
+    // refreshes of the same task must not overwrite unsaved editor text.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.id]);
 
   const save = async () => {

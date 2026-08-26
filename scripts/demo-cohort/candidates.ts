@@ -6,9 +6,9 @@
  *   A Aisha Rahman    — star: heavy, disciplined AI use; clean; 88
  *   B Ben Hartley     — solid: moderate AI use; clean; over-shares in chat; 71
  *   C Chloe Nakamura  — heaviest AI use, weak synthesis; clean; UNMARKED
- *   D Diego Ferrara   — mixed integrity (2 tab-aways, small paste); 58
- *   E Elif Demir      — mixed integrity (paste into chat, over-promises); 55
- *   F Felix Grant     — bad integrity (2,850-char paste, 10.5 min off-tab,
+ *   D Diego Ferrara   — 2 focus changes and a small paste; 58
+ *   E Elif Demir      — paste into chat and over-promises; 55
+ *   F Felix Grant     — 2,850 pasted characters, 10.5 min away from the tab,
  *                       near-zero AI use, generic memo); UNMARKED
  *   G Grace Osei      — disengaged (thin memo, never opened IM, long
  *                       off-tab stretches); 24
@@ -248,7 +248,7 @@ Cost reference, from People & Workplace working figures: average recruitment cos
       "Excellent. Decomposed the average unprompted, found the shift and roster concentration, connected the verbatims to the leaver record, and treated the named-individual dimension with proper due-process care. Recommendations are specific, sequenced and costed. The IM handling was a model: held the line warmly and offered a legitimate alternative. A shade long in the middle section; the measurement-gap point could be one line shorter.",
     issueIds: ["average_masks_split", "attrition_concentration", "manager_verbatims"],
   },
-  story: "Star — heavy disciplined AI use, clean integrity, all 3 issues, model chat handling",
+  story: "Star — rich, disciplined Knowledge System dialogue, no focus changes or paste events, all 3 issues, model chat handling",
 };
 
 // ---------------------------------------------------------------------------
@@ -374,7 +374,7 @@ By tenure: under 1 yr 4; 1–3 yrs 22; 3–7 yrs 7; 7+ yrs 2.`,
       "Sound decomposition — caught the function collapse behind the 7.4 and the attrition concentration, grounded both in item-level data, and found the January rostering change. Stops one layer short: never pursued the shift or roster cuts, so the verbatim pattern went unconnected and the recommendation stays at listening-session altitude. Note the IM exchange: offered the Head of Ops her section before the Director had seen it — worth a coaching conversation about pre-briefing.",
     issueIds: ["average_masks_split", "attrition_concentration"],
   },
-  story: "Solid — 2 of 3 issues, clean integrity, but promised Dana her section pre-exec",
+  story: "Solid — 2 of 3 issues, moderate Knowledge System dialogue, no focus changes or paste events, but promised Dana her section pre-exec",
 };
 
 // ---------------------------------------------------------------------------
@@ -522,7 +522,7 @@ Policy note: weekend and holiday allocation moved from central scheduling to tea
 };
 
 // ---------------------------------------------------------------------------
-// D — Diego Ferrara (Candidate D) — mixed integrity, misses the average trap
+// D — Diego Ferrara (Candidate D) — some focus changes and paste activity, misses the average trap
 // ---------------------------------------------------------------------------
 
 const D_MEMO = `<h3>Briefing note — Q2 People Pulse</h3>
@@ -631,11 +631,11 @@ const D: DemoCandidate = {
       "Correctly isolates the attrition concentration, reads the tenure profile well and costs the problem — but accepts the headline engagement figure at face value, so the function collapse behind the 7.4 goes unexamined and the note opens by reassuring the executive. Two brief tab-aways and one small paste; nothing conclusive, noted for completeness. Chat handling was reasonable: deferred detail without stonewalling, though 'running hot' gave away more than needed pre-exec.",
     issueIds: ["attrition_concentration"],
   },
-  story: "Mixed integrity (2 short tab-aways, 220-char paste) — found attrition, missed the averaging trap",
+  story: "Two short focus changes and a 220-character paste — found attrition, missed the averaging trap",
 };
 
 // ---------------------------------------------------------------------------
-// E — Elif Demir (Candidate E) — mixed integrity, over-promises Dana
+// E — Elif Demir (Candidate E) — paste activity and an over-promise to Dana
 // ---------------------------------------------------------------------------
 
 const E_MEMO = `<h3>Briefing note — Q2 People Pulse</h3>
@@ -720,7 +720,7 @@ const E: DemoCandidate = {
       "Found the averaging problem quickly — one of the few who tested the headline — and the opening paragraph is genuinely sharp. But the note stops there: the leaver record is waved at rather than analysed, nothing below function level was pursued, and the actions are process boilerplate. Chat handling poor: an 11-minute silence, then a pasted canned deflection, then a promise to send the Head of Operations the full draft before the Director had seen it.",
     issueIds: ["average_masks_split"],
   },
-  story: "Mixed integrity — pasted a canned line into the IM, then promised Dana the draft tonight",
+  story: "Pasted a canned line into the IM, then promised Dana the draft tonight",
 };
 
 // ---------------------------------------------------------------------------

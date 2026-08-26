@@ -33,6 +33,12 @@ import {
   buildRubricUserMessageContent,
 } from "./prompt.mjs";
 import { BUILDER_MODEL as MODEL } from "./model-config.mjs";
+import {
+  VALIDATION_PROMPT_VERSION,
+  VALIDATION_SYSTEM_PROMPT,
+  VALIDATION_REPORT_TOOL,
+  buildValidationUserMessage,
+} from "./validation-prompt.mjs";
 
 // Includes adaptive-thinking tokens + the tool call (which carries the
 // rendered exhibit HTML, brief, etc.). Adaptive thinking on a complex
@@ -89,13 +95,25 @@ export const handler = async (event) => {
   const records = Array.isArray(event?.Records) ? event.Records : [];
   for (const record of records) {
     let jobId;
+    let validationRunId;
+    let jobType;
     try {
       const body = JSON.parse(record.body ?? "{}");
       jobId = String(body.jobId ?? "").trim();
+      validationRunId = String(body.validationRunId ?? "").trim();
+      jobType = String(body.jobType ?? "task-generation-v1");
     } catch {
       console.error("Could not parse SQS message body:", record.body);
       // Don't throw — let the message be deleted; a malformed message
       // would otherwise loop forever (until DLQ).
+      continue;
+    }
+    if (jobType === "scenario-validation-v1" && validationRunId) {
+      try {
+        await processValidationRun(validationRunId);
+      } catch (e) {
+        console.error(`[validation-lab] run ${validationRunId} failed:`, e);
+      }
       continue;
     }
     if (!jobId) {
@@ -113,6 +131,82 @@ export const handler = async (event) => {
     }
   }
 };
+
+async function processValidationRun(runId) {
+  const pool = getPool();
+  const startedAt = new Date();
+  const claimed = await pool.query(
+    `UPDATE recruitment_scenario_validation_runs
+     SET status = 'RUNNING', progress_stage = 'Preparing scenario snapshot', started_at = $2
+     WHERE id = $1 AND status = 'QUEUED'
+     RETURNING scenario_id, scenario_hash, scenario_snapshot`,
+    [runId, startedAt]
+  );
+  if (claimed.rowCount === 0) {
+    console.warn(`[validation-lab] run ${runId} not queued; idempotent skip`);
+    return;
+  }
+  try {
+    const scenarioId = claimed.rows[0].scenario_id;
+    let snapshot = claimed.rows[0].scenario_snapshot;
+    // New runs always carry the immutable canonical input. The fallback keeps
+    // an already-queued pre-migration run recoverable without pretending it
+    // represents a new hash.
+    if (!snapshot || typeof snapshot !== "object") {
+      const [scenarioRes, tasksRes, exhibitsRes, criteriaRes, mappingsRes] = await Promise.all([
+        pool.query(`SELECT id, slug, title, organisation, position_title, default_total_minutes, assessment_mode, mode_policy_version, defence_enabled, defence_question_count, defence_minutes FROM recruitment_scenarios WHERE id = $1`, [scenarioId]),
+        pool.query(`SELECT id, number, kind, title, brief_markdown, total_marks, system_prompt, exhibit_id, deliverable_label, deliverable_placeholder, config, rubric FROM recruitment_scenario_tasks WHERE scenario_id = $1 ORDER BY number`, [scenarioId]),
+        pool.query(`SELECT id, source_id, title, html FROM recruitment_scenario_exhibits WHERE scenario_id = $1 ORDER BY id`, [scenarioId]),
+        pool.query(`SELECT id, code, name, description, source_requirement, observable_behaviours, "order" FROM recruitment_scenario_criteria WHERE scenario_id = $1 ORDER BY "order"`, [scenarioId]),
+        pool.query(`SELECT m.criterion_id, m.task_id, m.expected_candidate_evidence, m.rubric_element_ids, m.marks FROM recruitment_scenario_criterion_tasks m JOIN recruitment_scenario_criteria c ON c.id = m.criterion_id WHERE c.scenario_id = $1 ORDER BY m.criterion_id, m.task_id`, [scenarioId]),
+      ]);
+      if (!scenarioRes.rows[0]) throw new Error("Scenario no longer exists");
+      snapshot = {
+        ...scenarioRes.rows[0],
+        tasks: tasksRes.rows,
+        exhibits: exhibitsRes.rows,
+        criteria: criteriaRes.rows.map((criterion) => ({ ...criterion, taskMappings: mappingsRes.rows.filter((mapping) => mapping.criterion_id === criterion.id) })),
+      };
+    }
+
+    await pool.query(`UPDATE recruitment_scenario_validation_runs SET progress_stage = 'Reviewing criterion coverage' WHERE id = $1`, [runId]);
+    const stream = getAnthropic().messages.stream({
+      model: MODEL,
+      max_tokens: 24_000,
+      system: VALIDATION_SYSTEM_PROMPT,
+      tools: [VALIDATION_REPORT_TOOL],
+      tool_choice: { type: "tool", name: VALIDATION_REPORT_TOOL.name },
+      thinking: { type: "adaptive" },
+      output_config: { effort: "high" },
+      messages: [{ role: "user", content: buildValidationUserMessage(snapshot) }],
+    });
+    await pool.query(`UPDATE recruitment_scenario_validation_runs SET progress_stage = 'Simulating candidate responses' WHERE id = $1`, [runId]);
+    const response = await stream.finalMessage();
+    const tool = response.content.find((block) => block.type === "tool_use" && block.name === VALIDATION_REPORT_TOOL.name);
+    if (!tool || !tool.input) throw new Error("Model did not return a validation report tool call");
+    const report = tool.input;
+    const current = await pool.query(`SELECT findings FROM recruitment_scenario_validation_runs WHERE id = $1`, [runId]);
+    const deterministicFindings = Array.isArray(current.rows[0]?.findings) ? current.rows[0].findings : [];
+    const aiFindings = Array.isArray(report.findings) ? report.findings.map((item, index) => ({ ...item, id: item.id || `ai-${index + 1}`, disposition: "open" })) : [];
+    const allFindings = [...deterministicFindings, ...aiFindings];
+    const openBlockers = allFindings.filter((item) => item.severity === "blocker" && item.disposition === "open").length;
+    await pool.query(
+      `UPDATE recruitment_scenario_validation_runs
+         SET status = 'COMPLETED', progress_stage = 'Producing recommendations', overall_readiness = $2,
+             findings = $3, synthetic_profiles = $4, policy_tests = $5, summary = $6,
+             prompt_version = $7, completed_at = $8
+       WHERE id = $1`,
+      [runId, openBlockers ? "Human review required" : "Automated preflight complete", JSON.stringify(allFindings), JSON.stringify(report.syntheticProfiles ?? []), JSON.stringify(report.policyTests ?? []), String(report.summary ?? ""), VALIDATION_PROMPT_VERSION, new Date()]
+    );
+    console.log(`[validation-lab] run ${runId} completed; blockers=${openBlockers}`);
+  } catch (error) {
+    await pool.query(
+      `UPDATE recruitment_scenario_validation_runs SET status = 'FAILED', progress_stage = 'Preflight failed', overall_readiness = 'Preflight required', error = $2, completed_at = $3 WHERE id = $1`,
+      [runId, error?.message || String(error), new Date()]
+    );
+    throw error;
+  }
+}
 
 async function processJob(jobId) {
   const pool = getPool();
