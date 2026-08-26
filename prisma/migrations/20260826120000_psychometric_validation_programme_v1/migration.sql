@@ -121,11 +121,11 @@ CREATE TABLE "recruitment_psychometric_rater_assignments" (
   "updated_at" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "recruitment_psychometric_rater_assignments_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "recruitment_psychometric_rater_assignments_programme_candidate_rater_key"
+CREATE UNIQUE INDEX "psych_rater_assignment_candidate_rater_key"
   ON "recruitment_psychometric_rater_assignments"("programme_id", "candidate_id", "rater_id");
 CREATE INDEX "recruitment_psychometric_rater_assignments_rater_status_idx"
   ON "recruitment_psychometric_rater_assignments"("rater_id", "status");
-CREATE INDEX "recruitment_psychometric_rater_assignments_programme_candidate_idx"
+CREATE INDEX "psych_rater_assignment_programme_candidate_idx"
   ON "recruitment_psychometric_rater_assignments"("programme_id", "candidate_id");
 
 CREATE TABLE "recruitment_psychometric_ratings" (

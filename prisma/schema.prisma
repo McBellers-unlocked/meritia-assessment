@@ -690,9 +690,9 @@ model RecruitmentPsychometricRaterAssignment {
 
   ratings RecruitmentPsychometricRating[]
 
-  @@unique([programmeId, candidateId, raterId])
+  @@unique([programmeId, candidateId, raterId], map: "psych_rater_assignment_candidate_rater_key")
   @@index([raterId, status])
-  @@index([programmeId, candidateId])
+  @@index([programmeId, candidateId], map: "psych_rater_assignment_programme_candidate_idx")
   @@map("recruitment_psychometric_rater_assignments")
 }
 
