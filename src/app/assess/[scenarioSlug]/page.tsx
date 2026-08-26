@@ -1,8 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import AssessmentView from "@/components/recruit/AssessmentView";
+import CandidateDefenceView from "@/components/recruit/CandidateDefenceView";
+import { AssessmentModeDisclosure } from "@/components/recruit/AssessmentModeBadge";
+import { getAssessmentModePolicy } from "@/lib/recruit/assessment-modes";
 
 export default function AssessRouterPage() {
   return (
@@ -21,7 +24,7 @@ function AssessRouter() {
   const [starting, setStarting] = useState(false);
   const [acknowledge, setAcknowledge] = useState(false);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setError(null);
     if (!token) {
       setError("Your assessment URL is missing a token. Check the link from your invitation email.");
@@ -35,9 +38,9 @@ function AssessRouter() {
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }, [token]);
 
-  useEffect(() => { void reload(); }, [token]);
+  useEffect(() => { void reload(); }, [reload]);
 
   const begin = async () => {
     setStarting(true);
@@ -90,6 +93,10 @@ function AssessRouter() {
     return <Submitted submittedAt={stateData.candidate?.submittedAt} anonymousId={stateData.candidate?.anonymousId} />;
   }
 
+  if (stateData.stage === "defence" && stateData.defence) {
+    return <CandidateDefenceView token={token} initial={stateData} onReload={reload} />;
+  }
+
   // In progress
   return <AssessmentView token={token} initial={stateData} onReload={reload} />;
 }
@@ -104,7 +111,7 @@ function Landing({
     memoTaskCount?: number; hasLiveMessage?: boolean;
     assistantName?: string | null; assistantShortName?: string | null;
   };
-  assessment: { title: string; totalMinutes: number; closeDate: string };
+  assessment: { title: string; totalMinutes: number; closeDate: string; assessmentMode: "EVIDENCE" | "COPILOT" | "OPEN_AGENT"; defenceEnabled: boolean; defenceMinutes: number };
   anonymousId: string;
   acknowledge: boolean;
   setAcknowledge: (v: boolean) => void;
@@ -119,6 +126,7 @@ function Landing({
   const shortName = scenario.assistantShortName || "IDSC";
   const memoCount = scenario.memoTaskCount ?? scenario.taskCount;
   const hasIm = scenario.hasLiveMessage ?? false;
+  const modePolicy = getAssessmentModePolicy(assessment.assessmentMode);
   const memoCountWord = memoCount === 1 ? "one" : memoCount === 2 ? "two" : memoCount === 3 ? "three" : String(memoCount);
   return (
     <div className="min-h-screen text-uq">
@@ -171,6 +179,14 @@ function Landing({
             </div>
           </div>
 
+          <div className="mt-5"><AssessmentModeDisclosure mode={assessment.assessmentMode} /></div>
+
+          {assessment.defenceEnabled && (
+            <div className="mt-4 rounded-xl border border-uq bg-uq-glass-subtle p-4 text-sm text-uq-2">
+              After the {assessment.totalMinutes}-minute main assessment, your work will lock and a separate {assessment.defenceMinutes}-minute written reasoning defence will begin. It contains exactly two questions and is reviewed by a human.
+            </div>
+          )}
+
           <div className="mt-7 prose prose-sm max-w-none text-uq-2">
             <h2 className="text-base font-semibold text-uq">What to expect</h2>
             <p>
@@ -208,7 +224,8 @@ function Landing({
               {hasIm && (
                 <li>A colleague may contact you by chat during the assessment. Treat it as a real interruption — read it, reply in the chat as you see fit, and return to your work. Your reply, and how you manage it alongside your written tasks, is recorded and reviewed.</li>
               )}
-              <li>External AI tools (e.g. ChatGPT, Claude, Gemini, Copilot) and online lookups are not permitted. Your activity during the assessment — including pasted content, tab-switches, and AI interactions — is logged and reviewed by examiners. Printed reference material relevant to the role is allowed.</li>
+              <li>{modePolicy.externalAiPermitted ? "External AI tools are permitted under this assessment's declared instructions. The platform does not claim to identify every external tool you use; you will provide a brief declaration." : "External AI tools (for example ChatGPT, Claude, Gemini or Copilot) and online lookups are not permitted."} Workspace activity records paste character counts, focus changes and Knowledge System interactions for contextual human review; pasted content itself is not recorded.</li>
+              {assessment.defenceEnabled && <li>Completing the main work locks it permanently before the separate defence clock begins.</li>}
               <li>When time expires, your responses are submitted automatically.</li>
             </ul>
           </div>
@@ -253,7 +270,7 @@ function Landing({
               onChange={(e) => setAcknowledge(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-uq bg-uq-glass-subtle accent-[color:var(--uq-accent)] focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
             />
-            <span>I confirm this is my own work, that I will use only the in-app {ksName} (no external AI tools), that I understand my activity during the assessment is logged, and that I will complete the assessment in a single sitting where possible.</span>
+            <span>I have read the {modePolicy.label} policy, understand which tools are permitted, understand that workspace provenance is recorded for contextual human review, and accept responsibility for the work I submit.</span>
           </label>
 
           <div className="mt-6 flex items-center justify-end">

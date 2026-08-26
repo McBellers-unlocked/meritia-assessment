@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { loadCandidate, verifySessionCookie } from "@/lib/recruit/candidate-auth";
 import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { isChatTask, isMemoAiTask } from "@/lib/recruit/types";
+import { getAssessmentModePolicy } from "@/lib/recruit/assessment-modes";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export async function GET(
 
   const scenario = await getScenarioForAssessment(assessment);
   if (!scenario) return NextResponse.json({ error: "Scenario config missing" }, { status: 500 });
+  const modePolicy = getAssessmentModePolicy(assessment.assessmentMode);
 
   // PRE-START: minimal payload
   if (candidate.status === "invited") {
@@ -52,6 +54,10 @@ export async function GET(
         title: assessment.title,
         totalMinutes: assessment.totalMinutes,
         closeDate: assessment.closeDate,
+        assessmentMode: assessment.assessmentMode,
+        modePolicyVersion: assessment.modePolicyVersion,
+        defenceEnabled: assessment.defenceEnabled,
+        defenceMinutes: assessment.defenceMinutes,
       },
       scenario: {
         title: scenario.title,
@@ -64,6 +70,8 @@ export async function GET(
         hasLiveMessage: scenario.tasks.some(isChatTask),
         assistantName: scenario.assistantName ?? null,
         assistantShortName: scenario.assistantShortName ?? null,
+        assessmentMode: assessment.assessmentMode,
+        modePolicy,
       },
       candidate: { anonymousId: candidate.anonymousId },
     });
@@ -71,22 +79,23 @@ export async function GET(
 
   // For started/submitted, require the cookie
   const cookieOk = await verifySessionCookie(candidate);
-  if (candidate.status === "started" && !cookieOk) {
+  if ((candidate.status === "started" || candidate.status === "defence") && !cookieOk) {
     return NextResponse.json(
       { error: "This assessment is in progress in another browser session." },
       { status: 403 }
     );
   }
 
-  const responses = await prisma.recruitmentResponse.findMany({
-    where: { candidateId: candidate.id },
-    orderBy: { taskNumber: "asc" },
-  });
-  const interactions = await prisma.recruitmentInteraction.findMany({
-    where: { candidateId: candidate.id },
-    orderBy: { sequenceNum: "asc" },
-    select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true },
-  });
+  const [responses, interactions, evidenceBoard, defence] = await Promise.all([
+    prisma.recruitmentResponse.findMany({ where: { candidateId: candidate.id }, orderBy: { taskNumber: "asc" } }),
+    prisma.recruitmentInteraction.findMany({
+      where: { candidateId: candidate.id },
+      orderBy: { sequenceNum: "asc" },
+      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true },
+    }),
+    prisma.recruitmentCandidateEvidence.findMany({ where: { candidateId: candidate.id }, orderBy: { createdAt: "asc" } }),
+    prisma.recruitmentCandidateDefence.findUnique({ where: { candidateId: candidate.id } }),
+  ]);
 
   return NextResponse.json({
     stage: candidate.status, // "started" | "submitted" | "expired"
@@ -95,6 +104,10 @@ export async function GET(
       title: assessment.title,
       totalMinutes: assessment.totalMinutes,
       closeDate: assessment.closeDate,
+      assessmentMode: assessment.assessmentMode,
+      modePolicyVersion: assessment.modePolicyVersion,
+      defenceEnabled: assessment.defenceEnabled,
+      defenceMinutes: assessment.defenceMinutes,
     },
     scenario: {
       title: scenario.title,
@@ -102,6 +115,8 @@ export async function GET(
       positionTitle: scenario.positionTitle,
       assistantName: scenario.assistantName ?? null,
       assistantShortName: scenario.assistantShortName ?? null,
+      assessmentMode: assessment.assessmentMode,
+      modePolicy,
       // taskCount reports ALL tasks so the landing page accurately describes
       // what the candidate will encounter. `tasks` below is narrowed to the
       // memo_ai subset — those are the tasks the AssessmentView renders
@@ -120,6 +135,8 @@ export async function GET(
           exhibitHtml: t.exhibitHtml,
           deliverableLabel: t.deliverableLabel,
           deliverablePlaceholder: t.deliverablePlaceholder,
+          taskId: t.taskId ?? null,
+          exhibitSourceId: t.exhibitSourceId ?? `${scenario.scenarioId}-task-${t.number}-exhibit`,
         })),
     },
     candidate: {
@@ -127,6 +144,8 @@ export async function GET(
       startedAt: candidate.startedAt,
       deadline: candidate.deadline,
       submittedAt: candidate.submittedAt,
+      workLockedAt: candidate.workLockedAt,
+      toolDeclaration: candidate.toolDeclaration,
     },
     responses: responses.map((r) => ({
       taskNumber: r.taskNumber,
@@ -136,5 +155,7 @@ export async function GET(
       sentAt: r.sentAt,
     })),
     interactions,
+    evidenceBoard,
+    defence,
   });
 }

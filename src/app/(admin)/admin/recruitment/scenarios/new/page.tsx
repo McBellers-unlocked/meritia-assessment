@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { ASSESSMENT_MODES, getAssessmentModePolicy, type AssessmentMode } from "@/lib/recruit/assessment-modes";
 
 export default function NewScenarioPage() {
   const { status } = useSession();
@@ -15,6 +16,7 @@ export default function NewScenarioPage() {
   const [organisation, setOrganisation] = useState("");
   const [positionTitle, setPositionTitle] = useState("");
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
+  const [assessmentMode, setAssessmentMode] = useState<AssessmentMode>("EVIDENCE");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +51,7 @@ export default function NewScenarioPage() {
           organisation: organisation.trim(),
           positionTitle: positionTitle.trim(),
           defaultTotalMinutes: Number(defaultTotalMinutes) || 90,
+          assessmentMode,
         }),
       });
       const body = await res.json();
@@ -129,6 +132,13 @@ export default function NewScenarioPage() {
             </span>
           </label>
         </div>
+
+        <fieldset className="border-t border-uq pt-4">
+          <legend className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Declared assessment mode</legend>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {ASSESSMENT_MODES.map((mode) => { const policy = getAssessmentModePolicy(mode); const selected = assessmentMode === mode; return <label key={mode} className={`cursor-pointer rounded-xl border p-3 ${selected ? "border-uq-accent bg-uq-accent-soft" : "border-uq bg-uq-elev2"}`}><span className="flex gap-2"><input type="radio" checked={selected} onChange={() => setAssessmentMode(mode)} className="mt-1 accent-[color:var(--uq-accent)]" /><span><span className="block text-sm font-semibold text-uq">{policy.label}</span><span className="mt-1 block text-xs leading-relaxed text-uq-3">{policy.shortDescription}</span></span></span></label>; })}
+          </div>
+        </fieldset>
 
         {error && <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
 

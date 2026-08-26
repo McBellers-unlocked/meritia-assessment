@@ -1,10 +1,23 @@
 # meritia-task-generator (worker Lambda)
 
-Background worker for the JD-to-scenario task generator. Triggered by SQS messages from the Amplify SSR endpoint at `POST /api/admin/recruitment/scenarios/from-jd/generate-task`.
+Background worker for long-running assessment design work. It accepts both
+JD-to-scenario generation messages and AI-era Validation Lab preflight messages
+from the Amplify app.
 
 ## Why this exists
 
-Amplify Hosting's SSR Lambda has a fixed ~30-second timeout. Multi-criteria task generation with Claude Opus 4.7 + adaptive thinking can take 30–60 seconds. Running the call here (Lambda timeout 5 minutes, in eu-west-1) escapes that ceiling.
+Amplify Hosting's SSR Lambda has a fixed ~30-second timeout. Multi-criteria task
+generation and full scenario preflight can exceed it. Running those calls here
+(Lambda timeout 5 minutes, in eu-west-1) keeps web requests short and pollable.
+
+Message contracts:
+
+- `{ "jobId": "..." }` — existing `RecruitmentScenarioGenerationJob` flow.
+- `{ "jobType": "scenario-validation-v1", "validationRunId": "..." }` -
+  Validation Lab. The worker atomically claims only a `QUEUED` run, so an SQS
+  retry cannot create a duplicate completed result. New runs carry the exact
+  immutable scenario snapshot associated with their SHA-256 hash, so edits made
+  after queueing cannot change what the worker analyses.
 
 ## How it fits
 
@@ -27,7 +40,8 @@ Wizard → SSR /generate-task/[jobId]   (poll every 2s until completed/failed)
 | File | Purpose |
 |---|---|
 | `index.mjs` | SQS handler. One message = one job. Reads input from DB, calls Anthropic, writes result back. |
-| `prompt.mjs` | System prompt + `propose_task` tool definition. **Mirrors `src/lib/recruit/scenario-generator.ts` — keep in sync.** |
+| `prompt.mjs` | System prompt + `propose_task` tool definition. **Mirrors `src/lib/recruit/scenario-generator.ts` - keep in sync.** |
+| `validation-prompt.mjs` | Versioned Validation Lab prompt and strict output tool for findings, synthetic design profiles and policy tests. |
 | `package.json` | Just `@anthropic-ai/sdk` and `pg`. |
 | `build.sh` | Installs deps, produces `../task-generator.zip`. Pass `--update` to push to AWS. |
 
@@ -103,6 +117,7 @@ aws lambda create-event-source-mapping \
 
 - CloudWatch Logs: `/aws/lambda/meritia-task-generator`
 - DB query: `SELECT id, status, enqueued_at, started_at, completed_at, error_message FROM recruitment_scenario_generation_jobs ORDER BY enqueued_at DESC LIMIT 20;`
+- Validation query: `SELECT id, status, progress_stage, created_at, completed_at, error FROM recruitment_scenario_validation_runs ORDER BY created_at DESC LIMIT 20;`
 - SQS console: queue depth should stay near 0; messages-in-flight = active workers.
 
 ## Known migration debt
@@ -110,3 +125,4 @@ aws lambda create-event-source-mapping \
 - **Prompt drift**: `prompt.mjs` here vs `src/lib/recruit/scenario-generator.ts` in the Next.js app must stay in sync. The two have a sync-warning comment at the top of each. Future cleanup: pull into a workspace-shared package.
 - **No retry policy**: SQS max-receive-count is 1 — a transient Anthropic 5xx kills the job and the user has to click Regenerate. Consider 1–2 retries if we see them in CloudWatch.
 - **Job table grows forever**: add a daily cron or TTL once it exceeds ~10K rows.
+- **Assessment-science review remains human**: the Validation Lab worker supplies design preflight evidence only. It does not publish a scenario, certify validity, or score any candidate.

@@ -37,21 +37,26 @@ export async function GET(
       anonymousId: true,
       startedAt: true,
       submittedAt: true,
+      workLockedAt: true,
+      toolDeclaration: true,
+      toolDeclarationSubmittedAt: true,
       totalScore: true,
-      assessment: { select: { id: true, title: true, scenarioId: true, customScenarioId: true, revealedAt: true } },
+      assessment: { select: { id: true, title: true, scenarioId: true, customScenarioId: true, revealedAt: true, assessmentMode: true, modePolicyVersion: true, defenceEnabled: true, defenceMinutes: true, defenceQuestionCount: true } },
       responses: {
         select: {
           taskNumber: true, content: true, wordCount: true, sentAt: true,
-          score: true, comments: true, issuesIdentified: true, markedAt: true,
+          score: true, comments: true, issuesIdentified: true, criterionScores: true, markedAt: true,
         },
       },
       interactions: {
         orderBy: { sequenceNum: "asc" },
         select: {
           id: true, sequenceNum: true, taskNumber: true,
-          timestamp: true, actor: true, content: true,
+          timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true,
         },
       },
+      evidenceBoard: { orderBy: { createdAt: "asc" } },
+      defence: true,
       activityEvents: {
         orderBy: { occurredAt: "asc" },
         select: {
@@ -63,7 +68,7 @@ export async function GET(
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (c.assessmentId !== params.id) return NextResponse.json({ error: "Mismatch" }, { status: 400 });
 
-  // Integrity signal: how much of each memo overlaps with the AI "knowledge
+  // Work-provenance context: how much of each memo overlaps with the AI "knowledge
   // system" output the candidate saw (lexical text reuse — detects copy-paste).
   // Computed in-memory from data already loaded above; advisory only, never
   // scored. Keyed by task number; non-memo tasks have no response row and so
@@ -131,6 +136,22 @@ export async function GET(
     },
   });
 
+  const criterionMappings = c.assessment.customScenarioId
+    ? await prisma.recruitmentScenarioCriterionTask.findMany({
+        where: { criterion: { scenarioId: c.assessment.customScenarioId } },
+        select: {
+          criterionId: true,
+          expectedCandidateEvidence: true,
+          marks: true,
+          criterion: { select: { code: true, name: true, order: true } },
+          task: { select: { number: true } },
+        },
+      })
+    : [];
+  criterionMappings.sort(
+    (left, right) => left.task.number - right.task.number || left.criterion.order - right.criterion.order
+  );
+
   return NextResponse.json({
     candidate: {
       id: c.id,
@@ -142,16 +163,29 @@ export async function GET(
           ? Math.round((c.submittedAt.getTime() - c.startedAt.getTime()) / 60_000)
           : null,
       totalScore: c.totalScore,
+      workLockedAt: c.workLockedAt,
+      toolDeclaration: c.toolDeclaration,
+      toolDeclarationSubmittedAt: c.toolDeclarationSubmittedAt,
     },
     assessment: c.assessment,
     assistantName: scenario?.assistantName ?? null,
     assistantShortName: scenario?.assistantShortName ?? null,
     rubric,
+    criterionMappings: criterionMappings.map((mapping) => ({
+      criterionId: mapping.criterionId,
+      code: mapping.criterion.code,
+      name: mapping.criterion.name,
+      taskNumber: mapping.task.number,
+      expectedCandidateEvidence: mapping.expectedCandidateEvidence,
+      maxMarks: mapping.marks,
+    })),
     scenarioTasks,
     responses: c.responses,
     interactions: c.interactions,
     emailResponses,
     activityEvents: c.activityEvents,
+    evidenceBoard: c.evidenceBoard,
+    defence: c.defence,
     reuseByTask,
   });
 }
@@ -169,7 +203,7 @@ export async function POST(
 
   const candidate = await prisma.recruitmentCandidate.findUnique({
     where: { id: params.candidateId },
-    select: { id: true, assessmentId: true },
+    select: { id: true, assessmentId: true, assessment: { select: { customScenarioId: true } } },
   });
   if (!candidate || candidate.assessmentId !== params.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -177,7 +211,12 @@ export async function POST(
 
   const markerId = auth.session.user.id;
   const now = new Date();
-  type TaskUpdate = { score?: number | null; comments?: string | null; issuesIdentified?: string[] | null };
+  type TaskUpdate = {
+    score?: number | null;
+    comments?: string | null;
+    issuesIdentified?: string[] | null;
+    criterionScores?: Record<string, number | null> | null;
+  };
   // Accept any `taskN` key (N a positive integer), not just task1/task2 —
   // generated scenarios carry 1–5 tasks. The marking page posts one task
   // at a time, but a loop keeps this robust to multi-task payloads.
@@ -189,13 +228,44 @@ export async function POST(
     }
   }
 
+  const allowedCriterionMappings = candidate.assessment.customScenarioId
+    ? await prisma.recruitmentScenarioCriterionTask.findMany({
+        where: { criterion: { scenarioId: candidate.assessment.customScenarioId } },
+        select: { criterionId: true, marks: true, task: { select: { number: true } } },
+      })
+    : [];
+
   for (const [k, v] of Object.entries(incoming)) {
     const taskNumber = Number(k);
     const score = v.score != null ? Number(v.score) : null;
     const comments = typeof v.comments === "string" ? v.comments : null;
     const issuesIdentified = Array.isArray(v.issuesIdentified) ? v.issuesIdentified.map(String) : null;
+    let criterionScores: Record<string, number> | undefined;
     if (score != null && (isNaN(score) || score < 0 || score > 100)) {
       return NextResponse.json({ error: `Task ${taskNumber} score must be 0-100` }, { status: 400 });
+    }
+    if (v.criterionScores && typeof v.criterionScores === "object" && !Array.isArray(v.criterionScores)) {
+      criterionScores = {};
+      const allowed = new Map(
+        allowedCriterionMappings
+          .filter((mapping) => mapping.task.number === taskNumber && mapping.marks > 0)
+          .map((mapping) => [mapping.criterionId, mapping.marks])
+      );
+      for (const [criterionId, rawScore] of Object.entries(v.criterionScores)) {
+        if (rawScore == null) continue;
+        const criterionMax = allowed.get(criterionId);
+        const criterionScore = Number(rawScore);
+        if (criterionMax == null) {
+          return NextResponse.json({ error: `Criterion ${criterionId} is not mapped to task ${taskNumber}` }, { status: 400 });
+        }
+        if (!Number.isFinite(criterionScore) || criterionScore < 0 || criterionScore > criterionMax) {
+          return NextResponse.json(
+            { error: `Criterion score for task ${taskNumber} must be between 0 and ${criterionMax}` },
+            { status: 400 }
+          );
+        }
+        criterionScores[criterionId] = criterionScore;
+      }
     }
 
     await prisma.recruitmentResponse.upsert({
@@ -208,6 +278,7 @@ export async function POST(
         score,
         comments,
         issuesIdentified: (issuesIdentified ?? null) as unknown as object,
+        ...(criterionScores !== undefined ? { criterionScores } : {}),
         markedAt: now,
         markedById: markerId,
       },
@@ -215,6 +286,7 @@ export async function POST(
         score,
         comments,
         issuesIdentified: (issuesIdentified ?? null) as unknown as object,
+        ...(criterionScores !== undefined ? { criterionScores } : {}),
         markedAt: now,
         markedById: markerId,
       },

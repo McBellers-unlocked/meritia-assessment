@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { loadCandidate, verifySessionCookie } from "@/lib/recruit/candidate-auth";
+import { createCandidateDefence } from "@/lib/recruit/defence-service";
+import { getAssessmentModePolicy } from "@/lib/recruit/assessment-modes";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +27,35 @@ export async function POST(request: NextRequest) {
     const cookieOk = await verifySessionCookie(result.candidate);
     if (!cookieOk) return NextResponse.json({ error: "Session mismatch." }, { status: 403 });
 
+    const policy = getAssessmentModePolicy(result.assessment.assessmentMode);
+    const declaration = body.toolDeclaration && typeof body.toolDeclaration === "object"
+      ? body.toolDeclaration
+      : null;
+    if (policy.toolDeclarationRequired && !declaration) {
+      return NextResponse.json({ error: "A tool-use declaration is required in Open Agent Mode." }, { status: 400 });
+    }
+
     const now = new Date();
+    if (declaration) {
+      await prisma.$transaction([
+        prisma.recruitmentCandidate.update({
+          where: { id: result.candidate.id },
+          data: { toolDeclaration: declaration, toolDeclarationSubmittedAt: now },
+        }),
+        prisma.recruitmentActivityEvent.create({
+          data: { candidateId: result.candidate.id, eventType: "tool_declaration", metadata: { selfDeclared: true } },
+        }),
+      ]);
+    }
+    if (result.assessment.defenceEnabled) {
+      const defence = await createCandidateDefence(result.candidate.id, result.assessment);
+      return NextResponse.json({ ok: true, defenceRequired: true, defenceDeadline: defence.deadline });
+    }
     await prisma.recruitmentCandidate.update({
       where: { id: result.candidate.id },
-      data: { status: "submitted", submittedAt: now },
+      data: { status: "submitted", submittedAt: now, workLockedAt: now },
     });
+    await prisma.recruitmentActivityEvent.create({ data: { candidateId: result.candidate.id, eventType: "final_submission" } });
     return NextResponse.json({ ok: true, submittedAt: now });
   } catch (e) {
     console.error("[assess submit]", e);

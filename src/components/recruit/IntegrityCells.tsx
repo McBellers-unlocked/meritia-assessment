@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * Compact table-cell renderings of a candidate's integrity signals, shared by
- * the marking list and the results ranking. Tones are advisory heat, not
- * verdicts: pastes escalate on characters pasted, off-tab on total hidden
- * time. Zero renders as a muted dash so clean candidates stay visually quiet.
+ * Compact, deliberately neutral work-provenance cells. These are factual
+ * workspace records, not risk indicators or evidence of misconduct.
  */
 
-export interface IntegritySignals {
+export interface WorkProvenanceSignals {
   pasteCount: number;
   pasteChars: number;
   tabAways: number;
   offTabMs: number;
 }
+/** @deprecated Use WorkProvenanceSignals; retained for API compatibility. */
+export type IntegritySignals = WorkProvenanceSignals;
 
 export function formatOffTab(ms: number): string {
   const s = Math.round(ms / 1000);
@@ -28,12 +28,8 @@ function None() {
 
 export function PasteSignal({ i }: { i: IntegritySignals | undefined }) {
   if (!i || i.pasteCount === 0) return <None />;
-  const tone =
-    i.pasteChars >= 1000
-      ? "text-[color:var(--uq-danger-text)]"
-      : "text-[color:var(--uq-warn-text)]";
   return (
-    <span className={`font-medium ${tone}`}>
+    <span className="font-medium text-uq-2">
       {i.pasteCount}
       <span className="font-normal opacity-80"> · {i.pasteChars.toLocaleString()}ch</span>
     </span>
@@ -42,14 +38,8 @@ export function PasteSignal({ i }: { i: IntegritySignals | undefined }) {
 
 export function OffTabSignal({ i }: { i: IntegritySignals | undefined }) {
   if (!i || i.tabAways === 0) return <None />;
-  const tone =
-    i.offTabMs >= 5 * 60_000
-      ? "text-[color:var(--uq-danger-text)]"
-      : i.offTabMs >= 60_000
-        ? "text-[color:var(--uq-warn-text)]"
-        : "text-uq-2";
   return (
-    <span className={`font-medium ${tone}`}>
+    <span className="font-medium text-uq-2">
       {i.tabAways}
       <span className="font-normal opacity-80"> · {formatOffTab(i.offTabMs)}</span>
     </span>

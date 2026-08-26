@@ -20,14 +20,41 @@ import type {
   TaskKind,
 } from "./types";
 import type { RecruitmentAssessment } from "@prisma/client";
+import { ASSESSMENT_MODE_POLICY_VERSION, resolveAssessmentMode } from "./assessment-modes";
 
 export async function getScenarioForAssessment(
-  assessment: Pick<RecruitmentAssessment, "scenarioId" | "customScenarioId">
+  assessment: Pick<RecruitmentAssessment, "scenarioId" | "customScenarioId"> &
+    Partial<
+      Pick<
+        RecruitmentAssessment,
+        "assessmentMode" | "modePolicyVersion" | "defenceEnabled" | "defenceQuestionCount" | "defenceMinutes"
+      >
+    >
 ): Promise<RecruitScenarioConfig | null> {
   if (assessment.customScenarioId) {
-    return getDbScenarioById(assessment.customScenarioId);
+    const scenario = await getDbScenarioById(assessment.customScenarioId);
+    return scenario
+      ? {
+          ...scenario,
+          assessmentMode: resolveAssessmentMode(assessment.assessmentMode),
+          modePolicyVersion: assessment.modePolicyVersion || ASSESSMENT_MODE_POLICY_VERSION,
+          defenceEnabled: assessment.defenceEnabled ?? false,
+          defenceQuestionCount: assessment.defenceQuestionCount ?? 2,
+          defenceMinutes: assessment.defenceMinutes ?? 5,
+        }
+      : null;
   }
-  return getRecruitScenarioById(assessment.scenarioId);
+  const legacy = getRecruitScenarioById(assessment.scenarioId);
+  return legacy
+    ? {
+        ...legacy,
+        assessmentMode: resolveAssessmentMode(assessment.assessmentMode),
+        modePolicyVersion: assessment.modePolicyVersion || ASSESSMENT_MODE_POLICY_VERSION,
+        defenceEnabled: assessment.defenceEnabled ?? false,
+        defenceQuestionCount: assessment.defenceQuestionCount ?? 2,
+        defenceMinutes: assessment.defenceMinutes ?? 5,
+      }
+    : null;
 }
 
 /**
@@ -113,6 +140,11 @@ function materialiseScenario(row: DbScenarioRow): RecruitScenarioConfig {
     organisation: row.organisation,
     positionTitle: row.positionTitle,
     defaultTotalMinutes: row.defaultTotalMinutes,
+    assessmentMode: resolveAssessmentMode(row.assessmentMode),
+    modePolicyVersion: row.modePolicyVersion,
+    defenceEnabled: row.defenceEnabled,
+    defenceQuestionCount: row.defenceQuestionCount,
+    defenceMinutes: row.defenceMinutes,
     source: "db",
     assistantName: brand.name ?? undefined,
     assistantShortName: brand.short ?? undefined,
@@ -125,6 +157,7 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
   switch (kind) {
     case "memo_ai":
       return {
+        taskId: task.id,
         number: task.number,
         kind: "memo_ai",
         title: task.title,
@@ -133,11 +166,13 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
         systemPrompt: task.systemPrompt ?? "",
         exhibitHtml: task.exhibit?.html ?? "",
         exhibitTitle: task.exhibit?.title ?? "",
+        exhibitSourceId: task.exhibit?.sourceId ?? task.exhibit?.id ?? `task-${task.number}-exhibit`,
         deliverableLabel: task.deliverableLabel ?? "Deliverable",
         deliverablePlaceholder: task.deliverablePlaceholder ?? "",
       };
     case "email_inbox":
       return {
+        taskId: task.id,
         number: task.number,
         kind: "email_inbox",
         title: task.title,
@@ -161,6 +196,7 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
       // builder UI can still render partial state.
       const s = task.chatScripts[0];
       return {
+        taskId: task.id,
         number: task.number,
         kind: "chat",
         title: task.title,
@@ -193,6 +229,7 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
       // Unknown kind — treat as memo_ai skeleton so the candidate UI doesn't
       // crash. Admin UI will surface this as a validation error on publish.
       return {
+        taskId: task.id,
         number: task.number,
         kind: "memo_ai",
         title: task.title,
@@ -201,6 +238,7 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
         systemPrompt: task.systemPrompt ?? "",
         exhibitHtml: task.exhibit?.html ?? "",
         exhibitTitle: task.exhibit?.title ?? "",
+        exhibitSourceId: task.exhibit?.sourceId ?? task.exhibit?.id ?? `task-${task.number}-exhibit`,
         deliverableLabel: task.deliverableLabel ?? "Deliverable",
         deliverablePlaceholder: task.deliverablePlaceholder ?? "",
       };

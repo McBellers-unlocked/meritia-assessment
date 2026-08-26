@@ -9,6 +9,8 @@ import ExhibitsTab from "@/components/admin/recruit/ExhibitsTab";
 import MemoTaskEditor from "@/components/admin/recruit/MemoTaskEditor";
 import EmailTaskEditor from "@/components/admin/recruit/EmailTaskEditor";
 import ChatTaskEditor from "@/components/admin/recruit/ChatTaskEditor";
+import ValidationLabOverview from "@/components/admin/recruit/ValidationLabOverview";
+import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
 import type {
   EditorScenario,
   EditorTask,
@@ -16,7 +18,7 @@ import type {
 } from "@/components/admin/recruit/scenarioEditorTypes";
 
 /**
- * Tabbed scenario editor: Overview | Tasks | Exhibits | Publish.
+ * Tabbed scenario editor: Overview | Tasks | Exhibits | Validation Lab | Publish.
  * Loads the scenario once on mount, then re-fetches after any mutation so
  * child components always see the authoritative server state (task lists,
  * nested emails, chat scripts).
@@ -28,7 +30,7 @@ export default function ScenarioEditorPage() {
 
   const [scenario, setScenario] = useState<EditorScenario | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "tasks" | "exhibits" | "publish">("overview");
+  const [tab, setTab] = useState<"overview" | "tasks" | "exhibits" | "validation" | "publish">("overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export default function ScenarioEditorPage() {
           <h1 className="text-2xl font-semibold tracking-[-0.01em] text-uq">{scenario.title || "Untitled scenario"}</h1>
           <div className="text-xs text-uq-3 mt-1">
             <StatusBadge status={scenario.status} />
+            <AssessmentModeBadge mode={scenario.assessmentMode} className="ml-2" />
             <span className="ml-2">
               <code className="font-mono text-xs bg-uq-elev2 border border-uq-faint text-uq px-1.5 rounded">{scenario.slug}</code> · {scenario.tasks.length} task{scenario.tasks.length === 1 ? "" : "s"} · {scenario.defaultTotalMinutes} min
             </span>
@@ -85,6 +88,7 @@ export default function ScenarioEditorPage() {
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>Overview</TabButton>
         <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")}>Tasks ({scenario.tasks.length})</TabButton>
         <TabButton active={tab === "exhibits"} onClick={() => setTab("exhibits")}>Exhibits ({scenario.exhibits.length})</TabButton>
+        <TabButton active={tab === "validation"} onClick={() => setTab("validation")}>Validation Lab</TabButton>
         <TabButton active={tab === "publish"} onClick={() => setTab("publish")}>Publish</TabButton>
       </nav>
 
@@ -102,6 +106,9 @@ export default function ScenarioEditorPage() {
         )}
         {tab === "exhibits" && (
           <ExhibitsTab scenario={scenario} onChanged={reload} />
+        )}
+        {tab === "validation" && (
+          <ValidationLabOverview scenario={scenario} onScenarioChanged={reload} />
         )}
         {tab === "publish" && (
           <PublishTab scenario={scenario} onChanged={reload} />
@@ -422,6 +429,7 @@ function PublishTab({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<string[] | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
 
   const call = async (action: "publish" | "unpublish" | "archive") => {
     setBusy(true);
@@ -433,7 +441,7 @@ function PublishTab({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action }),
+          body: JSON.stringify({ action, ...(action === "publish" && overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}) }),
         }
       );
       const body = await res.json();
@@ -469,6 +477,14 @@ function PublishTab({
               {details.map((d, i) => <li key={i}>{d}</li>)}
             </ul>
           )}
+        </div>
+      )}
+
+      {scenario.status === "draft" && details && details.length > 0 && (
+        <div className="rounded-xl border border-uq-strong bg-uq-elev2 p-4">
+          <label className="block text-sm font-medium text-uq">Audited publication override</label>
+          <p className="mt-1 text-xs leading-relaxed text-uq-3">Use only for a privileged operational exception or clearly labelled demonstration. The scenario will be published, but will not be presented as approved for pilot.</p>
+          <textarea value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} rows={3} placeholder="Specific reason and documented limitation (minimum 20 characters)" className="mt-3 block w-full rounded-md border border-uq bg-uq-elev1 px-3 py-2 text-sm text-uq" />
         </div>
       )}
 

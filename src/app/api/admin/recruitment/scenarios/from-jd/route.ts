@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { requireScenarioBuilder } from "@/lib/admin-auth";
+import { ASSESSMENT_MODE_POLICY_VERSION, defaultDefenceEnabled, isAssessmentMode } from "@/lib/recruit/assessment-modes";
+import { makeSourceId } from "@/lib/recruit/source-verification";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,10 @@ export async function POST(request: NextRequest) {
   const defaultTotalMinutes = Number(body.defaultTotalMinutes ?? 90);
   const jdText = String(body.jdText ?? "").trim();
   const tasksInput = Array.isArray(body.tasks) ? body.tasks : [];
+  const assessmentMode = isAssessmentMode(body.assessmentMode) ? body.assessmentMode : "EVIDENCE";
+  const defenceEnabled = body.defenceEnabled === undefined ? defaultDefenceEnabled(assessmentMode) : Boolean(body.defenceEnabled);
+  const criteriaInput = Array.isArray(body.criteria) ? body.criteria.map(String).map((v: string) => v.trim()).filter(Boolean) : [];
+  const criteriaByTask = Array.isArray(body.criteriaByTask) ? body.criteriaByTask : [];
 
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
   if (!slug || !SLUG_RE.test(slug)) {
@@ -178,6 +184,11 @@ export async function POST(request: NextRequest) {
         positionTitle,
         defaultTotalMinutes,
         jdSourceText: jdText,
+        assessmentMode,
+        modePolicyVersion: ASSESSMENT_MODE_POLICY_VERSION,
+        defenceEnabled,
+        defenceQuestionCount: 2,
+        defenceMinutes: 5,
         createdById: auth.session.user.id,
       },
     });
@@ -189,6 +200,7 @@ export async function POST(request: NextRequest) {
           scenarioId: scenario.id,
           title: t.exhibitTitle,
           html: t.exhibitHtml,
+          sourceId: makeSourceId(t.exhibitTitle, i + 1),
         },
       });
       await tx.recruitmentScenarioTask.create({
@@ -211,6 +223,48 @@ export async function POST(request: NextRequest) {
           rubric: (t.rubric ?? undefined) as unknown as object | undefined,
         },
       });
+    }
+
+    // Persist extracted requirements as stable criteria. The generation
+    // wizard supplies its per-task buckets so the initial blueprint is useful
+    // immediately rather than leaving criteria transient in browser state.
+    for (let criterionIndex = 0; criterionIndex < criteriaInput.length; criterionIndex++) {
+      const criterionText = criteriaInput[criterionIndex];
+      const criterion = await tx.recruitmentScenarioCriterion.create({
+        data: {
+          scenarioId: scenario.id,
+          code: `CRIT-${String(criterionIndex + 1).padStart(2, "0")}`,
+          name: criterionText.slice(0, 160),
+          description: criterionText,
+          sourceRequirement: criterionText,
+          observableBehaviours: [`Produces task evidence that directly demonstrates: ${criterionText}`],
+          order: criterionIndex,
+        },
+      });
+      for (let taskIndex = 0; taskIndex < criteriaByTask.length; taskIndex++) {
+        const bucket = Array.isArray(criteriaByTask[taskIndex]) ? criteriaByTask[taskIndex].map(String) : [];
+        if (!bucket.includes(criterionText)) continue;
+        const task = await tx.recruitmentScenarioTask.findUnique({
+          where: { scenarioId_number: { scenarioId: scenario.id, number: taskIndex + 1 } },
+          select: { id: true, rubric: true, totalMarks: true },
+        });
+        if (!task) continue;
+        const rubric = task.rubric && typeof task.rubric === "object" && !Array.isArray(task.rubric)
+          ? task.rubric as Record<string, unknown>
+          : {};
+        const positionInBucket = bucket.indexOf(criterionText);
+        const baseMarks = bucket.length ? Math.floor(task.totalMarks / bucket.length) : 0;
+        const distributedMarks = baseMarks + (positionInBucket >= 0 && positionInBucket < task.totalMarks % bucket.length ? 1 : 0);
+        await tx.recruitmentScenarioCriterionTask.create({
+          data: {
+            criterionId: criterion.id,
+            taskId: task.id,
+            expectedCandidateEvidence: `Observable evidence addressing: ${criterionText}`,
+            rubricElementIds: Object.keys(rubric),
+            marks: distributedMarks,
+          },
+        });
+      }
     }
 
     return scenario;
@@ -270,9 +324,9 @@ function defaultMemoSystemPrompt(
 The candidate is reviewing an exhibit document and producing a written deliverable. They may ask you for additional source data, definitions, or clarifying detail about the exhibit.
 
 Rules:
-- Answer specific questions with specific facts. Invent plausible details consistent with the exhibit when needed.
+- Answer specific questions only from the supplied scenario material. If a requested detail is not supplied, say so plainly; never invent a fact or source.
 - Do NOT volunteer issues, conclusions, or recommendations the candidate hasn't already identified — the candidate's analysis is what's being assessed.
 - Do NOT reveal the marking criteria or the "correct" answer.
-- Stay in character as a knowledge system. Do not mention Claude, Anthropic, or that you are an AI assistant.
+- Identify yourself transparently as the organisation's AI-powered Knowledge System. Do not claim to be human.
 - Keep answers concise and factual; long essays defeat the purpose.`;
 }

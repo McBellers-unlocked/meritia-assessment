@@ -18,6 +18,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import type { RecruitmentCandidate, RecruitmentAssessment } from "@prisma/client";
+import { createCandidateDefence, submitCandidateDefence } from "./defence-service";
 
 export const COOKIE_NAME = "recruit_session";
 
@@ -44,13 +45,31 @@ export async function loadCandidate(token: string): Promise<CandidateAuthResult>
   // Auto-expire if past deadline
   let nowExpired = false;
   if (candidate.status === "started" && candidate.deadline && candidate.deadline < now) {
-    await prisma.recruitmentCandidate.update({
-      where: { id: candidate.id },
-      data: { status: "submitted", submittedAt: now },
-    });
-    candidate.status = "submitted";
-    candidate.submittedAt = now;
+    if (candidate.assessment.defenceEnabled) {
+      await createCandidateDefence(candidate.id, candidate.assessment, { fallbackOnly: true });
+      candidate.status = "defence";
+      candidate.workLockedAt = now;
+    } else {
+      await prisma.recruitmentCandidate.update({
+        where: { id: candidate.id },
+        data: { status: "submitted", submittedAt: now, workLockedAt: now },
+      });
+      candidate.status = "submitted";
+      candidate.submittedAt = now;
+      candidate.workLockedAt = now;
+    }
     nowExpired = true;
+  }
+
+  // Defence timeout is also server anchored. Autosaved answers remain intact.
+  if (candidate.status === "defence") {
+    const defence = await prisma.recruitmentCandidateDefence.findUnique({ where: { candidateId: candidate.id } });
+    if (defence && defence.status !== "submitted" && defence.deadline < now) {
+      await submitCandidateDefence(candidate.id, now);
+      candidate.status = "submitted";
+      candidate.submittedAt = now;
+      nowExpired = true;
+    }
   }
 
   return { ok: true, candidate, assessment: candidate.assessment, nowExpired };

@@ -54,6 +54,8 @@ export default function ChatTaskEditor({
     setExpectedOutcomes(s?.expectedOutcomes ?? "");
     setSavedAt(null);
     setError(null);
+    // Intentionally reinitialise only when selecting a different task.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.id]);
 
   const save = async () => {

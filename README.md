@@ -1,9 +1,9 @@
 # UNIQAssess
 
 Powered by UNICC. AI-era professional-judgement assessment platform. Competency simulations for
-professional hiring: per-scenario cohorts, per-candidate tokens, memo + AI
-investigation tasks, scripted email-inbox tasks, persona chat pops, blind
-marking with reveal.
+professional hiring: declared AI-use modes, evidence-native Knowledge Systems,
+scenario preflight, per-candidate tokens, realistic work tasks, short reasoning
+defences, and blind human marking with explicit reveal.
 
 Carved out of the Callater (`sdi-assessment-platform`) repo. See
 [`docs/MIGRATION_PLAN.md`](docs/MIGRATION_PLAN.md) for the carve-out log — what
@@ -20,6 +20,55 @@ was copied, what was renamed, what was excluded, and what is still open.
 - Anthropic SDK (Claude) for the live AI investigation + persona chat
 - Tailwind CSS
 - TipTap (memo WYSIWYG), `react-markdown` + `remark-gfm` (AI reply + brief rendering)
+
+---
+
+## AI-era assessment framework
+
+Every database-authored scenario declares one of three versioned policies. The
+policy and defence configuration are copied into a cohort when it is created,
+so later scenario edits cannot silently change candidate instructions.
+
+| Mode | Declared policy |
+|---|---|
+| **Evidence Mode** | The in-platform AI can retrieve, compare, explain and challenge supplied material. It cannot author the final deliverable. External AI is not permitted. |
+| **Copilot Mode** | The in-platform AI may analyse, outline, draft and revise. Drafts remain visibly labelled and separated from evidence and uncertainty. External AI is not permitted. |
+| **Open Agent Mode** | Permitted contemporary tools may be used. The candidate submits a descriptive tool-use declaration and completes the configured human-reviewed defence. |
+
+Memo-task replies use a versioned structured schema: `analysisSummary`,
+`evidenceCards[]`, `uncertainties[]`, `questionsToResolve[]`, and an optional
+labelled `workingDraft`. Evidence Mode removes `workingDraft` server-side.
+Direct-evidence cards carry a stable source ID and excerpt; the server checks
+both against the supplied exhibit. A verified match establishes only that the
+source/excerpt exists, not that an interpretation is correct. Candidates can
+save, check, reject and remove cards on their own evidence board.
+
+The **Validation Lab** is a design preflight for database scenarios. It hashes
+versioned scenario content, persists that exact immutable model-input snapshot,
+runs deterministic checks immediately, and queues
+model-assisted ambiguity, leakage, accessibility, synthetic-profile and policy
+tests on the existing SQS/Lambda worker. Results become stale when content
+changes. Publication requires a current completed run, no open blockers and
+recorded subject-matter, assessment-design and accessibility reviews, or an
+audited demonstration override. This is preflight—not psychometric validation.
+
+Configured assessments lock the main work before a two-question written
+reasoning defence. Questions are generated once under a row lock; a model
+timeout or invalid response uses two published deterministic fallbacks. The
+defence has its own server deadline and autosave.
+
+Marker-facing telemetry is labelled **work provenance**: Knowledge System
+dialogue, evidence actions, paste counts/character totals, focus changes and
+time away. Paste content is never captured. Lexical overlap means literal text
+similarity only; it is not an authorship or originality detector.
+
+For database-authored scenarios, markers can also enter human criterion-level
+component scores against the stable blueprint mappings. Results aggregate these
+as descriptive pilot distributions; they do not infer scores from provenance or
+model output.
+
+> Work-provenance information is contextual evidence. It must not be treated
+> as proof of misconduct or used as an undisclosed scoring criterion.
 
 ---
 
@@ -55,10 +104,10 @@ For admin sign-in you also need:
 | `COGNITO_CLIENT_ID` | Cognito app client ID (PKCE, public client — **no** client secret). |
 | `COGNITO_ISSUER` | `https://cognito-idp.<region>.amazonaws.com/<pool-id>` |
 
-### 3. Create the database schema
+### 3. Create or upgrade the database schema
 
 ```bash
-npm run db:push   # applies schema.prisma to DATABASE_URL
+npx prisma migrate deploy
 ```
 
 Optionally bootstrap an admin row before first sign-in:
@@ -125,6 +174,46 @@ DB and a working Cognito pool.
 2. Open the same URL in browser B (no cookie). Click Begin.
 3. B must be rejected with a "started in another session" error.
 
+### F. AI-era framework golden path
+
+1. Create a database scenario in Evidence Mode and enable the two-question defence.
+2. Add stable criteria and map each to expected task evidence and rubric elements in **Validation Lab**.
+3. Run the preflight. Confirm the request returns after queueing and the page polls the worker result.
+4. Resolve blockers with reviewer rationale; record subject-matter, assessment-design and accessibility decisions; publish.
+5. Create a cohort and confirm its mode badge/configuration remain unchanged after editing the source scenario.
+6. As a candidate, ask for evidence. Confirm cards, source status and uncertainty are separate; save and check a card.
+7. Submit the memo. Confirm it becomes read-only before defence, complete both defence answers, and submit.
+8. As a marker, confirm the submission, structured dialogue, evidence actions, defence and neutral provenance timeline are visible while identity remains hidden.
+9. Repeat a reduced path in Copilot Mode (labelled working draft) and Open Agent Mode (tool-use declaration).
+
+Automated checks do not make live model calls:
+
+```bash
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
+```
+
+### G. Seeded Halcyon demonstration
+
+After migrations and an ADMIN sign-in have created the reviewer account:
+
+```bash
+npx tsx scripts/seed-demo-cohort.ts
+```
+
+This idempotently recreates three fictional, clearly labelled scenario
+variants—Evidence, Copilot and Open Agent—with current demonstration preflight
+runs, synthetic Developing/Competent/Strong design artefacts, policy tests,
+blueprint mappings and human-review records. The Evidence variant also receives
+the `DEMO - People & Culture Advisor (Halcyon Group)` cohort with marked and
+unmarked candidates spanning rich-to-minimal Knowledge System dialogue,
+minimal-to-high paste activity and no-to-substantial time away, plus evidence
+actions and completed defences. The script prints the builder, marker and spare
+candidate links and verifies all new relationships. Remove only these demo rows
+with `npx tsx scripts/seed-demo-cohort.ts --teardown`.
+
 ---
 
 ## Deployment
@@ -135,7 +224,8 @@ The code is deployment-agnostic. Validated paths:
 - **AWS Amplify SSR**: the Callater origin deployed here. UNIQAssess will work but verify two things:
   1. The serverless bundle includes `infra/recruit/**` at runtime. `next.config.mjs` has `outputFileTracingIncludes` for the `/api/**` and `/assess/**` routes that call `readFileSync`.
   2. Amplify's SSR Lambda timeout is ≥ 60 s. `api/assess/chat/route.ts` sets `export const maxDuration = 60`. If your target platform caps below that, either raise the cap or shorten the Claude call (reduce `RECRUIT_MAX_TOKENS`).
-- **RDS in a private VPC**: the Prisma client talks to the DB directly. If the SSR runtime can't reach RDS (e.g. Amplify SSR on a public network with RDS in a private subnet), you will need a DB proxy. The Callater repo shipped a Lambda-proxy transport in `src/lib/prisma.ts`; it was dropped during the carve-out but can be restored if needed — see the git history of `sdi-assessment-platform/src/lib/prisma.ts`.
+- **Validation worker**: deploy the updated `lambda/task-generator` package before enabling Validation Lab. The established queue now accepts both `{ jobId }` and `{ jobType: "scenario-validation-v1", validationRunId }` messages.
+- **RDS in a private VPC**: the Prisma client talks to the DB directly. If the SSR runtime can't reach RDS (e.g. Amplify SSR on a public network with RDS in a private subnet), you will need a DB proxy. The Callater repo shipped a Lambda-proxy transport in `src/lib/prisma.ts`; it was dropped during the carve-out but can be restored if needed - see the git history of `sdi-assessment-platform/src/lib/prisma.ts`.
 
 ---
 
@@ -163,7 +253,7 @@ real use:
 
 - `src/lib/recruit/{fam-p4-2026,aplo-p2-2026,rubric}.ts` use `process.cwd()` + `readFileSync` to load scenario exhibits and rubric JSONs. This works with the default Next build. If you see 404-style empty exhibits in production, the serverless bundle is missing `infra/recruit/`.
 - Anthropic calls in `src/app/api/assess/chat/route.ts` use prompt caching (`cache_control: ephemeral`). This cuts cost ~90% for repeat prompts within 5 minutes. Do not remove the cache marker without measuring cost impact.
-- The scenario builder admin UI at `/admin/recruitment/scenarios/[id]` is MVP — drag/drop, validation, and error states are partial. Workable but rough.
+- Legacy code scenarios remain runnable but do not have full editable Validation Lab support. Port one to a database scenario before preflight/publishing it through the builder.
 
 ---
 
@@ -205,10 +295,10 @@ meritia/
 
 These were the right calls in Callater and UNIQAssess preserves them:
 
-- **AI personas are naive, not helpful.** The in-scenario AI (IDSC Knowledge
-  System, etc.) supplies zero professional judgement — only data retrieval,
-  standards references, and maths. That's what candidates are being assessed on.
-  See the scenario system prompts in `src/lib/recruit/*2026.ts` for the pattern.
+- **AI behaviour follows the declared mode.** Evidence Mode keeps authorship
+  with the candidate; Copilot and Open Agent modes permit visibly labelled
+  working material while preserving evidence and uncertainty. The server-owned
+  mode wrapper overrides contradictory scenario prompt text.
 - **Server-enforced timer**. The clock runs against `candidate.startedAt` in
   the DB. Closing the browser, refreshing, or using a second device does not
   stop it. Auto-submit on expiry.
@@ -217,6 +307,6 @@ These were the right calls in Callater and UNIQAssess preserves them:
   other browsers are rejected.
 - **Anonymised marking**. Markers see `Candidate A`, `Candidate AD`, etc. — not
   names or emails — until an admin explicitly clicks Reveal on the cohort.
-- **Activity logging without content capture**. Pastes are logged by character
+- **Work provenance without clipboard content capture**. Pastes are logged by character
   count only; the pasted text is never stored. Same for visibility events —
   we record the gap, not what was viewed.

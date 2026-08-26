@@ -38,6 +38,8 @@ export default function EmailTaskEditor({
     setError(null);
     setEditingEmailId(null);
     setCreatingEmail(false);
+    // Intentionally reinitialise only when selecting a different task.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.id]);
 
   const saveTaskHeader = async () => {

@@ -8,8 +8,10 @@ import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ReuseResult } from "@/lib/recruit/textReuse";
+import { AssessmentModeBadge } from "@/components/recruit/AssessmentModeBadge";
+import WorkProvenanceTimeline from "@/components/recruit/WorkProvenanceTimeline";
 
-interface Interaction { id: string; sequenceNum: number; taskNumber: number; timestamp: string; actor: string; content: string; }
+interface Interaction { id: string; sequenceNum: number; taskNumber: number; timestamp: string; actor: string; content: string; structuredPayload?: unknown; schemaVersion?: string | null; }
 interface ActivityEvent {
   id: string;
   occurredAt: string;
@@ -19,7 +21,12 @@ interface ActivityEvent {
 }
 interface ResponseRow {
   taskNumber: number; content: string; wordCount: number; sentAt: string | null;
-  score: number | null; comments: string | null; issuesIdentified: string[] | null; markedAt: string | null;
+  score: number | null; comments: string | null; issuesIdentified: string[] | null;
+  criterionScores: Record<string, number> | null; markedAt: string | null;
+}
+interface CriterionMapping {
+  criterionId: string; code: string; name: string; taskNumber: number;
+  expectedCandidateEvidence: string; maxMarks: number;
 }
 interface RubricIssue { id: string; title: string; max_marks?: number; description?: string; expected?: string; }
 interface RubricCategory { max: number; description?: string; embedded_issues?: RubricIssue[]; indicators?: string[]; rubric?: Record<string,string>; descriptors?: Record<string,string>; }
@@ -45,18 +52,23 @@ interface EmailResponseRow {
   emailId: string; action: string; replyBody: string | null;
   deliveredAt: string; respondedAt: string; markerComment: string | null;
 }
+interface EvidenceRow { id: string; createdAt: string; updatedAt: string; taskNumber: number; claim: string; candidateDisposition: string; sourceTitle: string | null; }
+interface DefenceRow { questions: Array<{ id: string; text: string }>; answers: Array<{ questionId: string; text: string; savedAt: string | null }>; personalised: boolean; startedAt: string; submittedAt: string | null; }
 
 interface MarkData {
-  candidate: { id: string; anonymousId: string; startedAt: string; submittedAt: string; timeTakenMin: number | null; totalScore: number | null; };
-  assessment: { id: string; title: string; scenarioId: string };
+  candidate: { id: string; anonymousId: string; startedAt: string; submittedAt: string; timeTakenMin: number | null; totalScore: number | null; workLockedAt: string | null; toolDeclaration: { tools?: string[]; otherText?: string } | null; toolDeclarationSubmittedAt: string | null; };
+  assessment: { id: string; title: string; scenarioId: string; assessmentMode: "EVIDENCE" | "COPILOT" | "OPEN_AGENT" };
   assistantName: string | null;
   assistantShortName: string | null;
   rubric: Rubric | null;
+  criterionMappings: CriterionMapping[];
   scenarioTasks: ScenarioTask[];
   responses: ResponseRow[];
   interactions: Interaction[];
   emailResponses: EmailResponseRow[];
   activityEvents: ActivityEvent[];
+  evidenceBoard: EvidenceRow[];
+  defence: DefenceRow | null;
   // Per-task lexical text-reuse analysis (memo vs the AI output the candidate
   // saw). Keyed by task number; absent for non-memo tasks.
   reuseByTask: Record<number, ReuseResult>;
@@ -80,8 +92,14 @@ export default function MarkCandidatePage() {
   const [scores, setScores] = useState<Record<number, string>>({});
   const [comments, setComments] = useState<Record<number, string>>({});
   const [issues, setIssues] = useState<Record<number, Set<string>>>({});
+  const [criterionScores, setCriterionScores] = useState<Record<number, Record<string, string>>>({});
   const [savingTask, setSavingTask] = useState<Record<number, boolean>>({});
   const [savedAt, setSavedAt] = useState<Record<number, string | null>>({});
+  const markingStateRef = useRef({ scores, comments, issues, criterionScores });
+
+  useEffect(() => {
+    markingStateRef.current = { scores, comments, issues, criterionScores };
+  }, [scores, comments, issues, criterionScores]);
 
   useEffect(() => { if (status === "unauthenticated") router.push("/login"); }, [status, router]);
 
@@ -95,12 +113,16 @@ export default function MarkCandidatePage() {
         const newScores: Record<number, string> = {};
         const newComments: Record<number, string> = {};
         const newIssues: Record<number, Set<string>> = {};
+        const newCriterionScores: Record<number, Record<string, string>> = {};
         for (const r of body.responses) {
           newScores[r.taskNumber] = r.score != null ? String(r.score) : "";
           newComments[r.taskNumber] = r.comments ?? "";
           newIssues[r.taskNumber] = new Set(Array.isArray(r.issuesIdentified) ? r.issuesIdentified : []);
+          newCriterionScores[r.taskNumber] = Object.fromEntries(
+            Object.entries(r.criterionScores ?? {}).map(([criterionId, score]) => [criterionId, String(score)])
+          );
         }
-        setScores(newScores); setComments(newComments); setIssues(newIssues);
+        setScores(newScores); setComments(newComments); setIssues(newIssues); setCriterionScores(newCriterionScores);
         // Default the active tab to the lowest task number present.
         const firstTask = Math.min(
           ...body.responses.map((r) => r.taskNumber),
@@ -116,15 +138,22 @@ export default function MarkCandidatePage() {
   const saveTask = async (taskNumber: number) => {
     setSavingTask((s) => ({ ...s, [taskNumber]: true }));
     try {
-      const score = (scores[taskNumber] ?? "") === "" ? null : Number(scores[taskNumber]);
+      const latest = markingStateRef.current;
+      const score = (latest.scores[taskNumber] ?? "") === "" ? null : Number(latest.scores[taskNumber]);
+      const taskCriterionScores = Object.fromEntries(
+        Object.entries(latest.criterionScores[taskNumber] ?? {})
+          .filter(([, value]) => value !== "")
+          .map(([criterionId, value]) => [criterionId, Number(value)])
+      );
       const res = await fetch(`/api/admin/recruitment/${params.id}/mark/${params.candidateId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           [`task${taskNumber}`]: {
             score,
-            comments: comments[taskNumber] || null,
-            issuesIdentified: Array.from(issues[taskNumber] ?? new Set<string>()),
+            comments: latest.comments[taskNumber] || null,
+            issuesIdentified: Array.from(latest.issues[taskNumber] ?? new Set<string>()),
+            criterionScores: taskCriterionScores,
           },
         }),
       });
@@ -183,6 +212,13 @@ export default function MarkCandidatePage() {
   const issuesForTask: RubricIssue[] = rubricTask
     ? Object.values(rubricTask.categories).flatMap((c) => c.embedded_issues ?? [])
     : [];
+  const criteriaForTask = (data.criterionMappings ?? []).filter(
+    (mapping) => mapping.taskNumber === activeTask && mapping.maxMarks > 0
+  );
+  const criterionScoreTotal = criteriaForTask.reduce(
+    (sum, mapping) => sum + (Number(criterionScores[activeTask]?.[mapping.criterionId]) || 0),
+    0
+  );
 
   const totalScore = taskNums.reduce(
     (sum, n) => sum + (Number(scores[n]) || 0),
@@ -199,6 +235,7 @@ export default function MarkCandidatePage() {
               <Link href={`/admin/recruitment/${params.id}/mark`} className="font-mono text-[11px] tracking-[0.04em] text-uq-accent hover:text-uq-accent-hover hover:underline underline-offset-2 focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] focus-visible:rounded-md">← Marking list</Link>
             </div>
             <h1 className="text-xl font-semibold tracking-[-0.01em] text-uq mt-1">Marking · <span className="font-mono text-base text-uq-accent">{data.candidate.anonymousId}</span></h1>
+            <div className="mt-1"><AssessmentModeBadge mode={data.assessment.assessmentMode} /></div>
             <div className="text-xs text-uq-3 mt-0.5">
               Time taken: {data.candidate.timeTakenMin ?? "—"} min · Submitted {data.candidate.submittedAt ? new Date(data.candidate.submittedAt).toLocaleString() : "—"}
             </div>
@@ -267,12 +304,17 @@ export default function MarkCandidatePage() {
                 </div>
               </section>
 
-              {/* Signals before the trail: the trail can run to dozens of
-                  messages, and the integrity read should not live below it. */}
+              {/* Provenance before the trail: the trail can run to dozens of
+                  messages, so the contextual summary should remain visible. */}
+              {activeTask === taskNums[0] && data.defence && (
+                <DefenceSection defence={data.defence} declaration={data.candidate.toolDeclaration} declarationAt={data.candidate.toolDeclarationSubmittedAt} />
+              )}
               <ActivitySection events={activityForActive} activeTask={activeTask} reuse={reuseForActive} />
 
+              <WorkProvenanceTimeline events={data.activityEvents} interactions={data.interactions} evidence={data.evidenceBoard} taskNumber={activeTask} />
+
               <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
-                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Investigation trail · Task {activeTask}</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Knowledge System interaction · Task {activeTask}</div>
                 <div className="flex items-baseline justify-between gap-3 mb-3">
                   <div className="text-base font-semibold tracking-[-0.005em] text-uq">
                     {trailForActive.length} message{trailForActive.length === 1 ? "" : "s"}
@@ -386,8 +428,57 @@ export default function MarkCandidatePage() {
                 </label>
               ) : (
                 <p className="text-xs leading-relaxed text-uq-2">
-                  Observational task — not scored. Record what the candidate did (what they protected, deferred, delegated or handled) in the notes below; score judgement, not speed or volume.
+                  Observational task - not scored. Record what the candidate did (what they protected, deferred, delegated or handled) in the notes below; score judgement, not speed or volume.
                 </p>
+              )}
+              {criteriaForTask.length > 0 && (
+                <div className="mt-4 rounded-lg border border-uq-faint bg-uq-elev2 p-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-medium text-uq">Criterion scores</div>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-uq-3">
+                        Human-entered component scores for descriptive pilot distributions. Keep their total aligned with the task score.
+                      </p>
+                    </div>
+                    <span className="flex-shrink-0 font-mono text-xs tabular-nums text-uq-accent">
+                      {criterionScoreTotal}/{criteriaForTask.reduce((sum, mapping) => sum + mapping.maxMarks, 0)}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {criteriaForTask.map((mapping) => (
+                      <label key={mapping.criterionId} className="grid grid-cols-[1fr_5.5rem] items-start gap-3 text-xs">
+                        <span>
+                          <span className="block font-medium text-uq">{mapping.code} · {mapping.name}</span>
+                          <span className="mt-0.5 block leading-relaxed text-uq-3">{mapping.expectedCandidateEvidence}</span>
+                        </span>
+                        <span>
+                          <span className="sr-only">Score for {mapping.name}, out of {mapping.maxMarks}</span>
+                          <span className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              max={mapping.maxMarks}
+                              step="0.5"
+                              value={criterionScores[activeTask]?.[mapping.criterionId] ?? ""}
+                              onChange={(event) => {
+                                setCriterionScores((previous) => ({
+                                  ...previous,
+                                  [activeTask]: {
+                                    ...(previous[activeTask] ?? {}),
+                                    [mapping.criterionId]: event.target.value,
+                                  },
+                                }));
+                                triggerSave(activeTask);
+                              }}
+                              className="block w-16 rounded-md border border-uq bg-uq-glass-subtle px-2 py-1.5 font-mono tabular-nums text-uq focus:outline-none focus:border-uq-accent focus:shadow-[var(--uq-glow-soft)]"
+                            />
+                            <span className="font-mono text-[11px] text-uq-3">/{mapping.maxMarks}</span>
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
               <label className="block text-xs mt-3">
                 <span className="text-uq-2">Comments / notes</span>
@@ -501,6 +592,37 @@ function Box({ loading, error }: { loading?: boolean; error?: string }) {
   );
 }
 
+function DefenceSection({ defence, declaration, declarationAt }: { defence: DefenceRow; declaration: MarkData["candidate"]["toolDeclaration"]; declarationAt: string | null }) {
+  const answers = new Map(defence.answers.map((answer) => [answer.questionId, answer]));
+  return (
+    <section className="rounded-xl border border-uq bg-uq-elev1 p-4 shadow-uq-glass">
+      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Human-reviewed reasoning</div>
+      <div className="text-base font-semibold text-uq">Written defence</div>
+      <p className="mt-1 text-xs text-uq-3">{defence.personalised ? "Personalised questions" : "Published fallback questions"} · not auto-scored</p>
+      <div className="mt-4 space-y-4">
+        {defence.questions.map((question, index) => {
+          const answer = answers.get(question.id);
+          return (
+            <article key={question.id} className="rounded-xl border border-uq-faint bg-uq-elev2 p-3">
+              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-uq-3">Question {index + 1}</div>
+              <p className="mt-1 font-medium leading-relaxed text-uq">{question.text}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-uq-2">{answer?.text || "No answer submitted."}</p>
+              {answer?.savedAt && <time className="mt-2 block font-mono text-[10px] text-uq-3">Saved {new Date(answer.savedAt).toLocaleString()}</time>}
+            </article>
+          );
+        })}
+      </div>
+      {declaration && (
+        <div className="mt-4 rounded-xl border border-uq-faint bg-uq-elev2 p-3 text-xs text-uq-2">
+          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-uq-3">Self-declared tool use{declarationAt ? ` · ${new Date(declarationAt).toLocaleString()}` : ""}</div>
+          <p className="mt-1">{declaration.tools?.length ? declaration.tools.join(", ").replace(/([a-z])([A-Z])/g, "$1 $2") : "No tools selected."}</p>
+          {declaration.otherText && <p className="mt-1 whitespace-pre-wrap">{declaration.otherText}</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ActivitySection({ events, activeTask, reuse }: { events: ActivityEvent[]; activeTask: number; reuse: ReuseResult | null }) {
   // The reuse box / breakdown self-hide for non-memo tasks (email_inbox/chat
   // have no memo response, so no reuse entry) and for empty memos.
@@ -516,29 +638,30 @@ function ActivitySection({ events, activeTask, reuse }: { events: ActivityEvent[
 
   return (
     <section className="rounded-xl border border-uq bg-uq-elev1 shadow-uq-glass p-4">
-      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Activity · Task {activeTask}</div>
-      <div className="text-base font-semibold tracking-[-0.005em] text-uq mb-3">Integrity signals</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">Workspace record · Task {activeTask}</div>
+      <div className="text-base font-semibold tracking-[-0.005em] text-uq">Work provenance</div>
+      <p className="mb-3 mt-1 text-xs leading-relaxed text-uq-3">Contextual evidence only. Focus changes and paste activity may have legitimate explanations; pasted content is not recorded.</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-xs">
         <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
-          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Pastes</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Paste activity</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">
             {pasteCount}
             {pasteCount > 0 && <span className="text-xs font-normal text-uq-3"> · {pasteChars.toLocaleString()} chars</span>}
           </div>
         </div>
         <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
-          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Tab-aways</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Focus changes</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">{hiddenCount}</div>
         </div>
         <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
-          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Time off-tab</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Time out of focus</div>
           <div className="text-base font-semibold font-mono tabular-nums text-uq">{formatDuration(hiddenTotalMs)}</div>
         </div>
         {showReuse && (
           <div className="bg-uq-elev2 border border-uq-faint rounded-lg px-3 py-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">AI reuse</div>
-            <div className={`text-base font-semibold font-mono tabular-nums ${reuseToneClass(reuse!.reuseRatio)}`}>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Visible output overlap</div>
+            <div className="text-base font-semibold font-mono tabular-nums text-uq">
               {Math.round(reuse!.reuseRatio * 100)}%
               <span className="text-xs font-normal text-uq-3"> · {reuse!.numReusedSentences}/{reuse!.numSentences} sent</span>
             </div>
@@ -565,7 +688,7 @@ function ActivitySection({ events, activeTask, reuse }: { events: ActivityEvent[
       {showReuse && (
         <details className="mt-2">
           <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.12em] text-uq-2 hover:text-uq select-none transition-colors">
-            Sentence reuse breakdown · {Math.round(reuse!.originalityScore * 100)}% original
+            Visible Knowledge System output overlap · sentence detail
           </summary>
           <ol className="mt-2 space-y-2 text-xs max-h-80 overflow-y-auto">
             {[...reuse!.sentences]
@@ -573,15 +696,11 @@ function ActivitySection({ events, activeTask, reuse }: { events: ActivityEvent[
               .map((s, i) => (
                 <li
                   key={i}
-                  className={`rounded-lg border px-3 py-2 ${
-                    s.isReused
-                      ? "border-[color:var(--uq-warn-line)] bg-[color:var(--uq-warn-soft)]"
-                      : "border-uq-faint bg-uq-elev2"
-                  }`}
+                  className="rounded-lg border border-uq-faint bg-uq-elev2 px-3 py-2"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-uq">{s.memoSentence}</span>
-                    <span className={`flex-shrink-0 font-mono tabular-nums ${s.isReused ? "text-[color:var(--uq-warn-text)]" : "text-uq-3"}`}>
+                    <span className="flex-shrink-0 font-mono tabular-nums text-uq-3">
                       {Math.round(s.similarity * 100)}%
                     </span>
                   </div>
@@ -622,15 +741,6 @@ function formatDuration(ms: number): string {
   const m = Math.floor(s / 60);
   const rs = s % 60;
   return rs ? `${m}m ${rs}s` : `${m}m`;
-}
-
-// Colour tone for the AI-reuse headline. These display bands are independent of
-// the per-sentence flag threshold — they describe how much of the whole memo
-// overlaps the AI output, as a quick at-a-glance severity for the marker.
-function reuseToneClass(ratio: number): string {
-  if (ratio >= 0.5) return "text-[color:var(--uq-danger-text)]";
-  if (ratio >= 0.2) return "text-[color:var(--uq-warn-text)]";
-  return "text-uq";
 }
 
 function actionChip(action: string): { label: string; cls: string } {

@@ -18,6 +18,46 @@ enum Role {
   DEMO
 }
 
+// Declared policy for how AI may be used in an assessment. The scenario owns
+// the editable choice; RecruitmentAssessment stores an immutable snapshot.
+enum RecruitmentAssessmentMode {
+  EVIDENCE
+  COPILOT
+  OPEN_AGENT
+}
+
+enum RecruitmentEvidenceVerificationStatus {
+  VERIFIED
+  UNVERIFIED
+  INFERENCE
+}
+
+enum RecruitmentEvidenceDisposition {
+  SAVED
+  CHECKED
+  REJECTED
+  DISMISSED
+}
+
+enum RecruitmentValidationRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum RecruitmentScenarioReviewType {
+  SUBJECT_MATTER
+  ASSESSMENT_DESIGN
+  ACCESSIBILITY
+}
+
+enum RecruitmentScenarioReviewDecision {
+  APPROVED
+  CHANGES_REQUIRED
+  APPROVED_WITH_LIMITATIONS
+}
+
 // -------------------------------------------------------------------
 // Admin account (NextAuth / Cognito-backed).
 // Candidates do NOT live here — see RecruitmentCandidate.
@@ -30,7 +70,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  demoSession RecruitmentDemoSession?
+  demoSession          RecruitmentDemoSession?
+  validationRuns       RecruitmentScenarioValidationRun[]
+  scenarioReviews      RecruitmentScenarioReview[]
+  publicationOverrides RecruitmentScenarioPublicationOverride[]
 }
 
 // -------------------------------------------------------------------
@@ -64,10 +107,10 @@ model RecruitmentDemoSession {
 // ============================================================================
 
 model RecruitmentAssessment {
-  id           String  @id @default(cuid())
-  title        String // e.g. "Finance and Accounting Manager (P4)"
-  scenarioSlug String  @map("scenario_slug") // routes the candidate URL: /assess/<slug>
-  scenarioId   String  @map("scenario_id") // matches src/lib/recruit/scenarios key, e.g. "fam-p4-2026"
+  id               String               @id @default(cuid())
+  title            String // e.g. "Finance and Accounting Manager (P4)"
+  scenarioSlug     String               @map("scenario_slug") // routes the candidate URL: /assess/<slug>
+  scenarioId       String               @map("scenario_id") // matches src/lib/recruit/scenarios key, e.g. "fam-p4-2026"
   // If set, resolves to a DB-backed RecruitmentScenario (admin-authored).
   // Takes precedence over scenarioId. scenarioId/scenarioSlug are still
   // populated (mirrored from the DB scenario) for backwards compatibility.
@@ -79,6 +122,14 @@ model RecruitmentAssessment {
   revealedAt       DateTime?            @map("revealed_at") // when the admin clicks "Reveal Candidates"
   createdAt        DateTime             @default(now()) @map("created_at")
   createdById      String?              @map("created_by_id")
+
+  // Immutable policy/config snapshot copied from the scenario at cohort
+  // creation. Defaults preserve the behaviour of existing cohorts.
+  assessmentMode       RecruitmentAssessmentMode @default(EVIDENCE) @map("assessment_mode")
+  modePolicyVersion    String                    @default("1") @map("mode_policy_version")
+  defenceEnabled       Boolean                   @default(false) @map("defence_enabled")
+  defenceQuestionCount Int                       @default(2) @map("defence_question_count")
+  defenceMinutes       Int                       @default(5) @map("defence_minutes")
 
   candidates RecruitmentCandidate[]
 
@@ -110,10 +161,17 @@ model RecruitmentCandidate {
   // Marker outputs (populated in Half 2)
   totalScore Float? @map("total_score")
 
+  // The main work is irrevocably locked before a configured defence starts.
+  workLockedAt               DateTime? @map("work_locked_at")
+  toolDeclaration            Json?     @map("tool_declaration")
+  toolDeclarationSubmittedAt DateTime? @map("tool_declaration_submitted_at")
+
   responses      RecruitmentResponse[]
   interactions   RecruitmentInteraction[]
   activityEvents RecruitmentActivityEvent[]
   emailResponses RecruitmentEmailResponse[]
+  evidenceBoard  RecruitmentCandidateEvidence[]
+  defence        RecruitmentCandidateDefence?
 
   @@unique([assessmentId, anonymousId])
   @@unique([assessmentId, email])
@@ -137,7 +195,10 @@ model RecruitmentResponse {
   // Marker output (Half 2)
   score            Float?
   comments         String?   @db.Text
-  issuesIdentified Json?     @map("issues_identified") // string[] of issue IDs the candidate found — analytics only
+  issuesIdentified Json?     @map("issues_identified") // string[] of issue IDs the candidate found - analytics only
+  // Human-entered criterion scores keyed by stable criterion ID. These make
+  // descriptive pilot distributions possible without deriving or auto-scoring.
+  criterionScores  Json?     @map("criterion_scores")
   markedAt         DateTime? @map("marked_at")
   markedById       String?   @map("marked_by_id")
 
@@ -156,6 +217,18 @@ model RecruitmentInteraction {
   content     String               @db.Text
   tokenCount  Int?                 @map("token_count")
   metadata    Json?
+
+  // Additive structured-response fields. Historical rows remain valid and
+  // render through `content` when these fields are null.
+  structuredPayload   Json?                      @map("structured_payload")
+  schemaVersion       String?                    @map("schema_version")
+  model               String?
+  promptPolicyVersion String?                    @map("prompt_policy_version")
+  assessmentMode      RecruitmentAssessmentMode? @map("assessment_mode")
+  sourceValidation    Json?                      @map("source_validation")
+  contentVersion      String?                    @map("content_version")
+
+  evidenceBoard RecruitmentCandidateEvidence[]
 
   @@index([candidateId, sequenceNum])
   @@map("recruitment_interactions")
@@ -204,11 +277,21 @@ model RecruitmentScenario {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  tasks       RecruitmentScenarioTask[]
-  exhibits    RecruitmentScenarioExhibit[]
-  emails      RecruitmentScenarioEmail[]
-  chatScripts RecruitmentScenarioChatScript[]
-  assessments RecruitmentAssessment[]
+  assessmentMode       RecruitmentAssessmentMode @default(EVIDENCE) @map("assessment_mode")
+  modePolicyVersion    String                    @default("1") @map("mode_policy_version")
+  defenceEnabled       Boolean                   @default(false) @map("defence_enabled")
+  defenceQuestionCount Int                       @default(2) @map("defence_question_count")
+  defenceMinutes       Int                       @default(5) @map("defence_minutes")
+
+  tasks                RecruitmentScenarioTask[]
+  exhibits             RecruitmentScenarioExhibit[]
+  emails               RecruitmentScenarioEmail[]
+  chatScripts          RecruitmentScenarioChatScript[]
+  assessments          RecruitmentAssessment[]
+  criteria             RecruitmentScenarioCriterion[]
+  validationRuns       RecruitmentScenarioValidationRun[]
+  reviews              RecruitmentScenarioReview[]
+  publicationOverrides RecruitmentScenarioPublicationOverride[]
 
   @@map("recruitment_scenarios")
 }
@@ -248,8 +331,10 @@ model RecruitmentScenarioTask {
   // generation failed soft (the marking screen degrades to an empty panel).
   rubric Json? @map("rubric")
 
-  emails      RecruitmentScenarioEmail[]
-  chatScripts RecruitmentScenarioChatScript[]
+  emails            RecruitmentScenarioEmail[]
+  chatScripts       RecruitmentScenarioChatScript[]
+  criterionMappings RecruitmentScenarioCriterionTask[]
+  candidateEvidence RecruitmentCandidateEvidence[]
 
   @@unique([scenarioId, number])
   @@index([scenarioId])
@@ -262,11 +347,171 @@ model RecruitmentScenarioExhibit {
   scenario   RecruitmentScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   title      String
   html       String              @db.Text
+  // Human-readable stable ID used in model context and evidence citations.
+  // Null is retained for historical exhibits; loaders fall back to the row id.
+  sourceId   String?             @map("source_id")
 
   tasks RecruitmentScenarioTask[]
 
+  @@unique([scenarioId, sourceId])
   @@index([scenarioId])
   @@map("recruitment_scenario_exhibits")
+}
+
+// Candidate-owned working evidence. It is a study aid and provenance record,
+// never an automated score. Candidate APIs always scope by authenticated token.
+model RecruitmentCandidateEvidence {
+  id                       String                                @id @default(cuid())
+  candidateId              String                                @map("candidate_id")
+  candidate                RecruitmentCandidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  taskId                   String?                               @map("task_id")
+  task                     RecruitmentScenarioTask?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskNumber               Int                                   @map("task_number")
+  interactionId            String?                               @map("interaction_id") @db.Uuid
+  interaction              RecruitmentInteraction?               @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  evidenceCardId           String                                @map("evidence_card_id")
+  claim                    String                                @db.Text
+  sourceId                 String?                               @map("source_id")
+  sourceTitle              String?                               @map("source_title")
+  sourceExcerpt            String?                               @map("source_excerpt") @db.Text
+  sourceVerificationStatus RecruitmentEvidenceVerificationStatus @map("source_verification_status")
+  candidateDisposition     RecruitmentEvidenceDisposition        @default(SAVED) @map("candidate_disposition")
+  createdAt                DateTime                              @default(now()) @map("created_at")
+  updatedAt                DateTime                              @updatedAt @map("updated_at")
+
+  @@unique([candidateId, interactionId, evidenceCardId])
+  @@index([candidateId, taskNumber])
+  @@map("recruitment_candidate_evidence")
+}
+
+// Two-question written reasoning defence. Questions are generated once and
+// persisted; deterministic fallbacks keep the timed candidate flow available.
+model RecruitmentCandidateDefence {
+  id              String                    @id @default(cuid())
+  candidateId     String                    @unique @map("candidate_id")
+  candidate       RecruitmentCandidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  assessmentMode  RecruitmentAssessmentMode @map("assessment_mode")
+  status          String                    @default("questions_ready")
+  questions       Json
+  answers         Json
+  personalised    Boolean                   @default(false)
+  model           String?
+  promptVersion   String                    @map("prompt_version")
+  contentVersion  String                    @default("1") @map("content_version")
+  generationError String?                   @map("generation_error") @db.Text
+  startedAt       DateTime                  @map("started_at")
+  deadline        DateTime
+  submittedAt     DateTime?                 @map("submitted_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+
+  @@index([status, deadline])
+  @@map("recruitment_candidate_defences")
+}
+
+// Stable criteria and explicit blueprint mappings for DB-authored scenarios.
+model RecruitmentScenarioCriterion {
+  id                   String              @id @default(cuid())
+  scenarioId           String              @map("scenario_id")
+  scenario             RecruitmentScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  code                 String
+  name                 String
+  description          String              @db.Text
+  sourceRequirement    String?             @map("source_requirement") @db.Text
+  observableBehaviours Json                @map("observable_behaviours")
+  order                Int                 @default(0)
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  taskMappings RecruitmentScenarioCriterionTask[]
+
+  @@unique([scenarioId, code])
+  @@index([scenarioId, order])
+  @@map("recruitment_scenario_criteria")
+}
+
+model RecruitmentScenarioCriterionTask {
+  id                        String                       @id @default(cuid())
+  criterionId               String                       @map("criterion_id")
+  criterion                 RecruitmentScenarioCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  taskId                    String                       @map("task_id")
+  task                      RecruitmentScenarioTask      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  expectedCandidateEvidence String                       @map("expected_candidate_evidence") @db.Text
+  rubricElementIds          Json                         @map("rubric_element_ids")
+  marks                     Int                          @default(0)
+  createdAt                 DateTime                     @default(now()) @map("created_at")
+  updatedAt                 DateTime                     @updatedAt @map("updated_at")
+
+  @@unique([criterionId, taskId])
+  @@index([taskId])
+  @@map("recruitment_scenario_criterion_tasks")
+}
+
+model RecruitmentScenarioValidationRun {
+  id                  String                         @id @default(cuid())
+  scenarioId          String                         @map("scenario_id")
+  scenario            RecruitmentScenario            @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  scenarioHash        String                         @map("scenario_hash")
+  assessmentMode      RecruitmentAssessmentMode      @map("assessment_mode")
+  status              RecruitmentValidationRunStatus @default(QUEUED)
+  progressStage       String                         @default("Preparing scenario snapshot") @map("progress_stage")
+  overallReadiness    String?                        @map("overall_readiness")
+  promptVersion       String                         @map("prompt_version")
+  model               String
+  contentVersion      String                         @default("1") @map("content_version")
+  // Immutable model input captured when the run is queued. The worker reads
+  // this snapshot so later edits cannot be analysed under an older hash.
+  scenarioSnapshot    Json?                          @map("scenario_snapshot")
+  deterministicChecks Json?                          @map("deterministic_checks")
+  findings            Json?
+  criterionCoverage   Json?                          @map("criterion_coverage")
+  syntheticProfiles   Json?                          @map("synthetic_profiles")
+  policyTests         Json?                          @map("policy_tests")
+  summary             String?                        @db.Text
+  error               String?                        @db.Text
+  createdById         String                         @map("created_by_id")
+  createdBy           User                           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  startedAt           DateTime?                      @map("started_at")
+  completedAt         DateTime?                      @map("completed_at")
+  createdAt           DateTime                       @default(now()) @map("created_at")
+
+  reviews RecruitmentScenarioReview[]
+
+  @@index([scenarioId, createdAt])
+  @@index([status, createdAt])
+  @@map("recruitment_scenario_validation_runs")
+}
+
+model RecruitmentScenarioReview {
+  id              String                            @id @default(cuid())
+  scenarioId      String                            @map("scenario_id")
+  scenario        RecruitmentScenario               @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  validationRunId String?                           @map("validation_run_id")
+  validationRun   RecruitmentScenarioValidationRun? @relation(fields: [validationRunId], references: [id], onDelete: SetNull)
+  reviewType      RecruitmentScenarioReviewType     @map("review_type")
+  decision        RecruitmentScenarioReviewDecision
+  notes           String                            @db.Text
+  reviewerId      String                            @map("reviewer_id")
+  reviewer        User                              @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+  createdAt       DateTime                          @default(now()) @map("created_at")
+
+  @@index([scenarioId, createdAt])
+  @@index([validationRunId])
+  @@map("recruitment_scenario_reviews")
+}
+
+model RecruitmentScenarioPublicationOverride {
+  id           String              @id @default(cuid())
+  scenarioId   String              @map("scenario_id")
+  scenario     RecruitmentScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  scenarioHash String              @map("scenario_hash")
+  reason       String              @db.Text
+  userId       String              @map("user_id")
+  user         User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@index([scenarioId, createdAt])
+  @@map("recruitment_scenario_publication_overrides")
 }
 
 // Scripted emails that arrive during an email_inbox task. triggerOffsetSeconds
@@ -320,19 +565,19 @@ model RecruitmentScenarioChatScript {
 // deliveredAt captures when the server first revealed the email so marker
 // analytics can compute response latency.
 model RecruitmentEmailResponse {
-  id          String                   @id @default(cuid())
-  candidateId String                   @map("candidate_id")
-  candidate   RecruitmentCandidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  id          String               @id @default(cuid())
+  candidateId String               @map("candidate_id")
+  candidate   RecruitmentCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   // emailId is a plain identifier, NOT a foreign key: scripted emails can come
   // from a DB scenario (RecruitmentScenarioEmail row) OR a code scenario
   // (config-only id, e.g. "ipac-email-ed-deadline"). The reply route validates
   // the id against the resolved scenario config. Mirrors how persona-chat
   // interactions (RecruitmentInteraction) carry no scenario FK.
-  emailId     String                   @map("email_id")
+  emailId     String               @map("email_id")
   action      String // replied | ignored | flagged
-  replyBody   String?                  @map("reply_body") @db.Text
-  deliveredAt DateTime                 @map("delivered_at")
-  respondedAt DateTime                 @default(now()) @map("responded_at")
+  replyBody   String?              @map("reply_body") @db.Text
+  deliveredAt DateTime             @map("delivered_at")
+  respondedAt DateTime             @default(now()) @map("responded_at")
 
   // Marker output (parallels RecruitmentResponse's per-row comment pattern)
   markerComment String? @map("marker_comment") @db.Text
@@ -351,15 +596,15 @@ model RecruitmentEmailResponse {
 // Lives in this table because: (a) survives Lambda recycling, (b) gives us a
 // queryable trail of generations for debug, (c) shared between SSR + worker.
 model RecruitmentScenarioGenerationJob {
-  id            String    @id @default(cuid())
-  createdById   String?   @map("created_by_id")
-  status        String    @default("queued") // queued | running | completed | failed
-  inputJson     Json      @map("input_json")
-  resultJson    Json?     @map("result_json")
-  errorMessage  String?   @map("error_message") @db.Text
-  enqueuedAt    DateTime  @default(now()) @map("enqueued_at")
-  startedAt     DateTime? @map("started_at")
-  completedAt   DateTime? @map("completed_at")
+  id           String    @id @default(cuid())
+  createdById  String?   @map("created_by_id")
+  status       String    @default("queued") // queued | running | completed | failed
+  inputJson    Json      @map("input_json")
+  resultJson   Json?     @map("result_json")
+  errorMessage String?   @map("error_message") @db.Text
+  enqueuedAt   DateTime  @default(now()) @map("enqueued_at")
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
 
   @@index([status, enqueuedAt])
   @@map("recruitment_scenario_generation_jobs")

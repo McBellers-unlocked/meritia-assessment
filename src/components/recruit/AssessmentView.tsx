@@ -7,13 +7,20 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import LiveEventsOverlay from "./LiveEventsOverlay";
+import { AssessmentModeBadge } from "./AssessmentModeBadge";
+import KnowledgeEvidenceCard from "./KnowledgeEvidenceCard";
+import CandidateEvidenceBoard, { type EvidenceBoardItem } from "./CandidateEvidenceBoard";
+import ToolUseDeclaration, { type ToolDeclarationValue } from "./ToolUseDeclaration";
+import type { KnowledgeSystemResponse } from "@/lib/recruit/knowledge-response-schema";
 
 interface TaskCfg {
+  taskId: string | null;
   number: number;
   title: string;
   briefMarkdown: string;
   exhibitTitle: string;
   exhibitHtml: string;
+  exhibitSourceId: string;
   totalMarks: number;
   deliverableLabel: string;
   deliverablePlaceholder: string;
@@ -26,6 +33,8 @@ interface Interaction {
   timestamp: string;
   actor: string;
   content: string;
+  structuredPayload?: KnowledgeSystemResponse | null;
+  schemaVersion?: string | null;
 }
 
 interface ResponseRow {
@@ -38,17 +47,19 @@ interface ResponseRow {
 
 export interface AssessmentInitial {
   stage: string;
-  assessment: { id: string; title: string; totalMinutes: number; closeDate: string };
+  assessment: { id: string; title: string; totalMinutes: number; closeDate: string; assessmentMode: "EVIDENCE" | "COPILOT" | "OPEN_AGENT"; defenceEnabled: boolean; defenceMinutes: number };
   scenario: {
     title: string; organisation: string; positionTitle: string; taskCount: number;
     tasks: TaskCfg[];
     // In-assessment AI branding; null/absent → IDSC defaults (existing scenarios).
     assistantName?: string | null;
     assistantShortName?: string | null;
+    assessmentMode?: "EVIDENCE" | "COPILOT" | "OPEN_AGENT";
   };
-  candidate: { anonymousId: string; startedAt: string; deadline: string; submittedAt: string | null };
+  candidate: { anonymousId: string; startedAt: string; deadline: string; submittedAt: string | null; workLockedAt?: string | null };
   responses: ResponseRow[];
   interactions: Interaction[];
+  evidenceBoard: EvidenceBoardItem[];
 }
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -147,6 +158,11 @@ export default function AssessmentView({
   const [sendingMemo, setSendingMemo] = useState<number | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>(initial.interactions);
+  const [evidenceBoard, setEvidenceBoard] = useState<EvidenceBoardItem[]>(initial.evidenceBoard ?? []);
+  const [toolDeclaration, setToolDeclaration] = useState<ToolDeclarationValue>({
+    tools: [],
+    otherText: "",
+  });
 
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -171,7 +187,7 @@ export default function AssessmentView({
   const [hasUnreadAI, setHasUnreadAI] = useState(false);
   const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  /* ------ activity / integrity logger ------ */
+  /* ------ work-provenance activity logger ------ */
   // Buffers paste + visibility-change events and flushes them to
   // /api/assess/activity in small batches. Content of pastes is NOT captured;
   // only character count. Surfaced to examiners during marking.
@@ -193,7 +209,7 @@ export default function AssessmentView({
         keepalive: true,
       });
     } catch {
-      // Integrity logging is best-effort — never block the candidate.
+      // Provenance logging is best-effort — never block the candidate.
     }
   }, [token]);
 
@@ -327,6 +343,49 @@ export default function AssessmentView({
     }
   }, [chatInputs, activeTask, sending, interactions, token]);
 
+  const saveEvidence = useCallback(async (interaction: Interaction, evidenceCardId: string) => {
+    const res = await fetch("/api/assess/evidence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, interactionId: interaction.id, evidenceCardId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setChatError(body.error || "Could not save evidence.");
+      return;
+    }
+    setEvidenceBoard((items) => [...items.filter((item) => item.id !== body.evidence.id), body.evidence]);
+  }, [token]);
+
+  const updateEvidenceDisposition = useCallback(async (id: string, disposition: EvidenceBoardItem["candidateDisposition"]) => {
+    const res = await fetch("/api/assess/evidence", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, id, disposition }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) setEvidenceBoard((items) => items.map((item) => item.id === id ? body.evidence : item));
+  }, [token]);
+
+  const removeEvidence = useCallback(async (id: string) => {
+    const res = await fetch("/api/assess/evidence", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, id }),
+    });
+    if (res.ok) setEvidenceBoard((items) => items.filter((item) => item.id !== id));
+  }, [token]);
+
+  const openEvidenceSource = useCallback(async (taskNumber: number, sourceId: string | null, evidenceCardId?: string) => {
+    setActiveTask(taskNumber);
+    setExhibitFullscreen(true);
+    await fetch("/api/assess/evidence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, action: "source_opened", taskNumber, sourceId, evidenceCardId }),
+    });
+  }, [token]);
+
   /* ------ memo autosave (debounced + 30s force) ------ */
   const saveMemo = useCallback(async (taskNumber: number, content: string) => {
     setMemoSaving((s) => ({ ...s, [taskNumber]: true }));
@@ -375,9 +434,10 @@ export default function AssessmentView({
   useEffect(() => {
     const t = activeTask;
     if (memoTimers.current[t]) clearTimeout(memoTimers.current[t] as any);
-    memoTimers.current[t] = setTimeout(() => void saveMemo(t, memos[t] || ""), SAVE_DEBOUNCE_MS);
+    const timer = setTimeout(() => void saveMemo(t, memos[t] || ""), SAVE_DEBOUNCE_MS);
+    memoTimers.current[t] = timer;
     return () => {
-      if (memoTimers.current[t]) clearTimeout(memoTimers.current[t] as any);
+      clearTimeout(timer);
     };
   }, [memos, activeTask, saveMemo]);
 
@@ -392,7 +452,7 @@ export default function AssessmentView({
   }, [memos[1], memos[2]]);
 
   /* ------ submit ------ */
-  const submit = useCallback(async () => {
+  const submit = useCallback(async (automatic = false) => {
     if (submitting || submittedRef.current) return;
     submittedRef.current = true;
     setSubmitting(true);
@@ -402,7 +462,11 @@ export default function AssessmentView({
       const res = await fetch("/api/assess/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({
+          token,
+          automatic,
+          ...(initial.assessment.assessmentMode === "OPEN_AGENT" ? { toolDeclaration } : {}),
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -416,14 +480,14 @@ export default function AssessmentView({
       setSubmitting(false);
       setConfirmOpen(false);
     }
-  }, [submitting, memos, token, saveMemo, onReload]);
+  }, [submitting, memos, token, saveMemo, onReload, initial.assessment.assessmentMode, toolDeclaration]);
 
   /* ------ timer ------ */
   const timer = useTimer(initial.candidate.deadline, initial.assessment.totalMinutes);
   // Auto-submit on expiry
   useEffect(() => {
     if (timer.expired && !submittedRef.current) {
-      void submit();
+      void submit(true);
     }
   }, [timer.expired, submit]);
 
@@ -468,6 +532,7 @@ export default function AssessmentView({
               onSwitch={setActiveTask}
               wordCounts={wordCounts}
             />
+            <AssessmentModeBadge mode={initial.assessment.assessmentMode} className="hidden xl:inline-flex" />
             <TimerPill timer={timer} />
             <button
               onClick={() => setConfirmOpen(true)}
@@ -788,7 +853,15 @@ export default function AssessmentView({
                   analysis and the writing are yours. Every question you ask forms part of the assessment.
                 </div>
               )}
-              {trailForActive.map((i) => <ChatBubble key={i.id} entry={i} />)}
+              {trailForActive.map((i) => (
+                <ChatBubble
+                  key={i.id}
+                  entry={i}
+                  savedCardIds={new Set(evidenceBoard.filter((item) => item.interactionId === i.id).map((item) => item.evidenceCardId))}
+                  onSaveCard={(cardId) => void saveEvidence(i, cardId)}
+                  onOpenSource={(sourceId) => void openEvidenceSource(i.taskNumber, sourceId)}
+                />
+              ))}
               {sending && (
                 <div className="flex items-center gap-2 text-xs">
                   <span
@@ -801,11 +874,19 @@ export default function AssessmentView({
               )}
             </div>
 
+            <CandidateEvidenceBoard
+              items={evidenceBoard.filter((item) => item.taskNumber === activeTask)}
+              onDisposition={(id, disposition) => void updateEvidenceDisposition(id, disposition)}
+              onRemove={(id) => void removeEvidence(id)}
+              onOpenSource={(item) => void openEvidenceSource(item.taskNumber, item.sourceId, item.evidenceCardId)}
+            />
+
             {chatError && (
               <div className="px-4 py-2 border-t border-uq-danger-line bg-uq-danger-soft text-uq-danger-text text-xs">{chatError}</div>
             )}
 
             <div className="border-t border-uq-faint p-3 flex-shrink-0">
+              <p className="mb-2 text-[11px] leading-relaxed text-uq-3">AI-powered · This system may be inaccurate. Check important conclusions against the source exhibits.</p>
               <textarea
                 ref={chatInputRef}
                 value={chatInputs[activeTask] || ""}
@@ -917,10 +998,11 @@ export default function AssessmentView({
             onClick={() => setConfirmOpen(false)}
           >
             <div className="rounded-2xl border border-uq-strong bg-uq-elev3 shadow-uq-pop animate-uq-rise max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold tracking-[-0.005em] text-uq">Submit assessment?</h3>
+              <h3 className="text-lg font-semibold tracking-[-0.005em] text-uq">{initial.assessment.defenceEnabled ? "Complete work and continue to defence?" : "Submit assessment?"}</h3>
               <p className="text-sm text-uq-2 mt-2 leading-relaxed">
                 This assessment has <strong>{memoTaskNums.length === 2 ? "two" : memoTaskNums.length} {memoTaskNums.length === 1 ? "task" : "tasks"}</strong>. You will not be able to return
-                to this assessment or modify your responses after submission.
+                to this workspace or modify your responses after completion.
+                {initial.assessment.defenceEnabled && <> Your work will lock before a separate <strong>{initial.assessment.defenceMinutes}-minute, two-question reasoning defence</strong> begins.</>}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 {memoTaskNums.map((t) => (
@@ -981,6 +1063,9 @@ export default function AssessmentView({
                   </ul>
                 </div>
               )}
+              {initial.assessment.assessmentMode === "OPEN_AGENT" && (
+                <ToolUseDeclaration value={toolDeclaration} onChange={setToolDeclaration} />
+              )}
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmOpen(false)}
@@ -989,7 +1074,7 @@ export default function AssessmentView({
                   Cancel
                 </button>
                 <button
-                  onClick={() => void submit()}
+                  onClick={() => void submit(false)}
                   disabled={submitting}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)] ${
                     hasCritical
@@ -997,7 +1082,7 @@ export default function AssessmentView({
                       : "bg-uq-accent text-[color:var(--uq-text-on-accent)] shadow-uq-glow-soft hover:bg-uq-accent-hover hover:shadow-uq-glow"
                   }`}
                 >
-                  {submitting ? "Submitting…" : hasCritical ? "Submit anyway" : "Submit"}
+                  {submitting ? "Locking work…" : initial.assessment.defenceEnabled ? "Lock work and begin defence" : hasCritical ? "Submit anyway" : "Submit"}
                 </button>
               </div>
             </div>
@@ -1018,8 +1103,19 @@ export default function AssessmentView({
 
 /* ------------------------------------------------------------------ */
 
-function ChatBubble({ entry }: { entry: Interaction }) {
+function ChatBubble({
+  entry,
+  savedCardIds,
+  onSaveCard,
+  onOpenSource,
+}: {
+  entry: Interaction;
+  savedCardIds: Set<string>;
+  onSaveCard: (cardId: string) => void;
+  onOpenSource: (sourceId: string | null) => void;
+}) {
   const isUser = entry.actor === "candidate";
+  const structured = !isUser && entry.structuredPayload ? entry.structuredPayload : null;
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
@@ -1029,7 +1125,29 @@ function ChatBubble({ entry }: { entry: Interaction }) {
             : "rounded-2xl rounded-bl-md bg-uq-elev2 border border-uq text-uq"
         }`}
       >
-        {isUser ? entry.content : <MarkdownView>{entry.content}</MarkdownView>}
+        {isUser ? entry.content : structured ? (
+          <div className="space-y-3">
+            <p>{structured.analysisSummary}</p>
+            {structured.evidenceCards.map((card) => (
+              <KnowledgeEvidenceCard
+                key={card.id}
+                card={card}
+                saved={savedCardIds.has(card.id)}
+                onSave={() => onSaveCard(card.id)}
+                onOpenSource={() => onOpenSource(card.sourceId)}
+              />
+            ))}
+            {structured.uncertainties.length > 0 && (
+              <div><div className="font-semibold">Uncertainties</div><ul className="mt-1 list-disc space-y-1 pl-4 text-uq-2">{structured.uncertainties.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            )}
+            {structured.questionsToResolve.length > 0 && (
+              <div><div className="font-semibold">Questions to resolve</div><ul className="mt-1 list-disc space-y-1 pl-4 text-uq-2">{structured.questionsToResolve.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            )}
+            {structured.workingDraft && (
+              <div className="rounded-xl border border-uq-strong bg-uq-elev1 p-3"><div className="font-mono text-[9px] uppercase tracking-[0.1em] text-uq-3">{structured.workingDraft.label} · AI-generated working material</div><div className="mt-2 whitespace-pre-wrap text-uq-2">{structured.workingDraft.content}</div></div>
+            )}
+          </div>
+        ) : <MarkdownView>{entry.content}</MarkdownView>}
       </div>
     </div>
   );

@@ -83,8 +83,8 @@ export default function MarkListPage() {
               <th className="px-3 py-2 text-left">Anon ID</th>
               <th className="px-3 py-2 text-right">Time (min)</th>
               <th className="px-3 py-2 text-right">Messages</th>
-              <th className="px-3 py-2 text-right">Pastes</th>
-              <th className="px-3 py-2 text-right">Off-tab</th>
+              <th className="px-3 py-2 text-right">Paste activity</th>
+              <th className="px-3 py-2 text-right">Focus changes</th>
               {taskNumbers.map((n) => (
                 <th key={`w${n}`} className="px-3 py-2 text-right">T{n} words</th>
               ))}

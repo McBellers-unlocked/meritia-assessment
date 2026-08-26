@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EditorScenario } from "./scenarioEditorTypes";
+import { ASSESSMENT_MODES, getAssessmentModePolicy, type AssessmentMode } from "@/lib/recruit/assessment-modes";
 
 /**
  * Overview tab: edit scenario header fields (title, slug, organisation,
@@ -21,6 +22,9 @@ export default function OverviewTab({
   const [organisation, setOrganisation] = useState(scenario.organisation);
   const [positionTitle, setPositionTitle] = useState(scenario.positionTitle);
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState(String(scenario.defaultTotalMinutes));
+  const [assessmentMode, setAssessmentMode] = useState<AssessmentMode>(scenario.assessmentMode || "EVIDENCE");
+  const [defenceEnabled, setDefenceEnabled] = useState(Boolean(scenario.defenceEnabled));
+  const [defenceMinutes, setDefenceMinutes] = useState(String(scenario.defenceMinutes || 5));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -32,7 +36,10 @@ export default function OverviewTab({
     setOrganisation(scenario.organisation);
     setPositionTitle(scenario.positionTitle);
     setDefaultTotalMinutes(String(scenario.defaultTotalMinutes));
-  }, [scenario.id, scenario.title, scenario.slug, scenario.organisation, scenario.positionTitle, scenario.defaultTotalMinutes]);
+    setAssessmentMode(scenario.assessmentMode || "EVIDENCE");
+    setDefenceEnabled(Boolean(scenario.defenceEnabled));
+    setDefenceMinutes(String(scenario.defenceMinutes || 5));
+  }, [scenario.id, scenario.title, scenario.slug, scenario.organisation, scenario.positionTitle, scenario.defaultTotalMinutes, scenario.assessmentMode, scenario.defenceEnabled, scenario.defenceMinutes]);
 
   const slugLocked = scenario._count.assessments > 0 && scenario.status === "published";
 
@@ -49,6 +56,10 @@ export default function OverviewTab({
           organisation: organisation.trim(),
           positionTitle: positionTitle.trim(),
           defaultTotalMinutes: Number(defaultTotalMinutes) || 90,
+          assessmentMode,
+          defenceEnabled,
+          defenceQuestionCount: 2,
+          defenceMinutes: Number(defenceMinutes) || 5,
         }),
       });
       const body = await res.json();
@@ -121,6 +132,47 @@ export default function OverviewTab({
           />
         </label>
       </div>
+
+      <fieldset className="border-t border-uq pt-4">
+        <legend className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Assessment mode</legend>
+        <p className="mt-1 text-xs leading-relaxed text-uq-3">Choose the policy that matches the construct being assessed. No mode is inherently more rigorous.</p>
+        <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          {ASSESSMENT_MODES.map((mode) => {
+            const policy = getAssessmentModePolicy(mode);
+            const selected = assessmentMode === mode;
+            return (
+              <label key={mode} className={`cursor-pointer rounded-xl border p-3 transition-colors ${selected ? "border-uq-accent bg-uq-accent-soft" : "border-uq bg-uq-glass-subtle hover:border-uq-strong"}`}>
+                <span className="flex items-start gap-2">
+                  <input type="radio" name="assessmentMode" value={mode} checked={selected} onChange={() => { setAssessmentMode(mode); if (mode === "OPEN_AGENT") setDefenceEnabled(true); }} className="mt-1 accent-[color:var(--uq-accent)]" />
+                  <span>
+                    <span className="block text-sm font-semibold text-uq">{policy.label}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-uq-2">{policy.purpose}</span>
+                  </span>
+                </span>
+                <dl className="mt-3 space-y-1 text-[11px] text-uq-3">
+                  <div><dt className="inline font-medium text-uq-2">External AI: </dt><dd className="inline">{policy.externalAiPermitted ? "permitted" : "not permitted"}</dd></div>
+                  <div><dt className="inline font-medium text-uq-2">Drafting: </dt><dd className="inline">{policy.knowledgeSystemDraftingPermitted ? "permitted and labelled" : "not permitted"}</dd></div>
+                  <div><dt className="inline font-medium text-uq-2">Defence: </dt><dd className="inline">{policy.defenceDefaultEnabled ? "normally enabled" : "configurable"}</dd></div>
+                </dl>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset className="border-t border-uq pt-4">
+        <legend className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-3">Written reasoning defence</legend>
+        <label className="mt-2 flex items-start gap-2 text-sm text-uq-2">
+          <input type="checkbox" checked={defenceEnabled} onChange={(event) => setDefenceEnabled(event.target.checked)} className="mt-0.5 accent-[color:var(--uq-accent)]" />
+          <span>Lock the main work, then ask exactly two human-reviewed reasoning questions.</span>
+        </label>
+        {defenceEnabled && (
+          <label className="mt-3 block max-w-xs text-sm">
+            <span className="text-uq-2">Additional defence minutes</span>
+            <input type="number" min={1} max={30} value={defenceMinutes} onChange={(event) => setDefenceMinutes(event.target.value)} className="mt-1 block w-full rounded-md border border-uq bg-uq-glass-subtle px-3 py-2 font-mono text-sm text-uq" />
+          </label>
+        )}
+      </fieldset>
 
       {error && <div className="rounded-md px-3 py-2 text-sm border border-[color:var(--uq-danger-line)] bg-[color:var(--uq-danger-soft)] text-[color:var(--uq-danger-text)]">{error}</div>}
 

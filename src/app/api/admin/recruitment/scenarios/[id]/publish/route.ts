@@ -4,6 +4,8 @@ import {
   assertScenarioAccess,
   requireScenarioBuilder,
 } from "@/lib/admin-auth";
+import { evaluatePublicationReadiness } from "@/lib/recruit/validation/publication-readiness";
+import { getScenarioContentHash } from "@/lib/recruit/scenario-content-hash";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,8 @@ export async function POST(
         include: { emails: true, chatScripts: true },
         orderBy: { number: "asc" },
       },
+      validationRuns: { orderBy: { createdAt: "desc" }, take: 1 },
+      reviews: { orderBy: { createdAt: "desc" } },
     },
   });
   if (!scenario) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -126,10 +130,33 @@ export async function POST(
     return NextResponse.json({ error: "Validation failed", details: errors }, { status: 400 });
   }
 
+  const readiness = await evaluatePublicationReadiness(scenario);
+  const overrideReason = String(body.overrideReason ?? "").trim();
+  if (!readiness.ready && !overrideReason) {
+    return NextResponse.json(
+      { error: "Publication readiness requirements are not complete", details: readiness.blockers, readiness },
+      { status: 409 }
+    );
+  }
+  if (!readiness.ready && overrideReason.length < 20) {
+    return NextResponse.json({ error: "A publication override requires a specific reason of at least 20 characters." }, { status: 400 });
+  }
+  let publicationOverride = null;
+  if (!readiness.ready) {
+    publicationOverride = await prisma.recruitmentScenarioPublicationOverride.create({
+      data: {
+        scenarioId: scenario.id,
+        scenarioHash: (await getScenarioContentHash(scenario.id)) ?? "unavailable",
+        reason: auth.role === "DEMO" ? `[DEMONSTRATION OVERRIDE] ${overrideReason}` : overrideReason,
+        userId: auth.userId,
+      },
+    });
+  }
+
   const updated = await prisma.recruitmentScenario.update({
     where: { id: scenario.id },
     data: { status: "published", publishedAt: new Date() },
   });
 
-  return NextResponse.json({ scenario: updated });
+  return NextResponse.json({ scenario: updated, readiness, publicationOverride, formallyApproved: readiness.ready });
 }

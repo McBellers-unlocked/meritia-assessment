@@ -4,6 +4,7 @@ import {
   requireScenarioBuilder,
   scenarioScopeWhere,
 } from "@/lib/admin-auth";
+import { defaultDefenceEnabled, isAssessmentMode, ASSESSMENT_MODE_POLICY_VERSION } from "@/lib/recruit/assessment-modes";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,9 @@ export async function GET(request: NextRequest) {
       organisation: s.organisation,
       positionTitle: s.positionTitle,
       defaultTotalMinutes: s.defaultTotalMinutes,
+      assessmentMode: s.assessmentMode,
+      modePolicyVersion: s.modePolicyVersion,
+      defenceEnabled: s.defenceEnabled,
       status: s.status,
       publishedAt: s.publishedAt,
       createdAt: s.createdAt,
@@ -59,6 +63,10 @@ export async function POST(request: NextRequest) {
   const organisation = String(body.organisation ?? "").trim();
   const positionTitle = String(body.positionTitle ?? "").trim();
   const defaultTotalMinutes = Number(body.defaultTotalMinutes ?? 90);
+  const assessmentMode = isAssessmentMode(body.assessmentMode) ? body.assessmentMode : "EVIDENCE";
+  const defenceEnabled = body.defenceEnabled === undefined
+    ? defaultDefenceEnabled(assessmentMode)
+    : Boolean(body.defenceEnabled);
 
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
   if (!slug || !SLUG_RE.test(slug)) {
@@ -91,6 +99,11 @@ export async function POST(request: NextRequest) {
       organisation,
       positionTitle,
       defaultTotalMinutes,
+      assessmentMode,
+      modePolicyVersion: ASSESSMENT_MODE_POLICY_VERSION,
+      defenceEnabled,
+      defenceQuestionCount: 2,
+      defenceMinutes: Number(body.defenceMinutes ?? 5),
       createdById: auth.session.user.id,
     },
   });

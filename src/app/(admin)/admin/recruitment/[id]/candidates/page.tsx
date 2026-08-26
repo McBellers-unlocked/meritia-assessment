@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -32,7 +32,7 @@ export default function CandidatesPage() {
     if (authStatus === "unauthenticated") router.push("/login");
   }, [authStatus, router]);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/recruitment/${params.id}/candidates`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -40,9 +40,9 @@ export default function CandidatesPage() {
     } catch (e) {
       setError((e as Error).message);
     }
-  };
+  }, [params.id]);
 
-  useEffect(() => { void reload(); }, [params.id]);
+  useEffect(() => { void reload(); }, [reload]);
 
   const parseEntries = (text: string) => {
     const out: { name: string; email: string }[] = [];

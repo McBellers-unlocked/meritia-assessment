@@ -1,5 +1,5 @@
 /**
- * Lexical text-reuse analyzer for the marking screen's integrity signals.
+ * Lexical text-reuse analyzer for the marking screen's work-provenance context.
  *
  * Measures how much of a candidate's memo overlaps with the AI "knowledge
  * system" output they saw during the assessment — i.e. did they paste the AI
@@ -10,9 +10,9 @@
  * over-flag honest candidates who independently discuss the same facts the AI
  * mentioned.
  *
- * The output mirrors the supplied Python `TextReuseAnalyzer`: a reuse ratio,
- * an originality score, a reused-sentence count, and a per-sentence breakdown.
- * It is ADVISORY ONLY — surfaced to the human marker, never affecting scoring.
+ * The legacy output shape retains `originalityScore` for backward compatibility;
+ * user-facing copy does not present it as an originality or authorship measure.
+ * It is contextual only - surfaced to the human marker, never affecting scoring.
  */
 
 export interface ReuseSentence {
