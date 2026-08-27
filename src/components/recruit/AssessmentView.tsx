@@ -41,6 +41,9 @@ interface Interaction {
     codeExecutionUsed?: boolean;
     codeExecutionStatus?: "queued" | "running" | "completed" | "failed";
     codeExecutionError?: string;
+    responseStatus?: "queued" | "running" | "completed" | "failed";
+    responseKind?: "knowledge" | "code_execution";
+    responseError?: string;
     requestInteractionId?: string;
   } | null;
 }
@@ -445,16 +448,20 @@ export default function AssessmentView({
             break;
           }
           const requestEntry = nextTrail.find((entry) => entry.id === requestInteractionId);
-          if (requestEntry?.metadata?.codeExecutionStatus === "failed") {
+          if (
+            requestEntry?.metadata?.responseStatus === "failed" ||
+            requestEntry?.metadata?.codeExecutionStatus === "failed"
+          ) {
             throw new Error(
+              requestEntry.metadata.responseError ||
               requestEntry.metadata.codeExecutionError ||
-              "The managed Python run failed. Please try the request again."
+              "The AI response could not be completed. Please try the request again."
             );
           }
         }
         if (!completed) {
           throw new Error(
-            "The managed Python run is still taking longer than expected. Your request is saved; please wait a moment and reopen the AI panel."
+            "The AI response is still taking longer than expected. Your request is saved; please wait a moment and reopen the AI panel."
           );
         }
       }
@@ -1131,7 +1138,7 @@ function ChatBubble({
         {codeExecuted && <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[color:var(--uq-success-line)] bg-[color:var(--uq-success-soft)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-[color:var(--uq-success-text)]"><span aria-hidden>✓</span> Python executed</div>}
         {isUser ? entry.content : structured ? (
           <div className="space-y-3">
-            <p>{structured.analysisSummary}</p>
+            <MarkdownView>{structured.analysisSummary}</MarkdownView>
             {structured.evidenceCards.map((card) => (
               <KnowledgeEvidenceCard
                 key={card.id}
@@ -1142,10 +1149,10 @@ function ChatBubble({
               />
             ))}
             {structured.uncertainties.length > 0 && (
-              <div><div className="font-semibold">Uncertainties</div><ul className="mt-1 list-disc space-y-1 pl-4 text-uq-2">{structured.uncertainties.map((item) => <li key={item}>{item}</li>)}</ul></div>
+              <div><div className="font-semibold">Things to check</div><ul className="mt-1 list-disc space-y-1 pl-4 text-uq-2">{structured.uncertainties.map((item) => <li key={item}>{item}</li>)}</ul></div>
             )}
             {structured.questionsToResolve.length > 0 && (
-              <div><div className="font-semibold">Questions to resolve</div><ul className="mt-1 list-disc space-y-1 pl-4 text-uq-2">{structured.questionsToResolve.map((item) => <li key={item}>{item}</li>)}</ul></div>
+              <div><div className="font-semibold">You could explore</div><ul className="mt-1 list-disc space-y-1 pl-4 text-uq-2">{structured.questionsToResolve.map((item) => <li key={item}>{item}</li>)}</ul></div>
             )}
             {structured.workingDraft && (
               <div className="rounded-xl border border-uq-strong bg-uq-elev1 p-3"><div className="font-mono text-[9px] uppercase tracking-[0.1em] text-uq-3">{structured.workingDraft.label} · AI-generated working material</div><div className="mt-2 whitespace-pre-wrap text-uq-2">{structured.workingDraft.content}</div></div>

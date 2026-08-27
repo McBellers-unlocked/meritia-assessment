@@ -1,6 +1,6 @@
 import type { KnowledgeEvidenceCard, KnowledgeSystemResponse } from "./knowledge-response-schema";
 
-export type KnowledgeSource = { id: string; title: string; text: string; html?: string };
+export type KnowledgeSource = { id: string; title: string; text: string; html?: string; openable?: boolean };
 
 export function makeSourceId(title: string, ordinal?: number): string {
   const slug = title
@@ -63,16 +63,16 @@ export function excerptMatchesSource(excerpt: string, sourceText: string): boole
 
 export function validateEvidenceCard(card: KnowledgeEvidenceCard, sources: KnowledgeSource[]): KnowledgeEvidenceCard {
   if (card.basis === "inference") {
-    return { ...card, sourceId: null, sourceTitle: null, sourceExcerpt: null, verificationStatus: "inference", verificationNote: "Explicit professional inference; no direct source claimed." };
+    return { ...card, sourceId: null, sourceTitle: null, sourceExcerpt: null, sourceOpenable: false, verificationStatus: "inference", verificationNote: "Explicit professional inference; no direct source claimed." };
   }
   const source = sources.find((item) => item.id === card.sourceId);
   if (!source) {
-    return { ...card, verificationStatus: "unverified", verificationNote: "Returned source ID is not present in this task." };
+    return { ...card, sourceOpenable: false, verificationStatus: "unverified", verificationNote: "Returned source ID is not present in this task." };
   }
   if (!card.sourceExcerpt || !excerptMatchesSource(card.sourceExcerpt, source.text)) {
-    return { ...card, sourceTitle: source.title, verificationStatus: "unverified", verificationNote: "The source exists, but the quoted excerpt could not be matched." };
+    return { ...card, sourceTitle: source.title, sourceOpenable: false, verificationStatus: "unverified", verificationNote: "The source exists, but the quoted excerpt could not be matched." };
   }
-  return { ...card, sourceTitle: source.title, verificationStatus: "verified", verificationNote: "Source ID and excerpt matched the supplied exhibit." };
+  return { ...card, sourceTitle: source.title, sourceOpenable: source.openable !== false, verificationStatus: "verified", verificationNote: "Source ID and excerpt matched the supplied material." };
 }
 
 export function validateKnowledgeSources(response: KnowledgeSystemResponse, sources: KnowledgeSource[]): KnowledgeSystemResponse {
