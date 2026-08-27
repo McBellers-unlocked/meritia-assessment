@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
-import { prisma } from "../src/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { buildKnowledgePolicy } from "../src/lib/recruit/assessment-modes";
 import { CODE_EXECUTION_SYSTEM_INSTRUCTIONS } from "../src/lib/recruit/code-execution";
 import { enqueueCandidateCodeExecutionJob } from "../src/lib/recruit/sqs-client";
@@ -13,6 +13,10 @@ import {
   EXHIBIT_TITLE,
   KNOWLEDGE_SYSTEM_PROMPT,
 } from "./technical-demo/scenario";
+
+const prisma = new PrismaClient({
+  datasources: { db: { url: process.env.DATABASE_URL } },
+});
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
