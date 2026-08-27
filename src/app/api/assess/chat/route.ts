@@ -11,6 +11,11 @@ import { buildKnowledgePolicy } from "@/lib/recruit/assessment-modes";
 import { CONTENT_VERSION, KNOWLEDGE_POLICY_VERSION, KNOWLEDGE_RESPONSE_SCHEMA_VERSION } from "@/lib/recruit/prompt-versions";
 import { KNOWLEDGE_RESPONSE_TOOL, knowledgeResponseToText, parseKnowledgeSystemResponse } from "@/lib/recruit/knowledge-response-schema";
 import { buildSourceContext, htmlToPlainText, validateKnowledgeSources, type KnowledgeSource } from "@/lib/recruit/source-verification";
+import {
+  CODE_EXECUTION_SYSTEM_INSTRUCTIONS,
+  MANAGED_CODE_EXECUTION_TOOL,
+  responseUsedManagedCodeExecution,
+} from "@/lib/recruit/code-execution";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -89,8 +94,10 @@ export async function POST(request: NextRequest) {
     let maxTurns: number | null = null;
     let knowledgeSources: KnowledgeSource[] = [];
     let structuredKnowledge = false;
+    let codeExecutionEnabled = false;
     if (isMemoAiTask(taskCfg)) {
-      structuredKnowledge = true;
+      codeExecutionEnabled = taskCfg.codeExecutionEnabled === true;
+      structuredKnowledge = !codeExecutionEnabled;
       knowledgeSources = [{
         id: taskCfg.exhibitSourceId ?? `${scenario.scenarioId}-task-${taskNumber}-exhibit`,
         title: taskCfg.exhibitTitle,
@@ -104,8 +111,9 @@ ${taskCfg.systemPrompt}
 
 AVAILABLE SOURCES
 ${buildSourceContext(knowledgeSources)}
-
-Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direct-evidence excerpts must be copied from the corresponding source text. Use basis=inference and no source when a statement is professional inference.`;
+${codeExecutionEnabled
+  ? CODE_EXECUTION_SYSTEM_INSTRUCTIONS
+  : "Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direct-evidence excerpts must be copied from the corresponding source text. Use basis=inference and no source when a statement is professional inference."}`;
     } else if (isChatTask(taskCfg)) {
       systemPrompt = buildPersonaSystemPrompt(taskCfg.script.systemPrompt, scenario, taskCfg.script.openerMessage);
       maxTurns = taskCfg.script.maxTurns;
@@ -205,10 +213,18 @@ Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direc
       try {
         resp = await anthropic.messages.create({
           model: MODEL,
-          max_tokens: MAX_TOKENS,
+          // Managed execution returns tool calls/results as well as the final
+          // explanation. The normal 1,500-token cap can stop after stdout and
+          // before the candidate receives a readable answer, so technical
+          // tasks get a narrowly-scoped larger budget.
+          max_tokens: codeExecutionEnabled ? Math.max(MAX_TOKENS, 4000) : MAX_TOKENS,
           system: systemBlocks,
           messages,
-          ...(structuredKnowledge
+          ...(codeExecutionEnabled
+            ? {
+                tools: [MANAGED_CODE_EXECUTION_TOOL as unknown as Anthropic.Tool],
+              }
+            : structuredKnowledge
             ? {
                 tools: [KNOWLEDGE_RESPONSE_TOOL as unknown as Anthropic.Tool],
                 tool_choice: { type: "tool" as const, name: KNOWLEDGE_RESPONSE_TOOL.name },
@@ -223,6 +239,7 @@ Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direc
       }
     }
     if (!resp) throw lastErr ?? new Error("Anthropic call failed");
+    const codeExecutionUsed = codeExecutionEnabled && responseUsedManagedCodeExecution(resp.content);
     const plainText = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
@@ -261,7 +278,7 @@ Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direc
         structuredPayload: structuredPayload ?? undefined,
         schemaVersion: structuredPayload ? KNOWLEDGE_RESPONSE_SCHEMA_VERSION : null,
         model: MODEL,
-        promptPolicyVersion: structuredKnowledge ? KNOWLEDGE_POLICY_VERSION : "persona-chat-v1",
+        promptPolicyVersion: structuredKnowledge || codeExecutionEnabled ? KNOWLEDGE_POLICY_VERSION : "persona-chat-v1",
         assessmentMode: result.assessment.assessmentMode,
         sourceValidation: sourceValidation ?? undefined,
         contentVersion: CONTENT_VERSION,
@@ -273,6 +290,8 @@ Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direc
           cacheCreationInputTokens: (resp.usage as { cache_creation_input_tokens?: number }).cache_creation_input_tokens ?? 0,
           cacheReadInputTokens: (resp.usage as { cache_read_input_tokens?: number }).cache_read_input_tokens ?? 0,
           stopReason: resp.stop_reason,
+          codeExecutionEnabled,
+          codeExecutionUsed,
         },
       },
     });
@@ -286,7 +305,7 @@ Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direc
           }
         : { candidateId: result.candidate.id, taskNumber },
       orderBy: { sequenceNum: "asc" },
-      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true },
+      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true, metadata: true },
     });
 
     return NextResponse.json({ reply: text, structured: structuredPayload, trail: fullTrail });

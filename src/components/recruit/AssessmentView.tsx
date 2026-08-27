@@ -22,6 +22,7 @@ interface TaskCfg {
   exhibitHtml: string;
   exhibitSourceId: string;
   totalMarks: number;
+  codeExecutionEnabled: boolean;
   deliverableLabel: string;
   deliverablePlaceholder: string;
 }
@@ -35,6 +36,7 @@ interface Interaction {
   content: string;
   structuredPayload?: KnowledgeSystemResponse | null;
   schemaVersion?: string | null;
+  metadata?: { codeExecutionEnabled?: boolean; codeExecutionUsed?: boolean } | null;
 }
 
 interface ResponseRow {
@@ -807,14 +809,17 @@ export default function AssessmentView({
                 <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full shadow-uq-e1" style={{ backgroundImage: "linear-gradient(135deg, var(--uq-accent), var(--uq-persona))" }} aria-hidden><span className="h-2.5 w-2.5 rounded-full bg-white/90" /></span>
                 <div className="min-w-0">
                   <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-uq-accent">AI Assistant · Task {activeTask}</div>
-                  <div className="truncate text-sm font-semibold text-uq">{assistantName}</div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="truncate text-sm font-semibold text-uq">{assistantName}</div>
+                    {activeTaskCfg.codeExecutionEnabled && <span className="flex-shrink-0 rounded-full border border-uq-accent bg-uq-accent-soft px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-uq-accent">Python enabled</span>}
+                  </div>
                 </div>
               </div>
               <button type="button" onClick={toggleAi} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-xl text-uq-3 transition-colors hover:bg-uq-elev2 hover:text-uq focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]" aria-label={`Close ${assistantShort} AI assistant`} title="Close AI assistant · Ctrl/Cmd+J">×</button>
             </div>
 
             <div ref={chatScroller} className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-3">
-              {trailForActive.length === 0 && <div className="text-xs italic text-uq-3">Ask the {assistantShort} AI anything. Be specific — request source documents, underlying data, or detail on a particular item. Every question forms part of the assessment.</div>}
+              {trailForActive.length === 0 && <div className="text-xs italic text-uq-3">{activeTaskCfg.codeExecutionEnabled ? `Ask the ${assistantShort} AI to write and run Python against the supplied exercise data. The code and output will be recorded.` : `Ask the ${assistantShort} AI anything. Be specific — request source documents, underlying data, or detail on a particular item. Every question forms part of the assessment.`}</div>}
               {trailForActive.map((i) => (
                 <ChatBubble
                   key={i.id}
@@ -830,7 +835,7 @@ export default function AssessmentView({
             {chatError && <div className="border-t border-uq-danger-line bg-uq-danger-soft px-4 py-2 text-xs text-uq-danger-text">{chatError}</div>}
 
             <div className="flex-shrink-0 border-t border-uq-faint p-3">
-              <p className="mb-2 text-[11px] leading-relaxed text-uq-3">AI-powered · Check important conclusions against the source exhibits.</p>
+              <p className="mb-2 text-[11px] leading-relaxed text-uq-3">{activeTaskCfg.codeExecutionEnabled ? "Managed Python sandbox · Code and output are retained with the assessment record." : "AI-powered · Check important conclusions against the source exhibits."}</p>
               <textarea
                 ref={chatInputRef}
                 value={chatInputs[activeTask] || ""}
@@ -1038,6 +1043,7 @@ function ChatBubble({
 }) {
   const isUser = entry.actor === "candidate";
   const structured = !isUser && entry.structuredPayload ? entry.structuredPayload : null;
+  const codeExecuted = !isUser && entry.metadata?.codeExecutionUsed === true;
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
@@ -1047,6 +1053,7 @@ function ChatBubble({
             : "rounded-2xl rounded-bl-md bg-uq-elev2 border border-uq text-uq"
         }`}
       >
+        {codeExecuted && <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[color:var(--uq-success-line)] bg-[color:var(--uq-success-soft)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-[color:var(--uq-success-text)]"><span aria-hidden>✓</span> Python executed</div>}
         {isUser ? entry.content : structured ? (
           <div className="space-y-3">
             <p>{structured.analysisSummary}</p>
