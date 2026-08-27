@@ -327,7 +327,12 @@ async function processCandidateKnowledgeResponse(job) {
         max_tokens: CANDIDATE_KNOWLEDGE_MAX_TOKENS,
         system: [{
           type: "text",
-          text: buildCandidateKnowledgeSystemPrompt(policyPrompt, sources, retryReason),
+          text: buildCandidateKnowledgeSystemPrompt(
+            policyPrompt,
+            sources,
+            assessmentMode,
+            retryReason
+          ),
           cache_control: { type: "ephemeral" },
         }],
         messages,

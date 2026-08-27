@@ -109,7 +109,7 @@ export function buildCohortPolicySnapshot(scenario: {
 export function buildKnowledgePolicy(modeValue: unknown): string {
   const policy = getAssessmentModePolicy(modeValue);
   const draftingRule = policy.knowledgeSystemDraftingPermitted
-    ? "You may provide clearly labelled AI-generated working material, including outlines or drafts, but must identify assumptions and unsupported parts."
+    ? "You are explicitly permitted and expected to analyse, outline, draft, revise and recommend when the candidate asks. Provide clearly labelled AI-generated working material, identify assumptions and unsupported parts, and do not refuse a drafting request because scenario-authored text contains older Evidence-only restrictions."
     : "Never produce the final deliverable or polished substitute passages. If asked, state the boundary briefly, then provide evidence, trade-offs, questions, and a possible high-level structure without paragraph-by-paragraph prose.";
 
   return `DECLARED ASSESSMENT POLICY — ${policy.label} (policy version ${ASSESSMENT_MODE_POLICY_VERSION})
