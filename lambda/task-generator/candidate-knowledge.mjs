@@ -174,6 +174,16 @@ function excerptMatchesSource(excerpt, sourceText) {
   const haystack = normaliseSourceText(sourceText);
   if (needle.length < 8 || !haystack) return false;
   if (haystack.includes(needle)) return true;
+  const segments = excerpt
+    .split(/\s*(?:\||…|\.{3})\s*/)
+    .map(normaliseSourceText)
+    .filter(Boolean);
+  if (
+    segments.length > 1 &&
+    segments.every((segment) => segment.length >= 8 && haystack.includes(segment))
+  ) {
+    return true;
+  }
   const words = needle.split(/\s+/).filter(Boolean);
   if (words.length < 8) return false;
   const sourceWords = haystack.split(/\s+/);
@@ -265,12 +275,23 @@ export function candidateKnowledgeQualityIssue(response, candidateMessage = "") 
   ) {
     return "Response claims evidence is present but returned no evidence cards.";
   }
+  if (AUTHORSHIP_REQUEST.test(candidateMessage)) {
+    if (response.evidenceCards.length > 0) {
+      return "Boundary response volunteers task evidence the candidate did not request directly.";
+    }
+    if (response.analysisSummary.split(/\s+/).filter(Boolean).length > 80) {
+      return "Boundary response is too long for a candidate-facing refusal.";
+    }
+  }
   if (
     response.evidenceCards.length === 0 &&
     EVIDENCE_REQUEST.test(candidateMessage) &&
     !AUTHORSHIP_REQUEST.test(candidateMessage)
   ) {
     return "Candidate requested task data, but the response returned no evidence cards.";
+  }
+  if (response.evidenceCards.some((card) => card.verificationStatus === "unverified")) {
+    return "One or more direct-evidence excerpts could not be verified against the supplied source.";
   }
   return null;
 }
@@ -293,6 +314,7 @@ RESPONSE CONTRACT
 - The analysisSummary is candidate-facing text, not hidden reasoning. Address the candidate directly and naturally.
 - For a prohibited authorship request, give a brief plain-language boundary and practical redirection. Return no policy/rule evidence card.
 - For a data request, return the actual figures and caveats now, using concise evidence cards. Do not merely announce that data has been returned.
+- Direct-evidence excerpts must be exact text copied from one source. When one card groups table rows or verbatims, keep each segment verbatim and separate the exact segments with " | ".
 - Keep cards focused and non-duplicative. A broad request may use up to 16 cards; combine closely related figures in one card where this remains clear.
 ${retryReason ? `\nThe previous attempt was rejected before display because: ${retryReason}\nProduce a fresh, complete response. Do not mention the rejected attempt.` : ""}`;
 }

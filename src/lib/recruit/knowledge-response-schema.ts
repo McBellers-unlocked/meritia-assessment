@@ -133,13 +133,18 @@ const INTERNAL_RESPONSE_LANGUAGE = [
 
 const CLAIMS_MISSING_MATERIAL =
   /\b(?:all\s+)?(?:figures|data|evidence|cards?|breakdowns?|results?)\b.{0,45}\b(?:returned|provided|listed|shown|set out)\s+below\b/i;
+const AUTHORSHIP_REQUEST =
+  /\b(?:write|draft|compose|complete|final memo|make (?:the )?recommendations?|what should i recommend|key takeaways?|outline|structure)\b/i;
 
 /**
  * Reject responses that expose hidden policy narration or claim to contain
  * evidence that is not actually present. The worker retries these responses
  * before anything candidate-facing is persisted.
  */
-export function candidateFacingKnowledgeIssue(value: KnowledgeSystemResponse): string | null {
+export function candidateFacingKnowledgeIssue(
+  value: KnowledgeSystemResponse,
+  candidateMessage = ""
+): string | null {
   const visibleText = [
     value.analysisSummary,
     ...value.evidenceCards.flatMap((card) => [card.claim, card.explanation]),
@@ -151,6 +156,14 @@ export function candidateFacingKnowledgeIssue(value: KnowledgeSystemResponse): s
   }
   if (value.evidenceCards.length === 0 && CLAIMS_MISSING_MATERIAL.test(value.analysisSummary)) {
     return "Response claims evidence is present but returned no evidence cards.";
+  }
+  if (AUTHORSHIP_REQUEST.test(candidateMessage)) {
+    if (value.evidenceCards.length > 0) {
+      return "Boundary response volunteers task evidence the candidate did not request directly.";
+    }
+    if (value.analysisSummary.split(/\s+/).filter(Boolean).length > 80) {
+      return "Boundary response is too long for a candidate-facing refusal.";
+    }
   }
   return null;
 }
