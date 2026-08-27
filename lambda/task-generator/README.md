@@ -23,6 +23,10 @@ Message contracts:
   runs the isolated Anthropic sandbox and stores the linked AI reply while the
   candidate UI polls. This avoids Amplify's fixed request timeout without
   executing model-authored code inside the application host.
+- `{ "jobType": "candidate-knowledge-response-v2", ... }` — structured
+  Evidence/Co-pilot/Open Agent replies. The worker gives broad data pulls a
+  larger output budget, rejects truncated or internal-policy narration, and
+  stores the source-checked candidate-facing response while the UI polls.
 
 ## How it fits
 
@@ -47,6 +51,7 @@ Wizard → SSR /generate-task/[jobId]   (poll every 2s until completed/failed)
 | `index.mjs` | SQS handler. One message = one job. Reads input from DB, calls Anthropic, writes result back. |
 | `prompt.mjs` | System prompt + `propose_task` tool definition. **Mirrors `src/lib/recruit/scenario-generator.ts` - keep in sync.** |
 | `validation-prompt.mjs` | Versioned Validation Lab prompt and strict output tool for findings, synthetic design profiles and policy tests. |
+| `candidate-knowledge.mjs` | Candidate-facing response contract, completeness checks, source verification and formatting for structured knowledge replies. |
 | `package.json` | Just `@anthropic-ai/sdk` and `pg`. |
 | `build.sh` | Installs deps, produces `../task-generator.zip`. Pass `--update` to push to AWS. |
 

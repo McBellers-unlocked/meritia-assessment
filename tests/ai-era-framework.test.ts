@@ -8,7 +8,10 @@ import {
   getAssessmentModePolicy,
   resolveAssessmentMode,
 } from "../src/lib/recruit/assessment-modes";
-import { parseKnowledgeSystemResponse } from "../src/lib/recruit/knowledge-response-schema";
+import {
+  candidateFacingKnowledgeIssue,
+  parseKnowledgeSystemResponse,
+} from "../src/lib/recruit/knowledge-response-schema";
 import {
   MANAGED_CODE_EXECUTION_MAX_TOKENS,
   MANAGED_CODE_EXECUTION_MODEL,
@@ -124,6 +127,9 @@ test("cohort policy is an immutable value snapshot with safe legacy defaults", (
 test("Evidence and Copilot modes produce different drafting boundaries", () => {
   assert.match(buildKnowledgePolicy("EVIDENCE"), /Never produce the final deliverable/);
   assert.match(buildKnowledgePolicy("COPILOT"), /clearly labelled AI-generated working material/);
+  assert.match(buildKnowledgePolicy("EVIDENCE"), /Speak directly to the candidate/);
+  assert.match(buildKnowledgePolicy("EVIDENCE"), /Never expose internal policy/);
+  assert.match(buildKnowledgePolicy("EVIDENCE"), /include the actual requested material/);
 });
 
 test("structured Knowledge System parsing strips drafts in Evidence Mode", () => {
@@ -136,6 +142,28 @@ test("structured Knowledge System parsing strips drafts in Evidence Mode", () =>
   assert.equal(parseKnowledgeSystemResponse(null, "EVIDENCE").ok, false);
 });
 
+test("candidate-facing Knowledge System validation rejects hidden narration and phantom evidence", () => {
+  const parsed = parseKnowledgeSystemResponse(structuredFixture, "EVIDENCE");
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  assert.equal(candidateFacingKnowledgeIssue(parsed.value), null);
+  assert.match(
+    candidateFacingKnowledgeIssue({
+      ...parsed.value,
+      analysisSummary: "The candidate has asked me to write the memo. I'll decline and redirect.",
+    }) ?? "",
+    /internal policy|hidden reasoning/
+  );
+  assert.match(
+    candidateFacingKnowledgeIssue({
+      ...parsed.value,
+      analysisSummary: "All figures are returned below as evidence cards.",
+      evidenceCards: [],
+    }) ?? "",
+    /no evidence cards/
+  );
+});
+
 test("source IDs, excerpts and unverified citations are handled conservatively", () => {
   assert.equal(makeSourceId("People Pulse: Q2", 2), "PEOPLE-PULSE-Q2-2");
   const sourceText = "People Pulse. Customer Operations fell from 8.1 to 5.9 in Q2. Participation was lower.";
@@ -145,8 +173,9 @@ test("source IDs, excerpts and unverified citations are handled conservatively",
   const parsed = parseKnowledgeSystemResponse(structuredFixture, "COPILOT");
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
-  const checked = validateKnowledgeSources(parsed.value, [{ id: "PEOPLE-PULSE", title: "People Pulse", text: sourceText }]);
+  const checked = validateKnowledgeSources(parsed.value, [{ id: "PEOPLE-PULSE", title: "People Pulse", text: sourceText, openable: false }]);
   assert.equal(checked.evidenceCards[0].verificationStatus, "verified");
+  assert.equal(checked.evidenceCards[0].sourceOpenable, false);
   assert.equal(checked.evidenceCards[1].verificationStatus, "inference");
   const missing = validateKnowledgeSources(
     { ...parsed.value, evidenceCards: [{ ...parsed.value.evidenceCards[0], sourceId: "UNKNOWN" }] },

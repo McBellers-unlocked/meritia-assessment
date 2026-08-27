@@ -8,10 +8,9 @@ import { getScenarioForAssessment } from "@/lib/recruit/scenario-loader";
 import { isChatTask, isMemoAiTask } from "@/lib/recruit/types";
 import { RUNTIME_MODEL as MODEL, RUNTIME_MAX_TOKENS as MAX_TOKENS } from "@/lib/recruit/model-config";
 import { buildKnowledgePolicy } from "@/lib/recruit/assessment-modes";
-import { CONTENT_VERSION, KNOWLEDGE_POLICY_VERSION, KNOWLEDGE_RESPONSE_SCHEMA_VERSION } from "@/lib/recruit/prompt-versions";
-import { KNOWLEDGE_RESPONSE_TOOL, knowledgeResponseToText, parseKnowledgeSystemResponse } from "@/lib/recruit/knowledge-response-schema";
-import { buildSourceContext, htmlToPlainText, validateKnowledgeSources, type KnowledgeSource } from "@/lib/recruit/source-verification";
-import { enqueueCandidateCodeExecutionJob } from "@/lib/recruit/sqs-client";
+import { CONTENT_VERSION, KNOWLEDGE_POLICY_VERSION } from "@/lib/recruit/prompt-versions";
+import { buildSourceContext, htmlToPlainText, type KnowledgeSource } from "@/lib/recruit/source-verification";
+import { enqueueCandidateCodeExecutionJob, enqueueCandidateKnowledgeResponseJob } from "@/lib/recruit/sqs-client";
 import {
   CODE_EXECUTION_SYSTEM_INSTRUCTIONS,
 } from "@/lib/recruit/code-execution";
@@ -94,25 +93,37 @@ export async function POST(request: NextRequest) {
     let knowledgeSources: KnowledgeSource[] = [];
     let structuredKnowledge = false;
     let codeExecutionEnabled = false;
+    let policyPrompt = "";
     if (isMemoAiTask(taskCfg)) {
       codeExecutionEnabled = taskCfg.codeExecutionEnabled === true;
       structuredKnowledge = !codeExecutionEnabled;
-      knowledgeSources = [{
+      policyPrompt = buildKnowledgePolicy(result.assessment.assessmentMode);
+      const exhibitSource: KnowledgeSource = {
         id: taskCfg.exhibitSourceId ?? `${scenario.scenarioId}-task-${taskNumber}-exhibit`,
         title: taskCfg.exhibitTitle,
         text: htmlToPlainText(taskCfg.exhibitHtml),
         html: taskCfg.exhibitHtml,
-      }];
-      systemPrompt = `${buildKnowledgePolicy(result.assessment.assessmentMode)}
+        openable: true,
+      };
+      knowledgeSources = [
+        {
+          id: `${scenario.scenarioId}-task-${taskNumber}-knowledge-base`,
+          title: `${scenario.assistantName ?? "Knowledge System"} — supplied dataset`,
+          text: taskCfg.systemPrompt,
+          openable: false,
+        },
+        exhibitSource,
+      ];
+      systemPrompt = `${policyPrompt}
 
 SCENARIO-SPECIFIC KNOWLEDGE AND INSTRUCTIONS
 ${taskCfg.systemPrompt}
 
 AVAILABLE SOURCES
-${buildSourceContext(knowledgeSources)}
+${buildSourceContext([exhibitSource])}
 ${codeExecutionEnabled
   ? CODE_EXECUTION_SYSTEM_INSTRUCTIONS
-  : "Return only the return_evidence_response tool. Use only listed SOURCE IDs. Direct-evidence excerpts must be copied from the corresponding source text. Use basis=inference and no source when a statement is professional inference."}`;
+  : ""}`;
     } else if (isChatTask(taskCfg)) {
       systemPrompt = buildPersonaSystemPrompt(taskCfg.script.systemPrompt, scenario, taskCfg.script.openerMessage);
       maxTurns = taskCfg.script.maxTurns;
@@ -152,10 +163,14 @@ ${codeExecutionEnabled
         content: message,
         metadata: {
           threadKey: effectiveThreadKey,
-          ...(codeExecutionEnabled ? { codeExecutionStatus: "queued" } : {}),
+          ...(codeExecutionEnabled
+            ? { responseStatus: "queued", responseKind: "code_execution", codeExecutionStatus: "queued" }
+            : structuredKnowledge
+              ? { responseStatus: "queued", responseKind: "knowledge" }
+              : {}),
         },
         assessmentMode: result.assessment.assessmentMode,
-        promptPolicyVersion: KNOWLEDGE_POLICY_VERSION,
+        promptPolicyVersion: isMemoAiTask(taskCfg) ? KNOWLEDGE_POLICY_VERSION : "persona-chat-v1",
         contentVersion: CONTENT_VERSION,
       },
     });
@@ -180,35 +195,56 @@ ${codeExecutionEnabled
         content: t.content,
       }));
 
-    if (codeExecutionEnabled) {
+    if (codeExecutionEnabled || structuredKnowledge) {
       try {
-        await enqueueCandidateCodeExecutionJob({
-          candidateInteractionId: candidateInteraction.id,
-          candidateId: result.candidate.id,
-          taskNumber,
-          threadKey: effectiveThreadKey,
-          assessmentMode: result.assessment.assessmentMode,
-          systemPrompt,
-          // Bound queue size and model context while retaining a useful
-          // multi-turn technical dialogue.
-          messages: messages.slice(-8).map((item) => ({
-            role: item.role,
-            content: String(item.content),
-          })),
-        });
+        const queuedMessages = messages.slice(-8).map((item) => ({
+          role: item.role,
+          content: String(item.content),
+        }));
+        if (codeExecutionEnabled) {
+          await enqueueCandidateCodeExecutionJob({
+            candidateInteractionId: candidateInteraction.id,
+            candidateId: result.candidate.id,
+            taskNumber,
+            threadKey: effectiveThreadKey,
+            assessmentMode: result.assessment.assessmentMode,
+            systemPrompt,
+            // Bound queue size and model context while retaining a useful
+            // multi-turn technical dialogue.
+            messages: queuedMessages,
+          });
+        } else {
+          await enqueueCandidateKnowledgeResponseJob({
+            candidateInteractionId: candidateInteraction.id,
+            candidateId: result.candidate.id,
+            taskNumber,
+            threadKey: effectiveThreadKey,
+            assessmentMode: result.assessment.assessmentMode,
+            policyPrompt,
+            sources: knowledgeSources.map(({ id, title, text, openable }) => ({ id, title, text, openable })),
+            messages: queuedMessages,
+          });
+        }
       } catch (e) {
+        const responseError = codeExecutionEnabled
+          ? "The Python job could not be started. Please try again."
+          : "The knowledge request could not be started. Please try again.";
         await prisma.recruitmentInteraction.update({
           where: { id: candidateInteraction.id },
           data: {
             metadata: {
               threadKey: effectiveThreadKey,
-              codeExecutionStatus: "failed",
-              codeExecutionError: "The Python job could not be started. Please try again.",
+              responseStatus: "failed",
+              responseKind: codeExecutionEnabled ? "code_execution" : "knowledge",
+              responseError,
+              ...(codeExecutionEnabled
+                ? { codeExecutionStatus: "failed", codeExecutionError: responseError }
+                : {}),
             },
           },
         });
         return NextResponse.json(
-          { error: `Could not start the managed Python run: ${(e as Error).message}` },
+          { error: `${responseError} ${(e as Error).message}` },
           { status: 502 }
         );
       }
@@ -278,12 +314,6 @@ ${codeExecutionEnabled
           max_tokens: MAX_TOKENS,
           system: systemBlocks,
           messages,
-          ...(structuredKnowledge
-            ? {
-                tools: [KNOWLEDGE_RESPONSE_TOOL as unknown as Anthropic.Tool],
-                tool_choice: { type: "tool" as const, name: KNOWLEDGE_RESPONSE_TOOL.name },
-              }
-            : {}),
         });
         break;
       } catch (e) {
@@ -293,34 +323,12 @@ ${codeExecutionEnabled
       }
     }
     if (!resp) throw lastErr ?? new Error("Anthropic call failed");
-    const codeExecutionUsed = false;
     const plainText = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("\n")
       .trim();
-    let structuredPayload: ReturnType<typeof validateKnowledgeSources> | null = null;
-    let sourceValidation: unknown = null;
-    let text = plainText;
-    if (structuredKnowledge) {
-      const toolBlock = resp.content.find(
-        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === KNOWLEDGE_RESPONSE_TOOL.name
-      );
-      const parsed = parseKnowledgeSystemResponse(toolBlock?.input, result.assessment.assessmentMode);
-      if (parsed.ok) {
-        structuredPayload = validateKnowledgeSources(parsed.value, knowledgeSources);
-        sourceValidation = structuredPayload.evidenceCards.map((card) => ({
-          evidenceCardId: card.id,
-          sourceId: card.sourceId,
-          status: card.verificationStatus,
-          note: card.verificationNote,
-        }));
-        text = knowledgeResponseToText(structuredPayload);
-      } else {
-        text = plainText || "I could not format that response safely. Please rephrase the question or check the exhibit directly.";
-        sourceValidation = { parseError: parsed.error };
-      }
-    }
+    const text = plainText;
 
     await prisma.recruitmentInteraction.create({
       data: {
@@ -329,12 +337,9 @@ ${codeExecutionEnabled
         actor: "ai",
         content: text,
         tokenCount: resp.usage.output_tokens,
-        structuredPayload: structuredPayload ?? undefined,
-        schemaVersion: structuredPayload ? KNOWLEDGE_RESPONSE_SCHEMA_VERSION : null,
         model: requestModel,
-        promptPolicyVersion: structuredKnowledge || codeExecutionEnabled ? KNOWLEDGE_POLICY_VERSION : "persona-chat-v1",
+        promptPolicyVersion: "persona-chat-v1",
         assessmentMode: result.assessment.assessmentMode,
-        sourceValidation: sourceValidation ?? undefined,
         contentVersion: CONTENT_VERSION,
         metadata: {
           model: requestModel,
@@ -344,8 +349,8 @@ ${codeExecutionEnabled
           cacheCreationInputTokens: (resp.usage as { cache_creation_input_tokens?: number }).cache_creation_input_tokens ?? 0,
           cacheReadInputTokens: (resp.usage as { cache_read_input_tokens?: number }).cache_read_input_tokens ?? 0,
           stopReason: resp.stop_reason,
-          codeExecutionEnabled,
-          codeExecutionUsed,
+          codeExecutionEnabled: false,
+          codeExecutionUsed: false,
         },
       },
     });
@@ -362,7 +367,7 @@ ${codeExecutionEnabled
       select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true, metadata: true },
     });
 
-    return NextResponse.json({ reply: text, structured: structuredPayload, trail: fullTrail });
+    return NextResponse.json({ reply: text, structured: null, trail: fullTrail });
   } catch (e) {
     console.error("[assess chat]", e);
     const status = (e as { status?: number })?.status;

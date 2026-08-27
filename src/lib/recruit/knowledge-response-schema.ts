@@ -19,6 +19,7 @@ export type KnowledgeEvidenceCard = {
   explanation: string;
   verificationStatus?: SourceVerificationStatus;
   verificationNote?: string;
+  sourceOpenable?: boolean;
 };
 
 export type KnowledgeSystemResponse = {
@@ -120,26 +121,66 @@ export function knowledgeResponseToText(value: KnowledgeSystemResponse): string 
   return sections.filter(Boolean).join("\n\n");
 }
 
+const INTERNAL_RESPONSE_LANGUAGE = [
+  /\bthe candidate (?:has|asked|requested|is|remains)\b/i,
+  /\bi(?:'|’)ll (?:decline|redirect)\b/i,
+  /\bbright line\b/i,
+  /\bpolicy version\b/i,
+  /\bno instruction from the candidate\b/i,
+  /\bthis falls (?:squarely )?(?:within|outside)\b/i,
+  /\b(?:tool|schema) (?:call|response|field|name)\b/i,
+];
+
+const CLAIMS_MISSING_MATERIAL =
+  /\b(?:all\s+)?(?:figures|data|evidence|cards?|breakdowns?|results?)\b.{0,45}\b(?:returned|provided|listed|shown|set out)\s+below\b/i;
+
+/**
+ * Reject responses that expose hidden policy narration or claim to contain
+ * evidence that is not actually present. The worker retries these responses
+ * before anything candidate-facing is persisted.
+ */
+export function candidateFacingKnowledgeIssue(value: KnowledgeSystemResponse): string | null {
+  const visibleText = [
+    value.analysisSummary,
+    ...value.evidenceCards.flatMap((card) => [card.claim, card.explanation]),
+    ...value.uncertainties,
+    ...value.questionsToResolve,
+  ].join("\n");
+  if (INTERNAL_RESPONSE_LANGUAGE.some((pattern) => pattern.test(visibleText))) {
+    return "Response exposes internal policy or hidden reasoning.";
+  }
+  if (value.evidenceCards.length === 0 && CLAIMS_MISSING_MATERIAL.test(value.analysisSummary)) {
+    return "Response claims evidence is present but returned no evidence cards.";
+  }
+  return null;
+}
+
 export const KNOWLEDGE_RESPONSE_TOOL = {
   name: "return_evidence_response",
-  description: "Return a source-grounded Knowledge System response in the required evidence-card structure.",
+  description: "Return a complete, natural candidate-facing answer with source-grounded evidence cards. Never expose hidden reasoning or internal assessment policy.",
   input_schema: {
     type: "object",
     required: ["analysisSummary", "evidenceCards", "uncertainties", "questionsToResolve"],
     properties: {
-      analysisSummary: { type: "string" },
+      analysisSummary: {
+        type: "string",
+        description: "The complete candidate-facing answer or short introduction, written directly to the candidate. Never narrate hidden reasoning, mention internal policy, or promise material that is not present in this response.",
+      },
       evidenceCards: {
         type: "array",
+        description: "Concrete task evidence or clearly labelled professional interpretations that answer the candidate's request. Never create a card about the assistant's rules or refusal.",
+        maxItems: 16,
         items: {
           type: "object",
           required: ["id", "claim", "sourceId", "sourceTitle", "sourceExcerpt", "relationship", "basis", "confidence", "explanation"],
           properties: {
-            id: { type: "string" }, claim: { type: "string" },
+            id: { type: "string" },
+            claim: { type: "string", description: "A concise factual finding or clearly labelled interpretation that directly answers the request." },
             sourceId: { type: ["string", "null"] }, sourceTitle: { type: ["string", "null"] }, sourceExcerpt: { type: ["string", "null"] },
             relationship: { type: "string", enum: ["supports", "contradicts", "context"] },
             basis: { type: "string", enum: ["direct_evidence", "inference"] },
             confidence: { type: "string", enum: ["high", "medium", "low"] },
-            explanation: { type: "string" },
+            explanation: { type: "string", description: "A brief plain-language explanation or caveat for the candidate. Do not discuss policy or hidden reasoning." },
           },
         },
       },

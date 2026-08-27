@@ -64,6 +64,17 @@ export interface CandidateCodeExecutionJob {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
+export interface CandidateKnowledgeResponseJob {
+  candidateInteractionId: string;
+  candidateId: string;
+  taskNumber: number;
+  threadKey: string;
+  assessmentMode: string;
+  policyPrompt: string;
+  sources: Array<{ id: string; title: string; text: string; openable?: boolean }>;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
 /**
  * Dispatch candidate Python work to the established long-running worker.
  * The payload contains only assessment-scoped fictional context and the
@@ -78,6 +89,26 @@ export async function enqueueCandidateCodeExecutionJob(
       QueueUrl: queueUrl,
       MessageBody: JSON.stringify({
         jobType: "candidate-code-execution-v1",
+        ...job,
+      }),
+    })
+  );
+}
+
+/**
+ * Dispatch structured candidate evidence responses to the long-running
+ * worker. This avoids the hosting request deadline and gives complete data
+ * pulls enough output room to finish before they are persisted.
+ */
+export async function enqueueCandidateKnowledgeResponseJob(
+  job: CandidateKnowledgeResponseJob
+): Promise<void> {
+  const queueUrl = process.env.SQS_TASK_QUEUE_URL || FALLBACK_QUEUE_URL;
+  await getClient().send(
+    new SendMessageCommand({
+      QueueUrl: queueUrl,
+      MessageBody: JSON.stringify({
+        jobType: "candidate-knowledge-response-v2",
         ...job,
       }),
     })

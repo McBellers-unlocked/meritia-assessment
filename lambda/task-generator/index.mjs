@@ -40,6 +40,19 @@ import {
   VALIDATION_REPORT_TOOL,
   buildValidationUserMessage,
 } from "./validation-prompt.mjs";
+import {
+  CANDIDATE_KNOWLEDGE_CONTENT_VERSION,
+  CANDIDATE_KNOWLEDGE_MAX_TOKENS,
+  CANDIDATE_KNOWLEDGE_MODEL,
+  CANDIDATE_KNOWLEDGE_POLICY_VERSION,
+  CANDIDATE_KNOWLEDGE_SCHEMA_VERSION,
+  CANDIDATE_KNOWLEDGE_TOOL,
+  buildCandidateKnowledgeSystemPrompt,
+  candidateKnowledgeQualityIssue,
+  candidateKnowledgeResponseToText,
+  parseCandidateKnowledgeResponse,
+  validateCandidateKnowledgeSources,
+} from "./candidate-knowledge.mjs";
 
 // Includes adaptive-thinking tokens + the tool call (which carries the
 // rendered exhibit HTML, brief, etc.). Adaptive thinking on a complex
@@ -135,6 +148,17 @@ export const handler = async (event) => {
       }
       continue;
     }
+    if (jobType === "candidate-knowledge-response-v2" && messageBody?.candidateInteractionId) {
+      try {
+        await processCandidateKnowledgeResponse(messageBody);
+      } catch (e) {
+        console.error(
+          `[candidate-knowledge] request ${messageBody.candidateInteractionId} failed:`,
+          e
+        );
+      }
+      continue;
+    }
     if (!jobId) {
       console.error("SQS message missing jobId:", record.body);
       continue;
@@ -173,11 +197,233 @@ async function markCandidateCodeFailed(pool, interactionId) {
     [
       interactionId,
       JSON.stringify({
+        responseStatus: "failed",
+        responseKind: "code_execution",
+        responseError: "The managed Python run failed. Please try the request again.",
         codeExecutionStatus: "failed",
         codeExecutionError: "The managed Python run failed. Please try the request again.",
       }),
     ]
   );
+}
+
+async function markCandidateKnowledgeFailed(pool, interactionId) {
+  await pool.query(
+    `UPDATE recruitment_interactions
+     SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+     WHERE id = $1::uuid`,
+    [
+      interactionId,
+      JSON.stringify({
+        responseStatus: "failed",
+        responseKind: "knowledge",
+        responseError: "The knowledge response could not be completed. Please try the request again.",
+      }),
+    ]
+  );
+}
+
+function isTransientAnthropicError(error) {
+  const status = error?.status;
+  const errorType = error?.error?.error?.type;
+  return (
+    status === 429 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    status === 529 ||
+    errorType === "overloaded_error" ||
+    errorType === "rate_limit_error"
+  );
+}
+
+async function createCandidateKnowledgeMessage(request) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await getAnthropic().messages.create(request);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientAnthropicError(error) || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 750 * (2 ** attempt)));
+    }
+  }
+  throw lastError ?? new Error("Candidate knowledge request failed");
+}
+
+async function processCandidateKnowledgeResponse(job) {
+  const pool = getPool();
+  const interactionId = String(job.candidateInteractionId ?? "").trim();
+  const expectedCandidateId = String(job.candidateId ?? "").trim();
+  const threadKey = String(job.threadKey ?? "").trim();
+  const assessmentMode = String(job.assessmentMode ?? "").trim();
+  const policyPrompt = String(job.policyPrompt ?? "");
+  const sources = Array.isArray(job.sources)
+    ? job.sources.slice(0, 8).map((source) => ({
+        id: String(source?.id ?? "").trim().slice(0, 200),
+        title: String(source?.title ?? "").trim().slice(0, 500),
+        text: String(source?.text ?? ""),
+        openable: source?.openable !== false,
+      })).filter((source) => source.id && source.title && source.text.trim())
+    : [];
+  const messages = Array.isArray(job.messages)
+    ? job.messages.slice(-8).map((item) => ({
+        role: item?.role === "assistant" ? "assistant" : "user",
+        content: String(item?.content ?? ""),
+      })).filter((item) => item.content.trim())
+    : [];
+  const sourceCharacters = sources.reduce((total, source) => total + source.text.length, 0);
+
+  if (
+    !interactionId ||
+    !expectedCandidateId ||
+    !threadKey ||
+    !["EVIDENCE", "COPILOT", "OPEN_AGENT"].includes(assessmentMode) ||
+    !policyPrompt ||
+    policyPrompt.length > 30_000 ||
+    sources.length === 0 ||
+    sourceCharacters > 180_000 ||
+    messages.length === 0
+  ) {
+    throw new Error("Invalid candidate knowledge-response payload");
+  }
+
+  const claimed = await pool.query(
+    `UPDATE recruitment_interactions
+     SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+     WHERE id = $1::uuid
+       AND actor = 'candidate'
+       AND COALESCE(metadata->>'responseStatus', 'queued') = 'queued'
+     RETURNING candidate_id, task_number`,
+    [
+      interactionId,
+      JSON.stringify({ responseStatus: "running", responseKind: "knowledge" }),
+    ]
+  );
+  if (claimed.rowCount === 0) {
+    console.warn(`[candidate-knowledge] request ${interactionId} was already claimed; skipping`);
+    return;
+  }
+
+  const candidateId = claimed.rows[0].candidate_id;
+  const taskNumber = claimed.rows[0].task_number;
+  if (candidateId !== expectedCandidateId || taskNumber !== Number(job.taskNumber)) {
+    await markCandidateKnowledgeFailed(pool, interactionId);
+    throw new Error("Candidate knowledge-response identity mismatch");
+  }
+
+  const started = Date.now();
+  const candidateMessage = [...messages].reverse().find((item) => item.role === "user")?.content ?? "";
+  try {
+    let completed = null;
+    let retryReason = "";
+    for (let qualityAttempt = 0; qualityAttempt < 2; qualityAttempt += 1) {
+      const response = await createCandidateKnowledgeMessage({
+        model: CANDIDATE_KNOWLEDGE_MODEL,
+        max_tokens: CANDIDATE_KNOWLEDGE_MAX_TOKENS,
+        system: [{
+          type: "text",
+          text: buildCandidateKnowledgeSystemPrompt(policyPrompt, sources, retryReason),
+          cache_control: { type: "ephemeral" },
+        }],
+        messages,
+        tools: [CANDIDATE_KNOWLEDGE_TOOL],
+        tool_choice: { type: "tool", name: CANDIDATE_KNOWLEDGE_TOOL.name },
+      });
+      if (response.stop_reason === "max_tokens") {
+        retryReason = "The response reached the output limit before it was complete.";
+        if (qualityAttempt === 0) continue;
+        throw new Error(`Incomplete knowledge response (stop_reason=${response.stop_reason})`);
+      }
+      const toolBlock = response.content.find(
+        (block) => block.type === "tool_use" && block.name === CANDIDATE_KNOWLEDGE_TOOL.name
+      );
+      const parsed = parseCandidateKnowledgeResponse(toolBlock?.input, assessmentMode);
+      if (!parsed.ok) {
+        retryReason = parsed.error;
+        if (qualityAttempt === 0) continue;
+        throw new Error(`Invalid knowledge response: ${parsed.error}`);
+      }
+      const structuredPayload = validateCandidateKnowledgeSources(parsed.value, sources);
+      const qualityIssue = candidateKnowledgeQualityIssue(structuredPayload, candidateMessage);
+      if (qualityIssue) {
+        retryReason = qualityIssue;
+        if (qualityAttempt === 0) continue;
+        throw new Error(`Unsafe or incomplete knowledge response: ${qualityIssue}`);
+      }
+      completed = { response, structuredPayload };
+      break;
+    }
+    if (!completed) throw new Error("Candidate knowledge response did not complete");
+
+    const { response, structuredPayload } = completed;
+    const text = candidateKnowledgeResponseToText(structuredPayload);
+    const sourceValidation = structuredPayload.evidenceCards.map((card) => ({
+      evidenceCardId: card.id,
+      sourceId: card.sourceId,
+      status: card.verificationStatus,
+      note: card.verificationNote,
+    }));
+    const metadata = {
+      model: CANDIDATE_KNOWLEDGE_MODEL,
+      threadKey,
+      requestInteractionId: interactionId,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? 0,
+      cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
+      stopReason: response.stop_reason,
+      responseStatus: "completed",
+      responseKind: "knowledge",
+      elapsedMs: Date.now() - started,
+    };
+
+    await pool.query("BEGIN");
+    try {
+      await pool.query(
+        `INSERT INTO recruitment_interactions
+          (id, candidate_id, task_number, actor, content, token_count, metadata,
+           structured_payload, schema_version, model, prompt_policy_version,
+           assessment_mode, source_validation, content_version)
+         VALUES ($1::uuid, $2, $3, 'ai', $4, $5, $6::jsonb,
+                 $7::jsonb, $8, $9, $10, $11, $12::jsonb, $13)`,
+        [
+          randomUUID(),
+          candidateId,
+          taskNumber,
+          text,
+          response.usage.output_tokens,
+          JSON.stringify(metadata),
+          JSON.stringify(structuredPayload),
+          CANDIDATE_KNOWLEDGE_SCHEMA_VERSION,
+          CANDIDATE_KNOWLEDGE_MODEL,
+          CANDIDATE_KNOWLEDGE_POLICY_VERSION,
+          assessmentMode,
+          JSON.stringify(sourceValidation),
+          CANDIDATE_KNOWLEDGE_CONTENT_VERSION,
+        ]
+      );
+      await pool.query(
+        `UPDATE recruitment_interactions
+         SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+         WHERE id = $1::uuid`,
+        [
+          interactionId,
+          JSON.stringify({ responseStatus: "completed", responseKind: "knowledge" }),
+        ]
+      );
+      await pool.query("COMMIT");
+    } catch (error) {
+      await pool.query("ROLLBACK");
+      throw error;
+    }
+    console.log(
+      `[candidate-knowledge] request ${interactionId} completed in ${Date.now() - started}ms`
+    );
+  } catch (error) {
+    await markCandidateKnowledgeFailed(pool, interactionId);
+    throw error;
+  }
 }
 
 async function processCandidateCodeExecution(job) {
@@ -213,7 +459,14 @@ async function processCandidateCodeExecution(job) {
        AND actor = 'candidate'
        AND COALESCE(metadata->>'codeExecutionStatus', 'queued') = 'queued'
      RETURNING candidate_id, task_number`,
-    [interactionId, JSON.stringify({ codeExecutionStatus: "running" })]
+    [
+      interactionId,
+      JSON.stringify({
+        codeExecutionStatus: "running",
+        responseStatus: "running",
+        responseKind: "code_execution",
+      }),
+    ]
   );
   if (claimed.rowCount === 0) {
     console.warn(`[candidate-code] request ${interactionId} was already claimed; skipping`);
@@ -263,6 +516,8 @@ async function processCandidateCodeExecution(job) {
       codeExecutionEnabled: true,
       codeExecutionUsed: true,
       codeExecutionStatus: "completed",
+      responseStatus: "completed",
+      responseKind: "code_execution",
       elapsedMs: Date.now() - started,
     };
 
@@ -290,7 +545,14 @@ async function processCandidateCodeExecution(job) {
         `UPDATE recruitment_interactions
          SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
          WHERE id = $1::uuid`,
-        [interactionId, JSON.stringify({ codeExecutionStatus: "completed" })]
+        [
+          interactionId,
+          JSON.stringify({
+            codeExecutionStatus: "completed",
+            responseStatus: "completed",
+            responseKind: "code_execution",
+          }),
+        ]
       );
       await pool.query("COMMIT");
     } catch (e) {
