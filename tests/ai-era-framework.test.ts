@@ -10,6 +10,11 @@ import {
 } from "../src/lib/recruit/assessment-modes";
 import { parseKnowledgeSystemResponse } from "../src/lib/recruit/knowledge-response-schema";
 import {
+  responseUsedManagedCodeExecution,
+  taskHasManagedCodeExecution,
+} from "../src/lib/recruit/code-execution";
+import { VALIDATION_CSV } from "../scripts/technical-demo/scenario";
+import {
   excerptMatchesSource,
   makeSourceId,
   validateKnowledgeSources,
@@ -275,6 +280,36 @@ test("legacy lexical overlap remains deterministic without becoming a score", ()
   assert.equal(result.reuseRatio, 1);
   const unrelated = analyzeTextReuse("<p>I would first commission a confidential review.</p>", [copied]);
   assert.equal(unrelated.numReusedSentences, 0);
+});
+
+test("managed code execution is opt-in and detects completed server execution", () => {
+  assert.equal(taskHasManagedCodeExecution(null), false);
+  assert.equal(taskHasManagedCodeExecution({ codeExecutionEnabled: false }), false);
+  assert.equal(taskHasManagedCodeExecution({ codeExecutionEnabled: true }), true);
+  assert.equal(responseUsedManagedCodeExecution([{ type: "text", text: "generated only" }]), false);
+  assert.equal(
+    responseUsedManagedCodeExecution([
+      { type: "server_tool_use", name: "bash_code_execution", input: { command: "python3 analysis.py" } },
+      { type: "bash_code_execution_tool_result", content: { stdout: "ok" } },
+    ]),
+    true,
+  );
+});
+
+test("technical demo validation sample has the intended subgroup false-negative rates", () => {
+  const [header, ...lines] = VALIDATION_CSV.trim().split(/\r?\n/);
+  const columns = header.split(",");
+  const rows = lines.map((line) =>
+    Object.fromEntries(columns.map((column, index) => [column, line.split(",")[index]])),
+  );
+  const fnr = (contract: string) => {
+    const positives = rows.filter((row) => row.contract_type === contract && row.churned === "1");
+    const falseNegatives = positives.filter((row) => row.predicted_churn === "0");
+    return falseNegatives.length / positives.length;
+  };
+  assert.equal(rows.length, 24);
+  assert.equal(fnr("monthly"), 1 / 6);
+  assert.equal(fnr("annual"), 3 / 6);
 });
 
 test("role evidence proposals require accountable human confirmation", () => {

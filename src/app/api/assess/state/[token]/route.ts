@@ -91,7 +91,7 @@ export async function GET(
     prisma.recruitmentInteraction.findMany({
       where: { candidateId: candidate.id },
       orderBy: { sequenceNum: "asc" },
-      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true },
+      select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true, metadata: true },
     }),
     prisma.recruitmentCandidateEvidence.findMany({ where: { candidateId: candidate.id }, orderBy: { createdAt: "asc" } }),
     prisma.recruitmentCandidateDefence.findUnique({ where: { candidateId: candidate.id } }),
@@ -131,6 +131,7 @@ export async function GET(
           title: t.title,
           briefMarkdown: personaliseBrief(t.briefMarkdown, candidate.name),
           totalMarks: t.totalMarks,
+          codeExecutionEnabled: t.codeExecutionEnabled === true,
           exhibitTitle: t.exhibitTitle,
           exhibitHtml: t.exhibitHtml,
           deliverableLabel: t.deliverableLabel,

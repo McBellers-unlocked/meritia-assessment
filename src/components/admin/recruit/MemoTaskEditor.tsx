@@ -28,6 +28,7 @@ export default function MemoTaskEditor({
   const [exhibitId, setExhibitId] = useState(task.exhibitId ?? "");
   const [deliverableLabel, setDeliverableLabel] = useState(task.deliverableLabel ?? "");
   const [deliverablePlaceholder, setDeliverablePlaceholder] = useState(task.deliverablePlaceholder ?? "");
+  const [codeExecutionEnabled, setCodeExecutionEnabled] = useState(task.config?.codeExecutionEnabled === true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export default function MemoTaskEditor({
     setExhibitId(task.exhibitId ?? "");
     setDeliverableLabel(task.deliverableLabel ?? "");
     setDeliverablePlaceholder(task.deliverablePlaceholder ?? "");
+    setCodeExecutionEnabled(task.config?.codeExecutionEnabled === true);
     setSavedAt(null);
     setError(null);
     // Intentionally reinitialise only when selecting a different task; parent
@@ -65,6 +67,7 @@ export default function MemoTaskEditor({
             exhibitId: exhibitId || null,
             deliverableLabel: deliverableLabel.trim(),
             deliverablePlaceholder,
+            config: { ...(task.config ?? {}), codeExecutionEnabled },
           }),
         }
       );
@@ -124,6 +127,19 @@ export default function MemoTaskEditor({
         />
         <span className="text-xs text-uq-3 mt-1 block">
           Shown to the candidate at the top of the task panel. Supports Markdown.
+        </span>
+      </label>
+
+      <label className="flex items-start gap-3 rounded-lg border border-uq bg-uq-glass-subtle p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={codeExecutionEnabled}
+          onChange={(e) => setCodeExecutionEnabled(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-uq accent-[color:var(--uq-accent)]"
+        />
+        <span>
+          <span className="block font-medium text-uq">Managed code execution</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-uq-3">Allow the AI to run Python in Anthropic&apos;s isolated sandbox. Enable only for tasks using fictional or approved data; execution traces are retained with candidate interactions.</span>
         </span>
       </label>
 

@@ -26,6 +26,7 @@ import {
   loadAssessmentVersionSnapshot,
   type AssessmentVersionSnapshot,
 } from "./assessment-versions";
+import { taskHasManagedCodeExecution } from "./code-execution";
 
 export async function getScenarioForAssessment(
   assessment: Pick<RecruitmentAssessment, "scenarioId" | "customScenarioId"> &
@@ -195,6 +196,7 @@ export function materialiseScenarioSnapshot(
           briefMarkdown: task.briefMarkdown,
           totalMarks: task.totalMarks,
           systemPrompt: task.systemPrompt ?? "",
+          codeExecutionEnabled: taskHasManagedCodeExecution(task.config),
           exhibitHtml: exhibit?.html ?? "",
           exhibitTitle: exhibit?.title ?? "",
           exhibitSourceId: exhibit?.sourceId ?? exhibit?.id ?? `task-${task.number}-exhibit`,
@@ -269,6 +271,7 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
         briefMarkdown: task.briefMarkdown,
         totalMarks: task.totalMarks,
         systemPrompt: task.systemPrompt ?? "",
+        codeExecutionEnabled: taskHasManagedCodeExecution(task.config),
         exhibitHtml: task.exhibit?.html ?? "",
         exhibitTitle: task.exhibit?.title ?? "",
         exhibitSourceId: task.exhibit?.sourceId ?? task.exhibit?.id ?? `task-${task.number}-exhibit`,
@@ -341,6 +344,7 @@ function materialiseTask(task: DbScenarioRow["tasks"][number]): RecruitTaskConfi
         briefMarkdown: task.briefMarkdown,
         totalMarks: task.totalMarks,
         systemPrompt: task.systemPrompt ?? "",
+        codeExecutionEnabled: taskHasManagedCodeExecution(task.config),
         exhibitHtml: task.exhibit?.html ?? "",
         exhibitTitle: task.exhibit?.title ?? "",
         exhibitSourceId: task.exhibit?.sourceId ?? task.exhibit?.id ?? `task-${task.number}-exhibit`,

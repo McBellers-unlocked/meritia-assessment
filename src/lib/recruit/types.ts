@@ -63,6 +63,8 @@ export interface RecruitTaskConfigBase {
 export interface RecruitMemoAiTaskConfig extends RecruitTaskConfigBase {
   kind: "memo_ai";
   systemPrompt: string;
+  /** Run model-authored Python in Anthropic's isolated managed sandbox. */
+  codeExecutionEnabled?: boolean;
   exhibitHtml: string;
   exhibitTitle: string;
   exhibitSourceId?: string;
