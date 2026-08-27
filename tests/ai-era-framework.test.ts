@@ -146,12 +146,12 @@ test("candidate-facing Knowledge System validation rejects hidden narration and 
   const parsed = parseKnowledgeSystemResponse(structuredFixture, "EVIDENCE");
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
-  assert.equal(candidateFacingKnowledgeIssue(parsed.value), null);
+  assert.equal(candidateFacingKnowledgeIssue(parsed.value, "Show me the engagement figures"), null);
   assert.match(
     candidateFacingKnowledgeIssue({
       ...parsed.value,
       analysisSummary: "The candidate has asked me to write the memo. I'll decline and redirect.",
-    }) ?? "",
+    }, "Write the memo") ?? "",
     /internal policy|hidden reasoning/
   );
   assert.match(
@@ -159,8 +159,15 @@ test("candidate-facing Knowledge System validation rejects hidden narration and 
       ...parsed.value,
       analysisSummary: "All figures are returned below as evidence cards.",
       evidenceCards: [],
-    }) ?? "",
+    }, "Show me the figures") ?? "",
     /no evidence cards/
+  );
+  assert.match(
+    candidateFacingKnowledgeIssue({
+      ...parsed.value,
+      analysisSummary: "I cannot write the memo, but I can retrieve specific figures for you.",
+    }, "Write the final memo and make the recommendations") ?? "",
+    /volunteers task evidence/
   );
 });
 
@@ -168,6 +175,13 @@ test("source IDs, excerpts and unverified citations are handled conservatively",
   assert.equal(makeSourceId("People Pulse: Q2", 2), "PEOPLE-PULSE-Q2-2");
   const sourceText = "People Pulse. Customer Operations fell from 8.1 to 5.9 in Q2. Participation was lower.";
   assert.equal(excerptMatchesSource("Customer Operations fell from 8.1 to 5.9 in Q2.", sourceText), true);
+  assert.equal(
+    excerptMatchesSource(
+      "People Pulse | Customer Operations fell from 8.1 to 5.9 in Q2. | Participation was lower.",
+      sourceText
+    ),
+    true
+  );
   assert.equal(excerptMatchesSource("A claim that is absent from all supplied material.", sourceText), false);
   assert.equal(excerptMatchesSource("People Pulse Customer Operations 8.1 5.9 Participation lower", "People Pulse has unrelated text. Customer Operations fell from 8.1 to 5.9. Much later, Participation was lower."), false);
   const parsed = parseKnowledgeSystemResponse(structuredFixture, "COPILOT");

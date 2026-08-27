@@ -43,6 +43,19 @@ export function excerptMatchesSource(excerpt: string, sourceText: string): boole
   const haystack = normaliseSourceText(sourceText);
   if (needle.length < 8 || !haystack) return false;
   if (haystack.includes(needle)) return true;
+  // A single card can faithfully group adjacent table rows or several exact
+  // verbatims from the same source. Models commonly join those excerpts with
+  // a pipe or ellipsis. Verify every substantial segment independently.
+  const segments = excerpt
+    .split(/\s*(?:\||…|\.{3})\s*/)
+    .map(normaliseSourceText)
+    .filter(Boolean);
+  if (
+    segments.length > 1 &&
+    segments.every((segment) => segment.length >= 8 && haystack.includes(segment))
+  ) {
+    return true;
+  }
   // Models occasionally collapse punctuation around table cells. Compare
   // same-length contiguous word windows as a conservative fallback; this
   // tolerates small punctuation/token changes without accepting a cherry-
