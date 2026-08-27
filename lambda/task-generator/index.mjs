@@ -23,6 +23,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import pg from "pg";
+import { randomUUID } from "node:crypto";
 
 import {
   SYSTEM_PROMPT,
@@ -51,6 +52,12 @@ const MAX_TOKENS = 32_000;
 // so it needs far less room than task generation. 16K leaves generous
 // headroom for adaptive thinking on top of the structured output.
 const RUBRIC_MAX_TOKENS = 16_000;
+const CANDIDATE_CODE_MODEL = "claude-haiku-4-5-20251001";
+const CANDIDATE_CODE_MAX_TOKENS = 5_000;
+const CANDIDATE_CODE_TOOL = {
+  type: "code_execution_20250825",
+  name: "code_execution",
+};
 
 let pgPool = null;
 function getPool() {
@@ -97,11 +104,12 @@ export const handler = async (event) => {
     let jobId;
     let validationRunId;
     let jobType;
+    let messageBody;
     try {
-      const body = JSON.parse(record.body ?? "{}");
-      jobId = String(body.jobId ?? "").trim();
-      validationRunId = String(body.validationRunId ?? "").trim();
-      jobType = String(body.jobType ?? "task-generation-v1");
+      messageBody = JSON.parse(record.body ?? "{}");
+      jobId = String(messageBody.jobId ?? "").trim();
+      validationRunId = String(messageBody.validationRunId ?? "").trim();
+      jobType = String(messageBody.jobType ?? "task-generation-v1");
     } catch {
       console.error("Could not parse SQS message body:", record.body);
       // Don't throw — let the message be deleted; a malformed message
@@ -113,6 +121,17 @@ export const handler = async (event) => {
         await processValidationRun(validationRunId);
       } catch (e) {
         console.error(`[validation-lab] run ${validationRunId} failed:`, e);
+      }
+      continue;
+    }
+    if (jobType === "candidate-code-execution-v1" && messageBody?.candidateInteractionId) {
+      try {
+        await processCandidateCodeExecution(messageBody);
+      } catch (e) {
+        console.error(
+          `[candidate-code] request ${messageBody.candidateInteractionId} failed:`,
+          e
+        );
       }
       continue;
     }
@@ -131,6 +150,161 @@ export const handler = async (event) => {
     }
   }
 };
+
+function responseUsedManagedCodeExecution(content) {
+  return content.some((item) =>
+    item && typeof item === "object" && (
+      item.type === "code_execution_tool_result" ||
+      item.type === "bash_code_execution_tool_result" ||
+      (item.type === "server_tool_use" && (
+        item.name === "code_execution" ||
+        item.name === "bash_code_execution" ||
+        item.name === "text_editor_code_execution"
+      ))
+    )
+  );
+}
+
+async function markCandidateCodeFailed(pool, interactionId) {
+  await pool.query(
+    `UPDATE recruitment_interactions
+     SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+     WHERE id = $1::uuid`,
+    [
+      interactionId,
+      JSON.stringify({
+        codeExecutionStatus: "failed",
+        codeExecutionError: "The managed Python run failed. Please try the request again.",
+      }),
+    ]
+  );
+}
+
+async function processCandidateCodeExecution(job) {
+  const pool = getPool();
+  const interactionId = String(job.candidateInteractionId ?? "").trim();
+  const expectedCandidateId = String(job.candidateId ?? "").trim();
+  const threadKey = String(job.threadKey ?? "").trim();
+  const assessmentMode = String(job.assessmentMode ?? "").trim();
+  const systemPrompt = String(job.systemPrompt ?? "");
+  const messages = Array.isArray(job.messages)
+    ? job.messages.slice(-8).map((item) => ({
+        role: item?.role === "assistant" ? "assistant" : "user",
+        content: String(item?.content ?? ""),
+      })).filter((item) => item.content.trim())
+    : [];
+
+  if (
+    !interactionId ||
+    !expectedCandidateId ||
+    !threadKey ||
+    !["EVIDENCE", "COPILOT", "OPEN_AGENT"].includes(assessmentMode) ||
+    !systemPrompt ||
+    systemPrompt.length > 150_000 ||
+    messages.length === 0
+  ) {
+    throw new Error("Invalid candidate code-execution payload");
+  }
+
+  const claimed = await pool.query(
+    `UPDATE recruitment_interactions
+     SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+     WHERE id = $1::uuid
+       AND actor = 'candidate'
+       AND COALESCE(metadata->>'codeExecutionStatus', 'queued') = 'queued'
+     RETURNING candidate_id, task_number`,
+    [interactionId, JSON.stringify({ codeExecutionStatus: "running" })]
+  );
+  if (claimed.rowCount === 0) {
+    console.warn(`[candidate-code] request ${interactionId} was already claimed; skipping`);
+    return;
+  }
+
+  const candidateId = claimed.rows[0].candidate_id;
+  const taskNumber = claimed.rows[0].task_number;
+  if (candidateId !== expectedCandidateId || taskNumber !== Number(job.taskNumber)) {
+    await markCandidateCodeFailed(pool, interactionId);
+    throw new Error("Candidate code-execution identity mismatch");
+  }
+
+  const started = Date.now();
+  try {
+    const response = await getAnthropic().messages.create({
+      model: CANDIDATE_CODE_MODEL,
+      max_tokens: CANDIDATE_CODE_MAX_TOKENS,
+      system: [{
+        type: "text",
+        text: systemPrompt,
+        cache_control: { type: "ephemeral" },
+      }],
+      messages,
+      tools: [CANDIDATE_CODE_TOOL],
+      tool_choice: { type: "any" },
+    });
+    const codeExecutionUsed = responseUsedManagedCodeExecution(response.content);
+    const text = response.content
+      .filter((item) => item.type === "text")
+      .map((item) => item.text)
+      .join("\n")
+      .trim();
+    if (!codeExecutionUsed || !text || response.stop_reason === "max_tokens") {
+      throw new Error(`Incomplete managed execution (stop_reason=${response.stop_reason})`);
+    }
+
+    const metadata = {
+      model: CANDIDATE_CODE_MODEL,
+      threadKey,
+      requestInteractionId: interactionId,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? 0,
+      cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
+      stopReason: response.stop_reason,
+      codeExecutionEnabled: true,
+      codeExecutionUsed: true,
+      codeExecutionStatus: "completed",
+      elapsedMs: Date.now() - started,
+    };
+
+    await pool.query("BEGIN");
+    try {
+      await pool.query(
+        `INSERT INTO recruitment_interactions
+          (id, candidate_id, task_number, actor, content, token_count, metadata,
+           model, prompt_policy_version, assessment_mode, content_version)
+         VALUES ($1::uuid, $2, $3, 'ai', $4, $5, $6::jsonb, $7, $8, $9, $10)`,
+        [
+          randomUUID(),
+          candidateId,
+          taskNumber,
+          text,
+          response.usage.output_tokens,
+          JSON.stringify(metadata),
+          CANDIDATE_CODE_MODEL,
+          "candidate-code-execution-v1",
+          assessmentMode,
+          "candidate-code-execution-v1",
+        ]
+      );
+      await pool.query(
+        `UPDATE recruitment_interactions
+         SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+         WHERE id = $1::uuid`,
+        [interactionId, JSON.stringify({ codeExecutionStatus: "completed" })]
+      );
+      await pool.query("COMMIT");
+    } catch (e) {
+      await pool.query("ROLLBACK");
+      throw e;
+    }
+    console.log(
+      `[candidate-code] request ${interactionId} completed in ${Date.now() - started}ms`
+    );
+  } catch (e) {
+    await markCandidateCodeFailed(pool, interactionId);
+    throw e;
+  }
+}
 
 async function processValidationRun(runId) {
   const pool = getPool();

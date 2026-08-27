@@ -10,6 +10,9 @@ import {
 } from "../src/lib/recruit/assessment-modes";
 import { parseKnowledgeSystemResponse } from "../src/lib/recruit/knowledge-response-schema";
 import {
+  MANAGED_CODE_EXECUTION_MAX_TOKENS,
+  MANAGED_CODE_EXECUTION_MODEL,
+  MANAGED_CODE_EXECUTION_TOOL,
   responseUsedManagedCodeExecution,
   taskHasManagedCodeExecution,
 } from "../src/lib/recruit/code-execution";
@@ -294,6 +297,12 @@ test("managed code execution is opt-in and detects completed server execution", 
     ]),
     true,
   );
+});
+
+test("managed Python uses the current background-worker runtime configuration", () => {
+  assert.equal(MANAGED_CODE_EXECUTION_MODEL, "claude-haiku-4-5-20251001");
+  assert.equal(MANAGED_CODE_EXECUTION_TOOL.type, "code_execution_20250825");
+  assert.equal(MANAGED_CODE_EXECUTION_MAX_TOKENS, 5000);
 });
 
 test("technical demo validation sample has the intended subgroup false-negative rates", () => {

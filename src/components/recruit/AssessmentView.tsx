@@ -36,7 +36,13 @@ interface Interaction {
   content: string;
   structuredPayload?: KnowledgeSystemResponse | null;
   schemaVersion?: string | null;
-  metadata?: { codeExecutionEnabled?: boolean; codeExecutionUsed?: boolean } | null;
+  metadata?: {
+    codeExecutionEnabled?: boolean;
+    codeExecutionUsed?: boolean;
+    codeExecutionStatus?: "queued" | "running" | "completed" | "failed";
+    codeExecutionError?: string;
+    requestInteractionId?: string;
+  } | null;
 }
 
 interface ResponseRow {
@@ -376,13 +382,82 @@ export default function AssessmentView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, taskNumber: activeTask, message }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      const rawBody = await res.text();
+      type ChatResponseBody = {
+        error?: string;
+        trail?: Interaction[];
+        pending?: boolean;
+        requestInteractionId?: string;
+      };
+      let body: ChatResponseBody | null = null;
+      if (rawBody) {
+        try {
+          body = JSON.parse(rawBody) as ChatResponseBody;
+        } catch {
+          body = null;
+        }
+      }
+      if (!res.ok) {
+        const interrupted = !rawBody || res.status === 502 || res.status === 503 || res.status === 504;
+        throw new Error(
+          body?.error ||
+          (interrupted
+            ? "The AI response was interrupted before it finished. Please try the request again."
+            : `The AI request failed (HTTP ${res.status}).`)
+        );
+      }
+      if (!body || !Array.isArray(body.trail)) {
+        throw new Error("The AI response was incomplete. Please try the request again.");
+      }
+      const serverTrail = body.trail;
       // Replace this task's interactions with server view; keep other task's intact
       setInteractions((prev) => [
         ...prev.filter((p) => p.taskNumber !== activeTask),
-        ...(body.trail as Interaction[]),
+        ...serverTrail,
       ]);
+      if (body.pending && body.requestInteractionId) {
+        const requestInteractionId = body.requestInteractionId;
+        let completed = false;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+          const poll = await fetch(`/api/assess/state/${encodeURIComponent(token)}`, {
+            cache: "no-store",
+          });
+          const pollBody = await poll.json().catch(() => null) as {
+            error?: string;
+            interactions?: Interaction[];
+          } | null;
+          if (!poll.ok || !pollBody || !Array.isArray(pollBody.interactions)) {
+            if (poll.status === 403 || poll.status === 404) {
+              throw new Error(pollBody?.error || "The assessment session could not be refreshed.");
+            }
+            continue;
+          }
+          const nextTrail = pollBody.interactions;
+          setInteractions(nextTrail);
+          const reply = nextTrail.find(
+            (entry) =>
+              entry.actor === "ai" &&
+              entry.metadata?.requestInteractionId === requestInteractionId
+          );
+          if (reply) {
+            completed = true;
+            break;
+          }
+          const requestEntry = nextTrail.find((entry) => entry.id === requestInteractionId);
+          if (requestEntry?.metadata?.codeExecutionStatus === "failed") {
+            throw new Error(
+              requestEntry.metadata.codeExecutionError ||
+              "The managed Python run failed. Please try the request again."
+            );
+          }
+        }
+        if (!completed) {
+          throw new Error(
+            "The managed Python run is still taking longer than expected. Your request is saved; please wait a moment and reopen the AI panel."
+          );
+        }
+      }
     } catch (e) {
       setChatError((e as Error).message);
       setInteractions((prev) => prev.filter((p) => p.id !== optimistic.id));

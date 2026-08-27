@@ -8,12 +8,16 @@
  */
 
 export const MANAGED_CODE_EXECUTION_TOOL = {
-  // The Python-only runtime is intentionally used for the candidate path:
-  // it completes the demo analysis comfortably inside the app's 60-second
-  // request ceiling, whereas the newer bash/file-operation loop can exceed it.
-  type: "code_execution_20250522",
+  // Current generally available runtime supported by Haiku 4.5. Candidate
+  // runs execute in the long-running worker, outside Amplify's request limit.
+  type: "code_execution_20250825",
   name: "code_execution",
 } as const;
+
+// Mirrored by lambda/task-generator/index.mjs because that package is
+// deployed independently and cannot import application TypeScript.
+export const MANAGED_CODE_EXECUTION_MODEL = "claude-haiku-4-5-20251001";
+export const MANAGED_CODE_EXECUTION_MAX_TOKENS = 5000;
 
 export const CODE_EXECUTION_SYSTEM_INSTRUCTIONS = `
 
@@ -22,6 +26,10 @@ This task has an isolated Python sandbox. When the candidate asks you to run,
 calculate, test, validate, simulate, or analyse something with code, use the
 code-execution tool. Use only the fictional exercise data supplied in the
 scenario and exhibit; the sandbox has no internet access.
+
+For ordinary tabular analysis, make one concise, self-contained Python run.
+Put the supplied data directly into the Python command with io.StringIO; do
+not look for uploaded files or spend tool calls inspecting the filesystem.
 
 In the final response after execution:
 - state that the calculation was run, not merely drafted;

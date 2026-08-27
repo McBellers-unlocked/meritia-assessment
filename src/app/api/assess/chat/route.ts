@@ -11,10 +11,9 @@ import { buildKnowledgePolicy } from "@/lib/recruit/assessment-modes";
 import { CONTENT_VERSION, KNOWLEDGE_POLICY_VERSION, KNOWLEDGE_RESPONSE_SCHEMA_VERSION } from "@/lib/recruit/prompt-versions";
 import { KNOWLEDGE_RESPONSE_TOOL, knowledgeResponseToText, parseKnowledgeSystemResponse } from "@/lib/recruit/knowledge-response-schema";
 import { buildSourceContext, htmlToPlainText, validateKnowledgeSources, type KnowledgeSource } from "@/lib/recruit/source-verification";
+import { enqueueCandidateCodeExecutionJob } from "@/lib/recruit/sqs-client";
 import {
   CODE_EXECUTION_SYSTEM_INSTRUCTIONS,
-  MANAGED_CODE_EXECUTION_TOOL,
-  responseUsedManagedCodeExecution,
 } from "@/lib/recruit/code-execution";
 
 export const dynamic = "force-dynamic";
@@ -145,13 +144,16 @@ ${codeExecutionEnabled
     }
 
     // Persist candidate prompt first so it shows up even if Claude call fails
-    await prisma.recruitmentInteraction.create({
+    const candidateInteraction = await prisma.recruitmentInteraction.create({
       data: {
         candidateId: result.candidate.id,
         taskNumber,
         actor: "candidate",
         content: message,
-        metadata: { threadKey: effectiveThreadKey },
+        metadata: {
+          threadKey: effectiveThreadKey,
+          ...(codeExecutionEnabled ? { codeExecutionStatus: "queued" } : {}),
+        },
         assessmentMode: result.assessment.assessmentMode,
         promptPolicyVersion: KNOWLEDGE_POLICY_VERSION,
         contentVersion: CONTENT_VERSION,
@@ -178,7 +180,62 @@ ${codeExecutionEnabled
         content: t.content,
       }));
 
+    if (codeExecutionEnabled) {
+      try {
+        await enqueueCandidateCodeExecutionJob({
+          candidateInteractionId: candidateInteraction.id,
+          candidateId: result.candidate.id,
+          taskNumber,
+          threadKey: effectiveThreadKey,
+          assessmentMode: result.assessment.assessmentMode,
+          systemPrompt,
+          // Bound queue size and model context while retaining a useful
+          // multi-turn technical dialogue.
+          messages: messages.slice(-8).map((item) => ({
+            role: item.role,
+            content: String(item.content),
+          })),
+        });
+      } catch (e) {
+        await prisma.recruitmentInteraction.update({
+          where: { id: candidateInteraction.id },
+          data: {
+            metadata: {
+              threadKey: effectiveThreadKey,
+              codeExecutionStatus: "failed",
+              codeExecutionError: "The Python job could not be started. Please try again.",
+            },
+          },
+        });
+        return NextResponse.json(
+          { error: `Could not start the managed Python run: ${(e as Error).message}` },
+          { status: 502 }
+        );
+      }
+
+      const queuedTrail = await prisma.recruitmentInteraction.findMany({
+        where: threadKey
+          ? {
+              candidateId: result.candidate.id,
+              taskNumber,
+              metadata: { path: ["threadKey"], equals: effectiveThreadKey },
+            }
+          : { candidateId: result.candidate.id, taskNumber },
+        orderBy: { sequenceNum: "asc" },
+        select: { id: true, sequenceNum: true, taskNumber: true, timestamp: true, actor: true, content: true, structuredPayload: true, schemaVersion: true, metadata: true },
+      });
+      return NextResponse.json(
+        {
+          pending: true,
+          requestInteractionId: candidateInteraction.id,
+          trail: queuedTrail,
+        },
+        { status: 202 }
+      );
+    }
+
     const apiKey = await getAnthropicKey();
+    const requestModel = MODEL;
     const anthropic = new Anthropic({ apiKey });
 
     // Retry on transient upstream errors (Anthropic 529 overloaded, 502/503/504).
@@ -209,22 +266,19 @@ ${codeExecutionEnabled
 
     let resp: Anthropic.Message | null = null;
     let lastErr: unknown = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         resp = await anthropic.messages.create({
-          model: MODEL,
+          model: requestModel,
           // Managed execution returns tool calls/results as well as the final
           // explanation. The normal 1,500-token cap can stop after stdout and
           // before the candidate receives a readable answer, so technical
           // tasks get a narrowly-scoped larger budget.
-          max_tokens: codeExecutionEnabled ? Math.max(MAX_TOKENS, 4000) : MAX_TOKENS,
+          max_tokens: MAX_TOKENS,
           system: systemBlocks,
           messages,
-          ...(codeExecutionEnabled
-            ? {
-                tools: [MANAGED_CODE_EXECUTION_TOOL as unknown as Anthropic.Tool],
-              }
-            : structuredKnowledge
+          ...(structuredKnowledge
             ? {
                 tools: [KNOWLEDGE_RESPONSE_TOOL as unknown as Anthropic.Tool],
                 tool_choice: { type: "tool" as const, name: KNOWLEDGE_RESPONSE_TOOL.name },
@@ -234,12 +288,12 @@ ${codeExecutionEnabled
         break;
       } catch (e) {
         lastErr = e;
-        if (!transient(e) || attempt === 2) throw e;
+        if (!transient(e) || attempt === maxAttempts - 1) throw e;
         await sleep(750 * Math.pow(2, attempt));
       }
     }
     if (!resp) throw lastErr ?? new Error("Anthropic call failed");
-    const codeExecutionUsed = codeExecutionEnabled && responseUsedManagedCodeExecution(resp.content);
+    const codeExecutionUsed = false;
     const plainText = resp.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
@@ -277,13 +331,13 @@ ${codeExecutionEnabled
         tokenCount: resp.usage.output_tokens,
         structuredPayload: structuredPayload ?? undefined,
         schemaVersion: structuredPayload ? KNOWLEDGE_RESPONSE_SCHEMA_VERSION : null,
-        model: MODEL,
+        model: requestModel,
         promptPolicyVersion: structuredKnowledge || codeExecutionEnabled ? KNOWLEDGE_POLICY_VERSION : "persona-chat-v1",
         assessmentMode: result.assessment.assessmentMode,
         sourceValidation: sourceValidation ?? undefined,
         contentVersion: CONTENT_VERSION,
         metadata: {
-          model: MODEL,
+          model: requestModel,
           threadKey: effectiveThreadKey,
           inputTokens: resp.usage.input_tokens,
           outputTokens: resp.usage.output_tokens,

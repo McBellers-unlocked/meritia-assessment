@@ -18,6 +18,11 @@ Message contracts:
   retry cannot create a duplicate completed result. New runs carry the exact
   immutable scenario snapshot associated with their SHA-256 hash, so edits made
   after queueing cannot change what the worker analyses.
+- `{ "jobType": "candidate-code-execution-v1", ... }` — candidate-managed
+  Python. The web request stores and queues the prompt immediately; this worker
+  runs the isolated Anthropic sandbox and stores the linked AI reply while the
+  candidate UI polls. This avoids Amplify's fixed request timeout without
+  executing model-authored code inside the application host.
 
 ## How it fits
 

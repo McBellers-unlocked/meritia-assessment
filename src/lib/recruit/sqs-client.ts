@@ -53,3 +53,33 @@ export async function enqueueValidationRun(validationRunId: string): Promise<voi
     })
   );
 }
+
+export interface CandidateCodeExecutionJob {
+  candidateInteractionId: string;
+  candidateId: string;
+  taskNumber: number;
+  threadKey: string;
+  assessmentMode: string;
+  systemPrompt: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
+/**
+ * Dispatch candidate Python work to the established long-running worker.
+ * The payload contains only assessment-scoped fictional context and the
+ * existing conversation trail; no browser session token or candidate email.
+ */
+export async function enqueueCandidateCodeExecutionJob(
+  job: CandidateCodeExecutionJob
+): Promise<void> {
+  const queueUrl = process.env.SQS_TASK_QUEUE_URL || FALLBACK_QUEUE_URL;
+  await getClient().send(
+    new SendMessageCommand({
+      QueueUrl: queueUrl,
+      MessageBody: JSON.stringify({
+        jobType: "candidate-code-execution-v1",
+        ...job,
+      }),
+    })
+  );
+}
