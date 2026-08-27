@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import type { EditorScenario } from "./scenarioEditorTypes";
+import {
+  ROLE_EVIDENCE_DISCLAIMER,
+  ROLE_EVIDENCE_LABELS,
+  normaliseRoleEvidenceReview,
+  roleEvidenceWarnings,
+} from "@/lib/recruit/role-evidence";
 
 type Criterion = NonNullable<EditorScenario["criteria"]>[number];
 type MappingForm = { taskId: string; evidence: string; rubricIds: string; marks: string };
@@ -80,12 +86,29 @@ export default function AssessmentBlueprintMatrix({
     const ids = criterion.taskMappings.flatMap((mapping) => mapping.rubricElementIds);
     return ids.length > 0 && ids.every((id) => /(style|grammar|presentation|communication)/i.test(id));
   });
+  const parsedRoleEvidence = new Map(criteria.map((criterion) => [
+    criterion.id,
+    normaliseRoleEvidenceReview(criterion.roleEvidence),
+  ]));
+  const roleEvidenceGaps = criteria.flatMap((criterion) => {
+    const review = parsedRoleEvidence.get(criterion.id);
+    if (!review) return [`${criterion.code} has no confirmed Role Evidence Review.`];
+    return roleEvidenceWarnings(review, scenario.assessmentMode).map((warning) => `${criterion.code}: ${warning.message}`);
+  });
   const blueprintGaps = [
     ...unmappedTasks.map((task) => `Task ${task.number} has no declared criterion.`),
     ...markMismatches,
     ...(duplicateEvidenceCount ? [`${duplicateEvidenceCount} expected-evidence statement${duplicateEvidenceCount === 1 ? " is" : "s are"} mapped more than once; check for double reward.`] : []),
     ...styleOnlyCriteria.map((criterion) => `${criterion.code} is mapped only to style/communication rubric elements; confirm the underlying construct is observable.`),
+    ...roleEvidenceGaps,
   ];
+  const evidenceRecord = scenario.roleEvidenceRecord && typeof scenario.roleEvidenceRecord === "object"
+    ? scenario.roleEvidenceRecord
+    : null;
+  const reviewedBy = evidenceRecord?.reviewedBy && typeof evidenceRecord.reviewedBy === "object"
+    ? evidenceRecord.reviewedBy as Record<string, unknown>
+    : null;
+  const evidenceSource = String(evidenceRecord?.sourceKind ?? "").replaceAll("_", " ");
 
   const beginNew = () => {
     setForm(blankForm(scenario));
@@ -168,6 +191,18 @@ export default function AssessmentBlueprintMatrix({
         </button>
       </div>
 
+      <div className={`mt-4 rounded-xl border p-4 ${evidenceRecord ? "border-[color:var(--uq-success-line)] bg-[color:var(--uq-success-soft)]" : "border-[color:var(--uq-warn-line)] bg-[color:var(--uq-warn-soft)]"}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-uq-3">Role Evidence Record</div>
+            <div className="mt-1 text-sm font-semibold text-uq">{evidenceRecord ? "Human review recorded" : "Review not recorded"}</div>
+            {evidenceRecord && <div className="mt-1 text-xs text-uq-2">{evidenceSource || "JOB DESCRIPTION"} · {String(evidenceRecord.sourceLabel ?? "Job description")} · {String(reviewedBy?.name ?? "Reviewer")}{scenario.roleEvidenceReviewedAt ? ` · ${new Date(scenario.roleEvidenceReviewedAt).toLocaleString()}` : ""}</div>}
+          </div>
+          {evidenceRecord && <span className="rounded-full border border-[color:var(--uq-success-line)] bg-uq-elev1 px-2.5 py-1 text-xs font-medium text-[color:var(--uq-success-text)]">{criteria.length} retained criteria</span>}
+        </div>
+        <p className="mt-2 max-w-4xl text-xs leading-relaxed text-uq-2">{ROLE_EVIDENCE_DISCLAIMER}</p>
+      </div>
+
       {open && (
         <div className="mt-4 space-y-4 rounded-xl border border-uq bg-uq-elev2 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -218,9 +253,10 @@ export default function AssessmentBlueprintMatrix({
             {criteria.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-uq-3">No stable criteria yet. Publication will remain blocked.</td></tr>}
             {criteria.flatMap((criterion) => {
               const mappings = criterion.taskMappings.length ? criterion.taskMappings : [null];
+              const roleEvidence = parsedRoleEvidence.get(criterion.id);
               return mappings.map((mapping, index) => (
                 <tr key={mapping?.id ?? criterion.id} className="border-t border-uq-faint">
-                  <td className="px-3 py-2 align-top"><span className="font-mono text-uq-3">{criterion.code}</span><div className="font-medium text-uq">{criterion.name}</div>{index === 0 && criterion.sourceRequirement && <div className="mt-1 max-w-xs text-uq-3">{criterion.sourceRequirement}</div>}</td>
+                  <td className="px-3 py-2 align-top"><span className="font-mono text-uq-3">{criterion.code}</span><div className="font-medium text-uq">{criterion.name}</div>{index === 0 && criterion.sourceRequirement && <div className="mt-1 max-w-xs text-uq-3">{criterion.sourceRequirement}</div>}{index === 0 && roleEvidence && <div className="mt-2 flex max-w-xs flex-wrap gap-1"><RoleEvidenceBadge label={ROLE_EVIDENCE_LABELS.importance[roleEvidence.importance]} /><RoleEvidenceBadge label={ROLE_EVIDENCE_LABELS.entryRequirement[roleEvidence.entryRequirement]} /><RoleEvidenceBadge label={`${ROLE_EVIDENCE_LABELS.observability[roleEvidence.observability]} observable`} /><RoleEvidenceBadge label={ROLE_EVIDENCE_LABELS.aiCondition[roleEvidence.aiCondition]} /></div>}</td>
                   <td className="px-3 py-2 align-top text-uq-2">{criterion.observableBehaviours.join("; ") || <span className="text-uq-3">Gap: not declared</span>}</td>
                   <td className="px-3 py-2 align-top">{mapping ? `Task ${mapping.task.number} — ${mapping.task.title}` : <span className="text-uq-3">Gap: no task mapping</span>}</td>
                   <td className="px-3 py-2 align-top text-uq-2">{mapping?.expectedCandidateEvidence || <span className="text-uq-3">Gap</span>}</td>
@@ -235,4 +271,8 @@ export default function AssessmentBlueprintMatrix({
       </div>
     </section>
   );
+}
+
+function RoleEvidenceBadge({ label }: { label: string }) {
+  return <span className="rounded-full border border-uq-faint bg-uq-elev2 px-2 py-0.5 text-[10px] text-uq-2">{label}</span>;
 }

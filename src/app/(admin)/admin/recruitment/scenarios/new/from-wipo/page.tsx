@@ -162,6 +162,7 @@ export default function FromWipoPickerPage() {
       organisation: detail.organization || "WIPO",
       filename: `WIPO posting · ${detail.externalId}`,
       sourceLink: detail.link,
+      sourceKind: "WIPO",
     };
     try {
       sessionStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(handoff));

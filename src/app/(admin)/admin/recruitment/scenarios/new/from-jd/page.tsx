@@ -7,6 +7,13 @@ import { useSession } from "next-auth/react";
 
 import { consumeSseResultStream } from "@/lib/recruit/sse-client";
 import { ASSESSMENT_MODES, getAssessmentModePolicy, type AssessmentMode } from "@/lib/recruit/assessment-modes";
+import RoleEvidenceReviewStep from "@/components/admin/recruit/RoleEvidenceReviewStep";
+import {
+  createRoleEvidenceReview,
+  type RoleEvidenceOrigin,
+  type RoleEvidenceReview,
+  type RoleEvidenceSourceKind,
+} from "@/lib/recruit/role-evidence";
 
 interface GeneratedTaskDraft {
   title: string;
@@ -23,7 +30,7 @@ interface GeneratedTaskDraft {
   rubric?: Record<string, unknown> | null;
 }
 
-type Step = "upload" | "criteria" | "configure" | "review";
+type Step = "upload" | "criteria" | "configure" | "roleEvidence" | "review";
 
 // memo_ai is fixed at 2 tasks per assessment — the selected criteria
 // are distributed across them. Cap at 6 ticked (3 per task) so an
@@ -34,19 +41,18 @@ const MAX_SELECTED_CRITERIA = 6;
 const SOFT_WARN_AT = 5;
 const DEFAULT_ORG = "International Digital Services Centre (IDSC), Geneva";
 
-// sessionStorage key set by the WIPO picker page
-// (/admin/recruitment/scenarios/new/from-wipo). When present on mount,
-// we hydrate the form from a real WIPO posting and skip the upload
-// step.
-const WIPO_HANDOFF_STORAGE_KEY = "wipo-jd-handoff";
+// Shared sessionStorage key used by the WIPO and ITU picker pages. The value
+// is retained for backwards compatibility with an already-open picker tab.
+const JOB_DESCRIPTION_HANDOFF_STORAGE_KEY = "wipo-jd-handoff";
 
-interface WipoHandoff {
+interface JobBoardHandoff {
   jdText: string;
   title: string;
   positionTitle: string;
   organisation: string;
   filename: string;
   sourceLink: string | null;
+  sourceKind?: RoleEvidenceSourceKind;
 }
 
 /**
@@ -66,7 +72,7 @@ function distributeCriteria(criteria: string[]): string[][] {
 }
 
 export default function GenerateFromJdPage() {
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("upload");
@@ -105,11 +111,17 @@ export default function GenerateFromJdPage() {
   const [positionTitle, setPositionTitle] = useState("");
   const [defaultTotalMinutes, setDefaultTotalMinutes] = useState("90");
   const [assessmentMode, setAssessmentMode] = useState<AssessmentMode>("EVIDENCE");
-  // Set when this flow was started from a WIPO posting — used to show
-  // a "Source: WIPO posting →" link on the configure step.
+  // Set when this flow starts from a job-board posting so provenance and the
+  // original link remain visible through review and in the saved record.
   const [sourceLink, setSourceLink] = useState<string | null>(null);
+  const [sourceKind, setSourceKind] = useState<RoleEvidenceSourceKind>("UPLOADED_JD");
 
-  // Guard so the WIPO hand-off effect runs at most once even under
+  // Human-confirmed role evidence sits between configuration and task
+  // generation. The same review model is used for uploaded JDs and job-board
+  // hand-offs, so source provenance changes without changing the standard.
+  const [roleEvidenceReviews, setRoleEvidenceReviews] = useState<RoleEvidenceReview[]>([]);
+
+  // Guard so the job-board hand-off effect runs at most once even under
   // React strict-mode double-invocation.
   const wipoHandoffConsumedRef = useRef(false);
 
@@ -148,6 +160,9 @@ export default function GenerateFromJdPage() {
     setParsing(true);
     setJdText("");
     setFilename(file.name);
+    setSourceLink(null);
+    setSourceKind("UPLOADED_JD");
+    setRoleEvidenceReviews([]);
     // Reset criteria state for a fresh upload — the new JD will need
     // its own extraction.
     setEssentialCriteria([]);
@@ -229,7 +244,7 @@ export default function GenerateFromJdPage() {
     }
   };
 
-  // WIPO hand-off: when the picker page navigates here after the user
+  // Job-board hand-off: when a picker page navigates here after the user
   // chose a posting, it leaves a payload in sessionStorage. Hydrate the
   // form from it, skip the upload step, and fire criteria extraction
   // immediately — same flow as a successful PDF/DOCX upload, just with
@@ -239,20 +254,20 @@ export default function GenerateFromJdPage() {
     if (typeof window === "undefined") return;
     let raw: string | null = null;
     try {
-      raw = window.sessionStorage.getItem(WIPO_HANDOFF_STORAGE_KEY);
+      raw = window.sessionStorage.getItem(JOB_DESCRIPTION_HANDOFF_STORAGE_KEY);
     } catch {
       return;
     }
     if (!raw) return;
     wipoHandoffConsumedRef.current = true;
     try {
-      window.sessionStorage.removeItem(WIPO_HANDOFF_STORAGE_KEY);
+      window.sessionStorage.removeItem(JOB_DESCRIPTION_HANDOFF_STORAGE_KEY);
     } catch {
       // Storage may be locked down (incognito, quota); already consumed.
     }
-    let payload: WipoHandoff;
+    let payload: JobBoardHandoff;
     try {
-      payload = JSON.parse(raw) as WipoHandoff;
+      payload = JSON.parse(raw) as JobBoardHandoff;
     } catch {
       return;
     }
@@ -264,6 +279,9 @@ export default function GenerateFromJdPage() {
     setOrganisation(payload.organisation || "WIPO");
     setFilename(payload.filename || "WIPO posting");
     setSourceLink(payload.sourceLink || null);
+    setSourceKind(payload.sourceKind === "ITU" || payload.sourceKind === "WIPO"
+      ? payload.sourceKind
+      : payload.filename?.startsWith("ITU posting") ? "ITU" : "WIPO");
     setStep("criteria");
     void runCriteriaExtraction(payload.jdText, payload.title);
     // Run only once on mount; the ref guards against double-invoke.
@@ -340,9 +358,35 @@ export default function GenerateFromJdPage() {
   const selectedCount = orderedSelectedCriteria.length;
   const generatedTaskCount = selectedCount === 0 ? 0 : MEMO_AI_TASK_COUNT;
 
-  const startGeneration = async () => {
+  const activeRoleEvidenceReviews = useMemo(
+    () => roleEvidenceReviews.filter((review) => review.decision === "KEEP"),
+    [roleEvidenceReviews],
+  );
+
+  const criterionOrigin = (criterion: string): RoleEvidenceOrigin => {
+    if (usingManualCriteria) return "MANUAL";
+    if (essentialCriteria.includes(criterion)) return "ESSENTIAL";
+    return "DESIRABLE";
+  };
+
+  const beginRoleEvidenceReview = () => {
     if (selectedCount === 0) return;
-    const buckets = distributeCriteria(orderedSelectedCriteria);
+    setRoleEvidenceReviews((current) => orderedSelectedCriteria.map((criterion, index) => {
+      const existing = current.find((review) => review.sourceRequirement === criterion);
+      return existing ?? createRoleEvidenceReview({
+        criterion,
+        origin: criterionOrigin(criterion),
+        index,
+        assessmentMode,
+      });
+    }));
+    setStep("roleEvidence");
+  };
+
+  const startGeneration = async () => {
+    const reviewedCriteria = activeRoleEvidenceReviews.map((review) => review.criterion.trim()).filter(Boolean);
+    if (reviewedCriteria.length === 0) return;
+    const buckets = distributeCriteria(reviewedCriteria);
     setStep("review");
     setTaskCriteriaBuckets(buckets);
     const initialTasks: (GeneratedTaskDraft | null)[] = Array.from(
@@ -472,8 +516,13 @@ export default function GenerateFromJdPage() {
           assessmentMode,
           jdText,
           tasks: tasks.filter(Boolean),
-          criteria: orderedSelectedCriteria,
+          criteria: roleEvidenceReviews,
           criteriaByTask: taskCriteriaBuckets,
+          roleEvidenceSource: {
+            sourceKind,
+            sourceLabel: filename || "Job description",
+            sourceLink,
+          },
         }),
       });
       const body = await res.json();
@@ -503,9 +552,8 @@ export default function GenerateFromJdPage() {
         Generate from job description
       </h1>
       <p className="text-sm text-uq-2 mt-1 mb-6">
-        Upload a JD; pick the essential or desirable criteria you want to
-        test; Claude generates one task per criterion, each with a brief, an
-        industry-matched exhibit, and a deliverable.
+        Upload a JD or import a WIPO/ITU posting; select the requirements,
+        complete an accountable Role Evidence Review, then generate the tasks.
       </p>
 
       <Stepper step={step} />
@@ -565,7 +613,21 @@ export default function GenerateFromJdPage() {
           selectedCount={selectedCount}
           canSubmit={Boolean(canConfigure) && selectedCount > 0}
           onBack={() => setStep("criteria")}
-          onSubmit={() => void startGeneration()}
+          onSubmit={beginRoleEvidenceReview}
+        />
+      )}
+
+      {step === "roleEvidence" && (
+        <RoleEvidenceReviewStep
+          reviews={roleEvidenceReviews}
+          onChange={setRoleEvidenceReviews}
+          sourceKind={sourceKind}
+          sourceLabel={filename || "Job description"}
+          sourceLink={sourceLink}
+          assessmentMode={assessmentMode}
+          reviewerName={session?.user?.name || session?.user?.email || "Current reviewer"}
+          onBack={() => setStep("configure")}
+          onContinue={() => void startGeneration()}
         />
       )}
 
@@ -581,7 +643,7 @@ export default function GenerateFromJdPage() {
           anyGenerating={anyGenerating}
           saving={saving}
           saveError={saveError}
-          onBack={() => setStep("configure")}
+          onBack={() => setStep("roleEvidence")}
           onSave={() => void saveScenario()}
         />
       )}
@@ -674,9 +736,10 @@ async function generateOne(input: {
 
 function Stepper({ step }: { step: Step }) {
   const items: { key: Step; label: string }[] = [
-    { key: "upload", label: "Upload JD" },
+    { key: "upload", label: "Source JD" },
     { key: "criteria", label: "Pick criteria" },
     { key: "configure", label: "Configure" },
+    { key: "roleEvidence", label: "Role evidence" },
     { key: "review", label: "Review & save" },
   ];
   const activeIdx = items.findIndex((i) => i.key === step);
@@ -1378,7 +1441,7 @@ function ConfigureStep({
           disabled={!canSubmit}
           className="px-4 py-2 rounded-lg bg-uq-accent text-[color:var(--uq-text-on-accent)] text-sm font-medium shadow-uq-glow-soft transition-all duration-150 hover:bg-uq-accent-hover hover:shadow-uq-glow active:translate-y-px disabled:bg-uq-elev2 disabled:text-uq-3 disabled:shadow-none disabled:cursor-not-allowed focus-visible:outline-none focus-visible:[box-shadow:var(--uq-focus-ring)]"
         >
-          Generate tasks
+          Review role evidence
         </button>
       </div>
     </section>

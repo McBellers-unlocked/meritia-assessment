@@ -97,7 +97,7 @@ Key files: `src/app/assess/[scenarioSlug]/page.tsx`, `src/components/recruit/Ass
 
 ## 6. Assessor / admin capability
 
-- **Scenario builder** (`/admin/recruitment/scenarios/[id]`, tabs Overview | Tasks | Exhibits | Publish; per-kind editors under `src/components/admin/recruit/`). Creation paths: blank; **from-JD** (4-step wizard: upload → criteria (max 6) → configure → review; generates 2 memo_ai tasks + rubrics); **from-WIPO** and **from-ITU** (pull a live UN posting into the same pipeline). Publish validates task completeness (memo_ai needs prompt+exhibit; chat needs exactly one script; etc.).
+- **Scenario builder** (`/admin/recruitment/scenarios/[id]`, tabs Overview | Tasks | Exhibits | Publish; per-kind editors under `src/components/admin/recruit/`). Creation paths: blank; **from-JD** (5-step wizard: source → criteria (max 6) → configure → Role Evidence Review → generated-task review; generates 2 memo_ai tasks + rubrics); **from-WIPO** and **from-ITU** pull a live UN posting into that same review pipeline and retain the board/source link. Publish validates task completeness (memo_ai needs prompt+exhibit; chat needs exactly one script; etc.).
 - **Built-in code scenarios** (registry in `src/lib/recruit/fam-p4-2026.ts`; rubric JSON under `infra/recruit/<dir>/marking_rubric.json`):
 
   | Slug | Role / organisation |
@@ -232,6 +232,17 @@ AI interaction.
 
 ### Validation Lab and assessment science
 
+Uploaded JDs and WIPO/ITU imports pass through the same Role Evidence Review
+before task generation. For every selected requirement, the reviewer confirms
+whether it is required at entry, its importance and weak-performance
+consequence, whether it is observable in the proposed assessment, the expected
+AI condition, observable behaviours, expected candidate evidence, rationale
+and keep/exclude decision. The full attributed record (including exclusions)
+is retained on the scenario; retained decisions are also attached to stable
+criteria and surfaced with proportion/observability warnings in the Assessment
+Blueprint. These are role-document and human-review design records, not a claim
+of completed multi-SME job analysis or psychometric validation.
+
 Database scenarios persist stable criteria plus criterion → task → expected
 candidate evidence → rubric-element mappings. Starting a preflight computes a
 canonical SHA-256 content hash, saves deterministic completeness/traceability
@@ -299,7 +310,7 @@ missing and are never filled or inferred by AI.
 
 ### Migration, operations and demonstration
 
-- Apply `prisma/migrations/20260825120000_ai_era_assessment_framework_v1` with `npx prisma migrate deploy` before deploying the app or worker.
+- Apply the Prisma migrations through `20260826180000_role_evidence_review_v1` with `npx prisma migrate deploy` before deploying the app or worker.
 - No new environment variable is required. The validation job reuses `SQS_TASK_QUEUE_URL`/the established queue, `DATABASE_URL`, `ANTHROPIC_API_KEY` and central model configuration.
 - Deploy `lambda/task-generator` with its new validation prompt and handler before admins run Validation Lab.
 - `npx tsx scripts/seed-demo-cohort.ts` idempotently creates all three fictional Halcyon mode variants, current demonstration preflight/review data and the marked Evidence cohort with varied provenance, evidence actions and completed defences. The script verifies the new relationships; `--teardown` removes only those demo rows.

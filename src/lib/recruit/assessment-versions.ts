@@ -22,6 +22,7 @@ export interface FrozenCriterionMapping {
   description: string;
   sourceRequirement: string | null;
   observableBehaviours: unknown;
+  roleEvidence: unknown;
   order: number;
   taskMappings: Array<{
     taskId: string;
@@ -110,6 +111,7 @@ export function criteriaFromAssessmentSnapshot(
     description: criterion.description,
     sourceRequirement: criterion.sourceRequirement,
     observableBehaviours: criterion.observableBehaviours,
+    roleEvidence: criterion.roleEvidence,
     order: criterion.order,
     taskMappings: criterion.taskMappings.map((mapping) => ({
       taskId: mapping.taskId,
@@ -148,6 +150,7 @@ export async function criteriaForAssessment(assessment: {
     description: criterion.description,
     sourceRequirement: criterion.sourceRequirement,
     observableBehaviours: criterion.observableBehaviours,
+    roleEvidence: criterion.roleEvidence,
     order: criterion.order,
     taskMappings: criterion.taskMappings.map((mapping) => ({
       taskId: mapping.taskId,

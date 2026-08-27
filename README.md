@@ -43,6 +43,15 @@ both against the supplied exhibit. A verified match establishes only that the
 source/excerpt exists, not that an interpretation is correct. Candidates can
 save, check, reject and remove cards on their own evidence board.
 
+The **Role Evidence Review** is a shared design gate for uploaded job
+descriptions and WIPO/ITU careers-board imports. AI proposes criteria,
+observable behaviours and expected evidence; an accountable reviewer confirms
+entry requirement, job importance, consequence, observability, AI condition,
+rationale and keep/exclude decisions before task generation. The attributed
+record and source provenance are retained in the assessment blueprint. This is
+initial assessment-design evidence, not a completed job analysis or
+psychometric validation study.
+
 The **Validation Lab** is a design preflight for database scenarios. It hashes
 versioned scenario content, persists that exact immutable model-input snapshot,
 runs deterministic checks immediately, and queues
