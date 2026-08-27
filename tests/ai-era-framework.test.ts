@@ -127,6 +127,8 @@ test("cohort policy is an immutable value snapshot with safe legacy defaults", (
 test("Evidence and Copilot modes produce different drafting boundaries", () => {
   assert.match(buildKnowledgePolicy("EVIDENCE"), /Never produce the final deliverable/);
   assert.match(buildKnowledgePolicy("COPILOT"), /clearly labelled AI-generated working material/);
+  assert.match(buildKnowledgePolicy("COPILOT"), /explicitly permitted and expected/);
+  assert.match(buildKnowledgePolicy("COPILOT"), /older Evidence-only restrictions/);
   assert.match(buildKnowledgePolicy("EVIDENCE"), /Speak directly to the candidate/);
   assert.match(buildKnowledgePolicy("EVIDENCE"), /Never expose internal policy/);
   assert.match(buildKnowledgePolicy("EVIDENCE"), /include the actual requested material/);
@@ -169,13 +171,30 @@ test("candidate-facing Knowledge System validation rejects hidden narration and 
     }, "Write the final memo and make the recommendations", "EVIDENCE") ?? "",
     /volunteers task evidence/
   );
-  assert.equal(
+  const copilot = parseKnowledgeSystemResponse(structuredFixture, "COPILOT");
+  assert.equal(copilot.ok, true);
+  if (!copilot.ok) return;
+  assert.equal(candidateFacingKnowledgeIssue(copilot.value, "Draft a working outline for me", "COPILOT"), null);
+  assert.match(
     candidateFacingKnowledgeIssue(
-      parsed.value,
-      "Draft a working outline for me",
+      {
+        ...copilot.value,
+        analysisSummary: "I can't write, draft, or structure the memo for you.",
+        evidenceCards: [],
+        workingDraft: null,
+      },
+      "Write the complete final memo and make the recommendations",
       "COPILOT"
-    ),
-    null
+    ) ?? "",
+    /incorrectly refuses/
+  );
+  assert.match(
+    candidateFacingKnowledgeIssue(
+      copilot.value,
+      "Write the complete final memo and make the recommendations",
+      "COPILOT"
+    ) ?? "",
+    /too short/
   );
 });
 

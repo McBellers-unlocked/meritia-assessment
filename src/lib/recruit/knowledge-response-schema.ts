@@ -135,6 +135,8 @@ const CLAIMS_MISSING_MATERIAL =
   /\b(?:all\s+)?(?:figures|data|evidence|cards?|breakdowns?|results?)\b.{0,45}\b(?:returned|provided|listed|shown|set out)\s+below\b/i;
 const AUTHORSHIP_REQUEST =
   /\b(?:write|draft|compose|complete|final memo|make (?:the )?recommendations?|what should i recommend|key takeaways?|outline|structure)\b/i;
+const DRAFTING_REFUSAL =
+  /\bi\s+(?:can(?:not|'t|’t)|am unable to|won't|will not)\b.{0,120}\b(?:write|draft|structure|compose|recommend)/i;
 
 /**
  * Reject responses that expose hidden policy narration or claim to contain
@@ -151,6 +153,7 @@ export function candidateFacingKnowledgeIssue(
     ...value.evidenceCards.flatMap((card) => [card.claim, card.explanation]),
     ...value.uncertainties,
     ...value.questionsToResolve,
+    value.workingDraft?.content ?? "",
   ].join("\n");
   if (INTERNAL_RESPONSE_LANGUAGE.some((pattern) => pattern.test(visibleText))) {
     return "Response exposes internal policy or hidden reasoning.";
@@ -164,6 +167,21 @@ export function candidateFacingKnowledgeIssue(
     }
     if (value.analysisSummary.split(/\s+/).filter(Boolean).length > 80) {
       return "Boundary response is too long for a candidate-facing refusal.";
+    }
+  }
+  if (assessmentMode !== "EVIDENCE" && AUTHORSHIP_REQUEST.test(candidateMessage)) {
+    if (DRAFTING_REFUSAL.test(visibleText)) {
+      return "Drafting-permitted mode incorrectly refuses the candidate's authorship request.";
+    }
+    if (!value.workingDraft?.content.trim()) {
+      return "Drafting-permitted mode did not return the requested working draft.";
+    }
+    if (/\b(?:complete|final memo)\b/i.test(candidateMessage)) {
+      const draftWords = value.workingDraft.content.split(/\s+/).filter(Boolean).length;
+      if (draftWords < 180) return "Requested complete deliverable is too short to be a usable working draft.";
+    }
+    if (value.evidenceCards.length === 0) {
+      return "Drafting response did not include source-grounded evidence cards.";
     }
   }
   return null;
@@ -201,6 +219,7 @@ export const KNOWLEDGE_RESPONSE_TOOL = {
       uncertainties: { type: "array", items: { type: "string" } },
       questionsToResolve: { type: "array", items: { type: "string" } },
       workingDraft: {
+        description: "Null in Evidence Mode. In Copilot or Open Agent Mode, put requested outlines, recommendations and complete draft deliverables here as clearly labelled AI-generated working material.",
         anyOf: [
           { type: "null" },
           { type: "object", required: ["label", "content"], properties: { label: { type: "string" }, content: { type: "string" } } },
