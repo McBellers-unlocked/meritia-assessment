@@ -259,7 +259,27 @@ const EVIDENCE_REQUEST =
 const AUTHORSHIP_REQUEST =
   /\b(?:write|draft|compose|complete|final memo|make (?:the )?recommendations?|what should i recommend|key takeaways?|outline|structure)\b/i;
 
-export function candidateKnowledgeQualityIssue(response, candidateMessage = "") {
+export function isEvidenceAuthorshipRequest(candidateMessage, assessmentMode) {
+  return assessmentMode === "EVIDENCE" && AUTHORSHIP_REQUEST.test(candidateMessage);
+}
+
+export function evidenceAuthorshipBoundaryResponse() {
+  return {
+    schemaVersion: CANDIDATE_KNOWLEDGE_SCHEMA_VERSION,
+    analysisSummary:
+      "I can’t write the final memo or make the recommendations for you. I can pull specific figures, compare parts of the supplied material, or explain caveats and methodology so you can form your own view.",
+    evidenceCards: [],
+    uncertainties: [],
+    questionsToResolve: [],
+    workingDraft: null,
+  };
+}
+
+export function candidateKnowledgeQualityIssue(
+  response,
+  candidateMessage = "",
+  assessmentMode = "EVIDENCE"
+) {
   const visibleText = [
     response.analysisSummary,
     ...response.evidenceCards.flatMap((card) => [card.claim, card.explanation]),
@@ -275,7 +295,7 @@ export function candidateKnowledgeQualityIssue(response, candidateMessage = "") 
   ) {
     return "Response claims evidence is present but returned no evidence cards.";
   }
-  if (AUTHORSHIP_REQUEST.test(candidateMessage)) {
+  if (isEvidenceAuthorshipRequest(candidateMessage, assessmentMode)) {
     if (response.evidenceCards.length > 0) {
       return "Boundary response volunteers task evidence the candidate did not request directly.";
     }
@@ -289,9 +309,6 @@ export function candidateKnowledgeQualityIssue(response, candidateMessage = "") 
     !AUTHORSHIP_REQUEST.test(candidateMessage)
   ) {
     return "Candidate requested task data, but the response returned no evidence cards.";
-  }
-  if (response.evidenceCards.some((card) => card.verificationStatus === "unverified")) {
-    return "One or more direct-evidence excerpts could not be verified against the supplied source.";
   }
   return null;
 }

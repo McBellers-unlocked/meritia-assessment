@@ -143,7 +143,8 @@ const AUTHORSHIP_REQUEST =
  */
 export function candidateFacingKnowledgeIssue(
   value: KnowledgeSystemResponse,
-  candidateMessage = ""
+  candidateMessage = "",
+  assessmentMode: AssessmentMode = "EVIDENCE"
 ): string | null {
   const visibleText = [
     value.analysisSummary,
@@ -157,7 +158,7 @@ export function candidateFacingKnowledgeIssue(
   if (value.evidenceCards.length === 0 && CLAIMS_MISSING_MATERIAL.test(value.analysisSummary)) {
     return "Response claims evidence is present but returned no evidence cards.";
   }
-  if (AUTHORSHIP_REQUEST.test(candidateMessage)) {
+  if (assessmentMode === "EVIDENCE" && AUTHORSHIP_REQUEST.test(candidateMessage)) {
     if (value.evidenceCards.length > 0) {
       return "Boundary response volunteers task evidence the candidate did not request directly.";
     }

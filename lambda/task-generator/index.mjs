@@ -50,6 +50,8 @@ import {
   buildCandidateKnowledgeSystemPrompt,
   candidateKnowledgeQualityIssue,
   candidateKnowledgeResponseToText,
+  evidenceAuthorshipBoundaryResponse,
+  isEvidenceAuthorshipRequest,
   parseCandidateKnowledgeResponse,
   validateCandidateKnowledgeSources,
 } from "./candidate-knowledge.mjs";
@@ -315,9 +317,11 @@ async function processCandidateKnowledgeResponse(job) {
   const started = Date.now();
   const candidateMessage = [...messages].reverse().find((item) => item.role === "user")?.content ?? "";
   try {
-    let completed = null;
+    let completed = isEvidenceAuthorshipRequest(candidateMessage, assessmentMode)
+      ? { response: null, structuredPayload: evidenceAuthorshipBoundaryResponse() }
+      : null;
     let retryReason = "";
-    for (let qualityAttempt = 0; qualityAttempt < 2; qualityAttempt += 1) {
+    for (let qualityAttempt = 0; !completed && qualityAttempt < 2; qualityAttempt += 1) {
       const response = await createCandidateKnowledgeMessage({
         model: CANDIDATE_KNOWLEDGE_MODEL,
         max_tokens: CANDIDATE_KNOWLEDGE_MAX_TOKENS,
@@ -345,7 +349,11 @@ async function processCandidateKnowledgeResponse(job) {
         throw new Error(`Invalid knowledge response: ${parsed.error}`);
       }
       const structuredPayload = validateCandidateKnowledgeSources(parsed.value, sources);
-      const qualityIssue = candidateKnowledgeQualityIssue(structuredPayload, candidateMessage);
+      const qualityIssue = candidateKnowledgeQualityIssue(
+        structuredPayload,
+        candidateMessage,
+        assessmentMode
+      );
       if (qualityIssue) {
         retryReason = qualityIssue;
         if (qualityAttempt === 0) continue;
@@ -364,15 +372,18 @@ async function processCandidateKnowledgeResponse(job) {
       status: card.verificationStatus,
       note: card.verificationNote,
     }));
+    const responseModel = response ? CANDIDATE_KNOWLEDGE_MODEL : "policy-boundary-v1";
+    const inputTokens = response?.usage?.input_tokens ?? 0;
+    const outputTokens = response?.usage?.output_tokens ?? 0;
     const metadata = {
-      model: CANDIDATE_KNOWLEDGE_MODEL,
+      model: responseModel,
       threadKey,
       requestInteractionId: interactionId,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? 0,
-      cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
-      stopReason: response.stop_reason,
+      inputTokens,
+      outputTokens,
+      cacheCreationInputTokens: response?.usage?.cache_creation_input_tokens ?? 0,
+      cacheReadInputTokens: response?.usage?.cache_read_input_tokens ?? 0,
+      stopReason: response?.stop_reason ?? "policy_boundary",
       responseStatus: "completed",
       responseKind: "knowledge",
       elapsedMs: Date.now() - started,
@@ -392,11 +403,11 @@ async function processCandidateKnowledgeResponse(job) {
           candidateId,
           taskNumber,
           text,
-          response.usage.output_tokens,
+          outputTokens,
           JSON.stringify(metadata),
           JSON.stringify(structuredPayload),
           CANDIDATE_KNOWLEDGE_SCHEMA_VERSION,
-          CANDIDATE_KNOWLEDGE_MODEL,
+          responseModel,
           CANDIDATE_KNOWLEDGE_POLICY_VERSION,
           assessmentMode,
           JSON.stringify(sourceValidation),
