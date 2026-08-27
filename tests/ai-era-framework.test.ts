@@ -166,8 +166,16 @@ test("candidate-facing Knowledge System validation rejects hidden narration and 
     candidateFacingKnowledgeIssue({
       ...parsed.value,
       analysisSummary: "I cannot write the memo, but I can retrieve specific figures for you.",
-    }, "Write the final memo and make the recommendations") ?? "",
+    }, "Write the final memo and make the recommendations", "EVIDENCE") ?? "",
     /volunteers task evidence/
+  );
+  assert.equal(
+    candidateFacingKnowledgeIssue(
+      parsed.value,
+      "Draft a working outline for me",
+      "COPILOT"
+    ),
+    null
   );
 });
 

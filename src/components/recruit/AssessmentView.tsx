@@ -421,7 +421,7 @@ export default function AssessmentView({
       if (body.pending && body.requestInteractionId) {
         const requestInteractionId = body.requestInteractionId;
         let completed = false;
-        for (let attempt = 0; attempt < 60; attempt++) {
+        for (let attempt = 0; attempt < 120; attempt++) {
           await new Promise((resolve) => window.setTimeout(resolve, 1500));
           const poll = await fetch(`/api/assess/state/${encodeURIComponent(token)}`, {
             cache: "no-store",
